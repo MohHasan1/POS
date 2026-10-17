@@ -83,11 +83,11 @@ function Stop-PackagedQuickPos([System.Diagnostics.Process]$LauncherProcess) {
 
 try {
   $firstRun = Start-PackagedQuickPos 1
-  $home = Invoke-WebRequest "$baseUrl/" -UseBasicParsing -TimeoutSec 10
+  $homeResponse = Invoke-WebRequest "$baseUrl/" -UseBasicParsing -TimeoutSec 10
   $icon = Invoke-WebRequest "$baseUrl/icon.svg" -UseBasicParsing -TimeoutSec 10
   $manifest = Invoke-RestMethod "$baseUrl/manifest.webmanifest" -TimeoutSec 10
 
-  if ($home.StatusCode -ne 200 -or $home.Content -notmatch "QuickPOS") {
+  if ($homeResponse.StatusCode -ne 200 -or $homeResponse.Content -notmatch "QuickPOS") {
     throw "The packaged Home page did not render QuickPOS."
   }
   if ($icon.StatusCode -ne 200 -or $icon.Content -notmatch "<svg") {
