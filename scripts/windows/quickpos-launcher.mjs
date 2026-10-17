@@ -176,6 +176,14 @@ function readRelease() {
   }
 }
 
+function toLibSQLFileURL(filePath) {
+  // @libsql/client passes the parsed file URL path directly to the native
+  // driver. On Windows, the WHATWG form (file:///C:/...) leaves a leading
+  // slash that is not a valid native drive path, so retain URL escaping while
+  // converting it to the libSQL-supported file:C:/... form.
+  return pathToFileURL(filePath).href.replace(/^file:\/\/\/(?=[a-z]:\/)/i, 'file:')
+}
+
 function backupDatabase() {
   if (!existsSync(databasePath) || statSync(databasePath).size === 0) return
 
@@ -408,7 +416,7 @@ async function main() {
   backupDatabase()
 
   const shutdownToken = randomBytes(32).toString('base64url')
-  const databaseURL = pathToFileURL(databasePath).href
+  const databaseURL = toLibSQLFileURL(databasePath)
   serverLogHandle = openSync(serverLogPath, 'a')
   serverProcess = spawn(runtimeNode, [serverEntry], {
     cwd: applicationDirectory,

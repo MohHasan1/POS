@@ -133,6 +133,14 @@ try {
 
   Write-Host "Packaged QuickPOS runtime passed startup, migration, static asset, shutdown, restart, and backup checks."
 }
+catch {
+  Write-Host "QuickPOS packaged runtime diagnostics:" -ForegroundColor Yellow
+  Get-ChildItem $smokeRoot -Recurse -File -Filter "*.log" -ErrorAction SilentlyContinue | ForEach-Object {
+    Write-Host "--- $($_.FullName) ---" -ForegroundColor Yellow
+    Get-Content $_.FullName -ErrorAction SilentlyContinue | Write-Host
+  }
+  throw
+}
 finally {
   Get-Process node -ErrorAction SilentlyContinue | Where-Object {
     $_.Path -eq $nodePath

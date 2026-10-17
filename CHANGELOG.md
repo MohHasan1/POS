@@ -29,6 +29,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - Enabled Next.js standalone output and explicit Windows libSQL runtime tracing for offline packaging.
+- Normalized persistent SQLite file URLs for native Windows paths and exposed packaged-runtime logs when CI smoke tests fail.
 - Split legal business details from device-level application and invoicing preferences.
 - Centralized application navigation and added distinct Business Information and Settings entries.
 - Reworked the Home page around a primary Start Checkout action and practical daily shortcuts.
