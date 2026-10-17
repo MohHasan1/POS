@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Script from 'next/script'
 import React from 'react'
 
 import { AppShell } from '@/components/layout/AppShell'
@@ -20,8 +21,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const { dictionary, locale } = await getDictionary()
 
   return (
-    <html lang={locale}>
+    <html lang={locale} suppressHydrationWarning>
       <body>
+        <Script id="theme-initializer" strategy="beforeInteractive">
+          {`try {
+            const savedTheme = localStorage.getItem('counter-pos-theme');
+            const isDark = savedTheme === 'dark' || (!savedTheme && matchMedia('(prefers-color-scheme: dark)').matches);
+            document.documentElement.classList.toggle('dark', isDark);
+          } catch {}`}
+        </Script>
         <AppShell dictionary={dictionary}>{children}</AppShell>
         <PwaRegistration />
       </body>

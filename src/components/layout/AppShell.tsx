@@ -3,6 +3,7 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
+import { ThemeToggle } from '@/components/layout/ThemeToggle'
 import type { Dictionary } from '@/lib/localization'
 
 export function AppShell({
@@ -41,6 +42,7 @@ export function AppShell({
                 <span className="hidden md:inline">{label}</span>
               </Link>
             ))}
+            <ThemeToggle label={dictionary.themeToggle} />
             <LanguageSwitcher label={dictionary.language} />
           </nav>
         </div>

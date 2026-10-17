@@ -15,7 +15,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - ZATCA Phase 1 UTF-8 TLV QR generation from finalized invoice values.
 - Payload CMS models for products, invoices, shop settings, SQLite development, and MongoDB production.
 - Installable PWA manifest with a safe offline notice.
+- Persistent light and dark theme toggle that respects the system preference on first use.
 - Focused financial, QR, numbering, and duplicate-finalization tests.
+
+### Changed
+
+- Removed the deprecated TypeScript `baseUrl` option while preserving explicit source aliases.
 
 ### Security
 
