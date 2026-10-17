@@ -32,6 +32,16 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
           package-manager-cache: false
 
+      - name: Read package version
+        id: package
+        shell: powershell
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
+            throw "package.json contains an invalid release version: $version"
+          }
+          [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, "version=$version`n")
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -75,6 +85,8 @@ jobs:
 
       - name: Compile Inno Setup installer
         shell: powershell
+        env:
+          QUICKPOS_VERSION: ${{ steps.package.outputs.version }}
         run: |
           $iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
           if (-not $iscc) {
@@ -84,25 +96,22 @@ jobs:
             throw "Inno Setup 6 is not installed on this Windows runner."
           }
 
-          $version = node -p "require('./package.json').version"
-          & $iscc "/DMyAppVersion=$version" "installer\quickpos.iss"
+          & $iscc "/DMyAppVersion=$env:QUICKPOS_VERSION" "installer\quickpos.iss"
           if ($LASTEXITCODE -ne 0) {
             throw "Inno Setup failed with exit code $LASTEXITCODE."
           }
 
-      - name: Verify installer artifact
+      - name: Create installer manifests
         shell: powershell
-        run: |
-          $installer = "dist\windows\installer\QuickPOS-Setup.exe"
-          if (-not (Test-Path $installer)) {
-            throw "QuickPOS-Setup.exe was not created."
-          }
-          Get-FileHash $installer -Algorithm SHA256
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File scripts/windows/write-installer-manifest.ps1
+          -SourceCommit $env:GITHUB_SHA
 
       - name: Upload private workflow artifact
         uses: actions/upload-artifact@v7
         with:
-          name: QuickPOS-Windows-x64
-          path: dist/windows/installer/QuickPOS-Setup.exe
+          name: QuickPOS-Windows-x64-v${{ steps.package.outputs.version }}
+          path: dist/windows/installer/*
           if-no-files-found: error
           retention-days: 14

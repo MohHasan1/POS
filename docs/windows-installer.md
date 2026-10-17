@@ -9,12 +9,14 @@ The installer must be built on Windows so the standalone trace contains Windows-
 1. Open **Actions → Build Windows installer (fast)**.
 2. Select **Run workflow**.
 3. Wait for the `QuickPOS Windows x64 fast` job to finish.
-4. Download the private `QuickPOS-Windows-x64-fast` workflow artifact.
+4. Download the private versioned artifact, such as `QuickPOS-Windows-x64-fast-v1.0.0`.
 5. Extract `QuickPOS-Setup.exe` before running it.
 
-The fast workflow skips the separate lint, unit-test, and `tsc` jobs, but it still creates the production standalone build, validates the launcher syntax and Windows libSQL native module, exercises the packaged launcher twice, and compiles the real Inno Setup installer. Use **Build Windows installer** for final release validation; it performs all source checks before packaging and uploads the longer-lived `QuickPOS-Windows-x64` artifact.
+The fast workflow skips the separate lint, unit-test, and `tsc` jobs, but it still creates the production standalone build, validates the launcher syntax and Windows libSQL native module, exercises the packaged launcher twice, and compiles the real Inno Setup installer. Use **Build Windows installer** for final release validation; it performs all source checks before packaging and uploads the longer-lived versioned artifact without `fast` in its name.
 
 Both workflows use Node.js 24.22.0 and pnpm 10.32.1, install from the frozen lockfile, share the Next.js build cache, and reuse the pinned Node.js runtime already installed by GitHub Actions instead of downloading it again. Neither workflow publishes a GitHub Release or makes the installer public.
+
+Each downloaded artifact contains `QuickPOS-Setup.exe`, `QuickPOS-Setup.manifest.json`, and `SHA256SUMS.txt`. The artifact name and JSON manifest take their version from `package.json`; the manifest also records the platform, bundled Node.js version, source commit, installer size, and SHA-256 checksum.
 
 For debugging on a Windows workstation, run:
 

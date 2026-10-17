@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Hidden single-instance Windows launcher with a database-backed health check, browser startup, logs, and safe shutdown shortcut.
 - Persistent per-user SQLite storage, generated Payload secret, and rolling pre-migration backups under Local AppData.
 - Fast Windows installer workflow for short build-test iterations while retaining the full release-validation workflow.
+- Versioned Windows workflow artifacts with JSON build metadata and SHA-256 checksum manifests.
 - Separate Business Information page backed by the existing shop settings Global.
 - Persistent English/Bangla language and Light/Dark/System appearance controls in Application Settings.
 - Shop display names and recent-invoice shortcuts on the redesigned Home page.
