@@ -1,9 +1,9 @@
 'use client'
 
-import { Minus, Plus, Search, ShoppingCart, Trash2 } from 'lucide-react'
+import { Languages, Minus, Plus, Search, ShoppingCart, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { FormEvent, useState, useTransition } from 'react'
+import { type SubmitEvent, useState, useTransition } from 'react'
 
 import { finalizeInvoiceAction } from '@/actions/checkout'
 import { createProductAction } from '@/actions/products'
@@ -26,6 +26,11 @@ import type { Dictionary, Locale } from '@/lib/localization'
 import { decimalToMinor, formatSAR, minorToDecimal } from '@/lib/money'
 import type { BuyerInput, ProductSummary } from '@/lib/pos-types'
 import { calculateInvoiceTotals, calculateLine } from '@/lib/vat'
+import {
+  ProductTranslationError,
+  shouldAutoTranslateProductName,
+  translateEnglishProductName,
+} from '@/services/browser-translator'
 
 type CartItem = {
   key: string
@@ -54,15 +59,94 @@ function CustomItemDialog({
   dictionary: Dictionary
   onAdd: (item: CartItem) => void
 }) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
+  const [nameEnglish, setNameEnglish] = useState('')
+  const [nameBangla, setNameBangla] = useState('')
+  const [nameArabic, setNameArabic] = useState('')
   const [includesVat, setIncludesVat] = useState(defaultPriceIncludesVat)
-  const [saveToCatalog, setSaveToCatalog] = useState(false)
+  const [saveToCatalog, setSaveToCatalog] = useState(true)
   const [error, setError] = useState('')
+  const [translationMessage, setTranslationMessage] = useState('')
+  const [translationPending, setTranslationPending] = useState(false)
   const [pending, startTransition] = useTransition()
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  function translationErrorMessage(translationError: unknown) {
+    return translationError instanceof ProductTranslationError &&
+      translationError.code === 'unavailable'
+      ? dictionary.translationUnavailableMessage
+      : dictionary.translationFailed
+  }
+
+  async function translateMissingNames(requireBangla: boolean): Promise<{
+    translatedArabic: string
+    translatedBangla: string
+  } | null> {
+    let translatedArabic = nameArabic.trim()
+    let translatedBangla = nameBangla.trim()
+
+    if (!nameEnglish.trim()) {
+      setError(dictionary.translationEmptyEnglish)
+      return null
+    }
+
+    if (
+      !shouldAutoTranslateProductName(translatedArabic) &&
+      !shouldAutoTranslateProductName(translatedBangla)
+    ) {
+      return { translatedArabic, translatedBangla }
+    }
+
+    setTranslationMessage('')
+    setTranslationPending(true)
+
+    try {
+      if (shouldAutoTranslateProductName(translatedArabic)) {
+        setTranslationMessage(dictionary.translatingArabic)
+        try {
+          translatedArabic = await translateEnglishProductName(nameEnglish, 'ar', (loaded) => {
+            setTranslationMessage(`${dictionary.translatingArabic} ${Math.round(loaded * 100)}%`)
+          })
+          setNameArabic(translatedArabic)
+        } catch (translationError) {
+          setError(translationErrorMessage(translationError))
+          return null
+        }
+      }
+
+      if (shouldAutoTranslateProductName(translatedBangla)) {
+        setTranslationMessage(dictionary.translatingBangla)
+        try {
+          translatedBangla = await translateEnglishProductName(nameEnglish, 'bn', (loaded) => {
+            setTranslationMessage(`${dictionary.translatingBangla} ${Math.round(loaded * 100)}%`)
+          })
+          setNameBangla(translatedBangla)
+        } catch (translationError) {
+          if (requireBangla) {
+            setError(translationErrorMessage(translationError))
+            return null
+          }
+          translatedBangla = ''
+        }
+      }
+
+      return { translatedArabic, translatedBangla }
+    } finally {
+      setTranslationPending(false)
+      setTranslationMessage('')
+    }
+  }
+
+  async function autoTranslate() {
+    setError('')
+    await translateMissingNames(true)
+  }
+
+  async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
+    setError('')
+
     const priceMinor = decimalToMinor(String(formData.get('price') || ''))
     const quantity = Number(formData.get('quantity'))
     if (priceMinor === null || !Number.isFinite(quantity) || quantity <= 0) {
@@ -70,18 +154,17 @@ function CustomItemDialog({
       return
     }
 
+    const translatedNames = await translateMissingNames(false)
+    if (!translatedNames) return
+
     const base = {
-      descriptionEnglish: String(formData.get('nameEnglish') || '').trim(),
-      descriptionBangla: String(formData.get('nameBangla') || '').trim() || undefined,
-      descriptionArabic: String(formData.get('nameArabic') || '').trim(),
+      descriptionEnglish: nameEnglish.trim(),
+      descriptionBangla: translatedNames.translatedBangla || undefined,
+      descriptionArabic: translatedNames.translatedArabic,
       unitPriceMinor: priceMinor,
       quantityMilliunits: Math.round(quantity * 1000),
       vatCategory: String(formData.get('vatCategory')) as ProductSummary['vatCategory'],
       priceIncludesVat: includesVat,
-    }
-    if (!base.descriptionEnglish || !base.descriptionArabic) {
-      setError('English and Arabic descriptions are required.')
-      return
     }
 
     startTransition(async () => {
@@ -90,7 +173,7 @@ function CustomItemDialog({
           nameEnglish: base.descriptionEnglish,
           nameBangla: base.descriptionBangla || '',
           nameArabic: base.descriptionArabic,
-          sku: '',
+          sku: String(formData.get('sku') || ''),
           priceMinor: base.unitPriceMinor,
           vatCategory: base.vatCategory,
           priceIncludesVat: base.priceIncludesVat,
@@ -100,9 +183,15 @@ function CustomItemDialog({
           return
         }
         onAdd({ ...base, key: `product:${result.data.id}`, productId: result.data.id })
+        router.refresh()
       } else {
         onAdd({ ...base, key: `custom:${crypto.randomUUID()}` })
       }
+      setNameEnglish('')
+      setNameBangla('')
+      setNameArabic('')
+      setIncludesVat(defaultPriceIncludesVat)
+      setSaveToCatalog(true)
       setOpen(false)
       setError('')
     })
@@ -111,7 +200,8 @@ function CustomItemDialog({
   return (
     <>
       <Button variant="outline" onClick={() => setOpen(true)}>
-        <Plus aria-hidden="true" />{dictionary.addCustomProduct}
+        <Plus aria-hidden="true" />
+        {dictionary.addCustomProduct}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-xl">
@@ -122,16 +212,52 @@ function CustomItemDialog({
           <form onSubmit={submit} className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="custom-name-en">{dictionary.nameEnglish}</Label>
-                <Input id="custom-name-en" name="nameEnglish" required />
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="custom-name-en">{dictionary.nameEnglish}</Label>
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="outline"
+                    disabled={pending || translationPending}
+                    onClick={autoTranslate}
+                  >
+                    <Languages aria-hidden="true" />
+                    {dictionary.autoTranslate}
+                  </Button>
+                </div>
+                <Input
+                  id="custom-name-en"
+                  name="nameEnglish"
+                  disabled={translationPending}
+                  onChange={(event) => setNameEnglish(event.target.value)}
+                  value={nameEnglish}
+                  required
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="custom-name-bn">{dictionary.nameBangla}</Label>
-                <Input id="custom-name-bn" name="nameBangla" />
+                <Input
+                  id="custom-name-bn"
+                  name="nameBangla"
+                  disabled={translationPending}
+                  onChange={(event) => setNameBangla(event.target.value)}
+                  value={nameBangla}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="custom-name-ar">{dictionary.nameArabic}</Label>
-                <Input id="custom-name-ar" name="nameArabic" dir="rtl" required />
+                <Input
+                  id="custom-name-ar"
+                  name="nameArabic"
+                  dir="rtl"
+                  disabled={translationPending}
+                  onChange={(event) => setNameArabic(event.target.value)}
+                  value={nameArabic}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="custom-sku">{dictionary.sku}</Label>
+                <Input id="custom-sku" name="sku" />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="custom-price">{dictionary.price} (SAR)</Label>
@@ -139,11 +265,24 @@ function CustomItemDialog({
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="custom-quantity">{dictionary.quantity}</Label>
-                <Input id="custom-quantity" name="quantity" type="number" min="0.001" step="0.001" defaultValue="1" required />
+                <Input
+                  id="custom-quantity"
+                  name="quantity"
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  defaultValue="1"
+                  required
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="custom-vat">{dictionary.vatCategory}</Label>
-                <select id="custom-vat" name="vatCategory" defaultValue="standard" className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm">
+                <select
+                  id="custom-vat"
+                  name="vatCategory"
+                  defaultValue="standard"
+                  className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm"
+                >
                   <option value="standard">{dictionary.standardRated}</option>
                   <option value="zero">{dictionary.zeroRated}</option>
                   <option value="exempt">{dictionary.exempt}</option>
@@ -158,10 +297,23 @@ function CustomItemDialog({
               <Checkbox checked={saveToCatalog} onCheckedChange={setSaveToCatalog} />
               {dictionary.saveToCatalog}
             </label>
-            {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
+            {translationMessage && (
+              <p className="text-sm text-muted-foreground" role="status">
+                {translationMessage}
+              </p>
+            )}
+            {error && (
+              <p className="text-sm text-destructive" role="alert">
+                {error}
+              </p>
+            )}
             <DialogFooter className="mx-0 mb-0 px-0 pb-0">
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>{dictionary.cancel}</Button>
-              <Button type="submit" disabled={pending}>{pending ? dictionary.saving : dictionary.addCustomProduct}</Button>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                {dictionary.cancel}
+              </Button>
+              <Button type="submit" disabled={pending || translationPending}>
+                {pending ? dictionary.saving : dictionary.addCustomProduct}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -207,9 +359,7 @@ export function CheckoutClient({
       const existing = current.find((item) => item.key === key)
       if (existing) {
         return current.map((item) =>
-          item.key === key
-            ? { ...item, quantityMilliunits: item.quantityMilliunits + 1000 }
-            : item,
+          item.key === key ? { ...item, quantityMilliunits: item.quantityMilliunits + 1000 } : item,
         )
       }
       return [
@@ -240,9 +390,11 @@ export function CheckoutClient({
   function updateQuantity(key: string, delta: number) {
     setCart((current) =>
       current
-        .map((item) => item.key === key
-          ? { ...item, quantityMilliunits: item.quantityMilliunits + delta }
-          : item)
+        .map((item) =>
+          item.key === key
+            ? { ...item, quantityMilliunits: item.quantityMilliunits + delta }
+            : item,
+        )
         .filter((item) => item.quantityMilliunits > 0),
     )
   }
@@ -278,10 +430,23 @@ export function CheckoutClient({
       <section className="rounded-lg border bg-background">
         <div className="flex flex-col gap-3 border-b p-3 sm:flex-row sm:items-center">
           <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-2.5 top-2 size-4 text-muted-foreground" aria-hidden="true" />
-            <Input className="pl-8" type="search" placeholder={dictionary.searchProducts} value={search} onChange={(event) => setSearch(event.target.value)} />
+            <Search
+              className="pointer-events-none absolute left-2.5 top-2 size-4 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <Input
+              className="pl-8"
+              type="search"
+              placeholder={dictionary.searchProducts}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
           </div>
-          <CustomItemDialog defaultPriceIncludesVat={defaultPriceIncludesVat} dictionary={dictionary} onAdd={addCustom} />
+          <CustomItemDialog
+            defaultPriceIncludesVat={defaultPriceIncludesVat}
+            dictionary={dictionary}
+            onAdd={addCustom}
+          />
         </div>
         <div className="grid gap-px bg-border sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((product) => (
@@ -292,23 +457,47 @@ export function CheckoutClient({
               className="flex min-h-24 flex-col justify-between bg-background p-3 text-left hover:bg-muted focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
             >
               <span>
-                <span className="block text-sm font-medium">{locale === 'bn' && product.nameBangla ? product.nameBangla : product.nameEnglish}</span>
-                <span className="mt-0.5 block text-xs text-muted-foreground" dir="rtl">{product.nameArabic}</span>
+                <span className="block text-sm font-medium">
+                  {locale === 'bn' && product.nameBangla ? product.nameBangla : product.nameEnglish}
+                </span>
+                <span className="mt-0.5 block text-xs text-muted-foreground" dir="rtl">
+                  {product.nameArabic}
+                </span>
               </span>
               <span className="mt-3 flex items-end justify-between gap-2">
                 <span className="font-medium tabular-nums">{formatSAR(product.priceMinor)}</span>
-                <Badge variant="outline">{product.vatCategory === 'standard' ? '15%' : product.vatCategory === 'zero' ? '0%' : dictionary.exempt}</Badge>
+                <Badge variant="outline">
+                  {product.vatCategory === 'standard'
+                    ? '15%'
+                    : product.vatCategory === 'zero'
+                      ? '0%'
+                      : dictionary.exempt}
+                </Badge>
               </span>
             </button>
           ))}
-          {filtered.length === 0 && <p className="col-span-full bg-background p-8 text-center text-sm text-muted-foreground">{dictionary.noProducts}</p>}
+          {filtered.length === 0 && (
+            <p className="col-span-full bg-background p-8 text-center text-sm text-muted-foreground">
+              {dictionary.noProducts}
+            </p>
+          )}
         </div>
       </section>
 
       <aside className="rounded-lg border bg-background lg:sticky lg:top-20">
         <div className="flex items-center justify-between border-b p-3">
-          <h2 className="flex items-center gap-2 font-medium"><ShoppingCart className="size-4" aria-hidden="true" />{dictionary.cart}</h2>
-          <Button size="sm" variant="ghost" disabled={cart.length === 0} onClick={() => setCart([])}>{dictionary.clearCart}</Button>
+          <h2 className="flex items-center gap-2 font-medium">
+            <ShoppingCart className="size-4" aria-hidden="true" />
+            {dictionary.cart}
+          </h2>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={cart.length === 0}
+            onClick={() => setCart([])}
+          >
+            {dictionary.clearCart}
+          </Button>
         </div>
         <div className="max-h-[42vh] divide-y overflow-y-auto">
           {cart.map((item, index) => {
@@ -318,13 +507,28 @@ export function CheckoutClient({
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="text-sm font-medium">{itemName(item, locale)}</p>
-                    <p className="text-xs text-muted-foreground" dir="rtl">{item.descriptionArabic}</p>
+                    <p className="text-xs text-muted-foreground" dir="rtl">
+                      {item.descriptionArabic}
+                    </p>
                   </div>
-                  <Button aria-label={dictionary.remove} size="icon-sm" variant="ghost" onClick={() => setCart((current) => current.filter((currentItem) => currentItem.key !== item.key))}><Trash2 /></Button>
+                  <Button
+                    aria-label={dictionary.remove}
+                    size="icon-sm"
+                    variant="ghost"
+                    onClick={() =>
+                      setCart((current) =>
+                        current.filter((currentItem) => currentItem.key !== item.key),
+                      )
+                    }
+                  >
+                    <Trash2 />
+                  </Button>
                 </div>
                 <div className="grid grid-cols-[1fr_auto] items-end gap-3">
                   <div>
-                    <Label className="text-xs" htmlFor={`price-${item.key}`}>{dictionary.price} (SAR)</Label>
+                    <Label className="text-xs" htmlFor={`price-${item.key}`}>
+                      {dictionary.price} (SAR)
+                    </Label>
                     <Input
                       key={`${item.key}-${item.unitPriceMinor}`}
                       id={`price-${item.key}`}
@@ -339,7 +543,14 @@ export function CheckoutClient({
                     />
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button aria-label="Decrease quantity" size="icon-sm" variant="outline" onClick={() => updateQuantity(item.key, -1000)}><Minus /></Button>
+                    <Button
+                      aria-label="Decrease quantity"
+                      size="icon-sm"
+                      variant="outline"
+                      onClick={() => updateQuantity(item.key, -1000)}
+                    >
+                      <Minus />
+                    </Button>
                     <Input
                       aria-label={dictionary.quantity}
                       className="w-16 text-center"
@@ -352,27 +563,52 @@ export function CheckoutClient({
                         if (value > 0) updateItem(item.key, { quantityMilliunits: value })
                       }}
                     />
-                    <Button aria-label="Increase quantity" size="icon-sm" variant="outline" onClick={() => updateQuantity(item.key, 1000)}><Plus /></Button>
+                    <Button
+                      aria-label="Increase quantity"
+                      size="icon-sm"
+                      variant="outline"
+                      onClick={() => updateQuantity(item.key, 1000)}
+                    >
+                      <Plus />
+                    </Button>
                   </div>
                 </div>
-                <p className="text-right text-sm font-medium tabular-nums">{formatSAR(line.totalMinor)}</p>
+                <p className="text-right text-sm font-medium tabular-nums">
+                  {formatSAR(line.totalMinor)}
+                </p>
               </div>
             )
           })}
-          {cart.length === 0 && <p className="p-8 text-center text-sm text-muted-foreground">{dictionary.emptyCart}</p>}
+          {cart.length === 0 && (
+            <p className="p-8 text-center text-sm text-muted-foreground">{dictionary.emptyCart}</p>
+          )}
         </div>
 
         <div className="space-y-3 border-t p-3">
           <div className="space-y-1 text-sm tabular-nums">
-            <div className="flex justify-between"><span className="text-muted-foreground">{dictionary.subtotal}</span><span>{formatSAR(totals.subtotalMinor)}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">{dictionary.vat}</span><span>{formatSAR(totals.vatMinor)}</span></div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">{dictionary.subtotal}</span>
+              <span>{formatSAR(totals.subtotalMinor)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">{dictionary.vat}</span>
+              <span>{formatSAR(totals.vatMinor)}</span>
+            </div>
             <Separator />
-            <div className="flex justify-between text-base font-semibold"><span>{dictionary.total}</span><span>{formatSAR(totals.totalMinor)}</span></div>
+            <div className="flex justify-between text-base font-semibold">
+              <span>{dictionary.total}</span>
+              <span>{formatSAR(totals.totalMinor)}</span>
+            </div>
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="invoiceType">{dictionary.invoiceType}</Label>
-            <select id="invoiceType" value={invoiceType} onChange={(event) => setInvoiceType(event.target.value as typeof invoiceType)} className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm">
+            <select
+              id="invoiceType"
+              value={invoiceType}
+              onChange={(event) => setInvoiceType(event.target.value as typeof invoiceType)}
+              className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm"
+            >
               <option value="simplified">{dictionary.simplifiedInvoice}</option>
               <option value="standard">{dictionary.standardInvoice}</option>
             </select>
@@ -380,20 +616,52 @@ export function CheckoutClient({
 
           {invoiceType === 'standard' && (
             <div className="grid gap-2 border-t pt-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-              <Input placeholder={dictionary.buyerName} value={buyer.name || ''} onChange={(event) => setBuyer({ ...buyer, name: event.target.value })} />
-              <Input placeholder={dictionary.buyerVat} inputMode="numeric" value={buyer.vatNumber || ''} onChange={(event) => setBuyer({ ...buyer, vatNumber: event.target.value })} />
-              <Textarea className="sm:col-span-2 lg:col-span-1 xl:col-span-2" placeholder={dictionary.buyerAddress} rows={2} value={buyer.address || ''} onChange={(event) => setBuyer({ ...buyer, address: event.target.value })} />
-              <Input className="sm:col-span-2 lg:col-span-1 xl:col-span-2" placeholder={dictionary.buyerIdentification} value={buyer.identification || ''} onChange={(event) => setBuyer({ ...buyer, identification: event.target.value })} />
+              <Input
+                placeholder={dictionary.buyerName}
+                value={buyer.name || ''}
+                onChange={(event) => setBuyer({ ...buyer, name: event.target.value })}
+              />
+              <Input
+                placeholder={dictionary.buyerVat}
+                inputMode="numeric"
+                value={buyer.vatNumber || ''}
+                onChange={(event) => setBuyer({ ...buyer, vatNumber: event.target.value })}
+              />
+              <Textarea
+                className="sm:col-span-2 lg:col-span-1 xl:col-span-2"
+                placeholder={dictionary.buyerAddress}
+                rows={2}
+                value={buyer.address || ''}
+                onChange={(event) => setBuyer({ ...buyer, address: event.target.value })}
+              />
+              <Input
+                className="sm:col-span-2 lg:col-span-1 xl:col-span-2"
+                placeholder={dictionary.buyerIdentification}
+                value={buyer.identification || ''}
+                onChange={(event) => setBuyer({ ...buyer, identification: event.target.value })}
+              />
             </div>
           )}
 
           {!settingsReady && (
             <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-sm text-amber-900">
-              Complete <Link href="/settings" className="font-medium underline">{dictionary.shopSettings}</Link> before finalizing.
+              Complete{' '}
+              <Link href="/settings" className="font-medium underline">
+                {dictionary.shopSettings}
+              </Link>{' '}
+              before finalizing.
             </p>
           )}
-          {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
-          <Button className="h-10 w-full" disabled={!settingsReady || cart.length === 0 || pending} onClick={finalize}>
+          {error && (
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
+          )}
+          <Button
+            className="h-10 w-full"
+            disabled={!settingsReady || cart.length === 0 || pending}
+            onClick={finalize}
+          >
             {pending ? dictionary.finalizing : dictionary.finalizeSale}
           </Button>
         </div>
