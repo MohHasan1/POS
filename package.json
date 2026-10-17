@@ -14,7 +14,7 @@
     "payload": "cross-env NODE_OPTIONS=--no-deprecation payload",
     "start": "cross-env NODE_OPTIONS=--no-deprecation next start",
     "typecheck": "tsc --noEmit",
-    "test": "cross-env NODE_OPTIONS=--no-deprecation DATABASE_ADAPTER=sqlite DATABASE_URL=file:./test-pos.db PAYLOAD_SECRET=test-only-secret node --import=tsx --test --test-force-exit tests/*.spec.ts"
+    "test": "cross-env NODE_OPTIONS=--no-deprecation DATABASE_ADAPTER=sqlite DATABASE_URL=file:./test-pos.db PAYLOAD_SECRET=test-only-secret node --import=tsx --test --test-concurrency=1 --test-force-exit tests/*.spec.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

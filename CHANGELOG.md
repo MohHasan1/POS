@@ -16,6 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Payload CMS models for products, invoices, shop settings, SQLite development, and MongoDB production.
 - Installable PWA manifest with a safe offline notice.
 - Persistent light and dark theme toggle that respects the system preference on first use.
+- Automatic and on-demand offline English-to-Arabic and English-to-Bangla product-name translation, with Chrome model download status and progress.
+- CSV product import and export with SKU-based updates, validation, and inactive-product support.
 - Focused financial, QR, numbering, and duplicate-finalization tests.
 
 ### Changed

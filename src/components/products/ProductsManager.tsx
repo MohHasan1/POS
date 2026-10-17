@@ -1,8 +1,8 @@
 'use client'
 
-import { Pencil, Plus, Search } from 'lucide-react'
+import { Languages, Pencil, Plus, Search } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { FormEvent, useState, useTransition } from 'react'
+import { type SubmitEvent, useState, useTransition } from 'react'
 
 import {
   createProductAction,
@@ -33,6 +33,11 @@ import {
 import type { Dictionary } from '@/lib/localization'
 import { decimalToMinor, formatSAR, minorToDecimal } from '@/lib/money'
 import type { ProductSummary } from '@/lib/pos-types'
+import {
+  ProductTranslationError,
+  shouldAutoTranslateProductName,
+  translateEnglishProductName,
+} from '@/services/browser-translator'
 
 type ProductFormProps = {
   dictionary: Dictionary
@@ -42,23 +47,108 @@ type ProductFormProps = {
 
 function ProductForm({ dictionary, onDone, product }: ProductFormProps) {
   const router = useRouter()
+  const [nameEnglish, setNameEnglish] = useState(product?.nameEnglish ?? '')
+  const [nameBangla, setNameBangla] = useState(product?.nameBangla ?? '')
+  const [nameArabic, setNameArabic] = useState(product?.nameArabic ?? '')
   const [includesVat, setIncludesVat] = useState(product?.priceIncludesVat ?? true)
   const [error, setError] = useState('')
+  const [translationMessage, setTranslationMessage] = useState('')
+  const [translationPending, setTranslationPending] = useState(false)
   const [pending, startTransition] = useTransition()
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  function translationErrorMessage(translationError: unknown) {
+    return translationError instanceof ProductTranslationError &&
+      translationError.code === 'unavailable'
+      ? dictionary.translationUnavailableMessage
+      : dictionary.translationFailed
+  }
+
+  async function translateMissingNames(requireBangla: boolean): Promise<{
+    translatedArabic: string
+    translatedBangla: string
+  } | null> {
+    let translatedArabic = nameArabic.trim()
+    let translatedBangla = nameBangla.trim()
+
+    if (!nameEnglish.trim()) {
+      setError(dictionary.translationEmptyEnglish)
+      return null
+    }
+
+    if (
+      !shouldAutoTranslateProductName(translatedArabic) &&
+      !shouldAutoTranslateProductName(translatedBangla)
+    ) {
+      return { translatedArabic, translatedBangla }
+    }
+
+    setTranslationMessage('')
+    setTranslationPending(true)
+
+    try {
+      if (shouldAutoTranslateProductName(translatedArabic)) {
+        setTranslationMessage(dictionary.translatingArabic)
+        try {
+          translatedArabic = await translateEnglishProductName(nameEnglish, 'ar', (loaded) => {
+            setTranslationMessage(
+              `${dictionary.translatingArabic} ${Math.round(loaded * 100)}%`,
+            )
+          })
+          setNameArabic(translatedArabic)
+        } catch (translationError) {
+          setError(translationErrorMessage(translationError))
+          return null
+        }
+      }
+
+      if (shouldAutoTranslateProductName(translatedBangla)) {
+        setTranslationMessage(dictionary.translatingBangla)
+        try {
+          translatedBangla = await translateEnglishProductName(nameEnglish, 'bn', (loaded) => {
+            setTranslationMessage(
+              `${dictionary.translatingBangla} ${Math.round(loaded * 100)}%`,
+            )
+          })
+          setNameBangla(translatedBangla)
+        } catch (translationError) {
+          if (requireBangla) {
+            setError(translationErrorMessage(translationError))
+            return null
+          }
+          translatedBangla = ''
+        }
+      }
+
+      return { translatedArabic, translatedBangla }
+    } finally {
+      setTranslationPending(false)
+      setTranslationMessage('')
+    }
+  }
+
+  async function autoTranslate() {
+    setError('')
+    await translateMissingNames(true)
+  }
+
+  async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
+    setError('')
+
     const priceMinor = decimalToMinor(String(formData.get('price') || ''))
     if (priceMinor === null) {
       setError('Enter a valid price with up to two decimal places.')
       return
     }
 
+    const translatedNames = await translateMissingNames(false)
+    if (!translatedNames) return
+
     const input = {
-      nameEnglish: String(formData.get('nameEnglish') || ''),
-      nameBangla: String(formData.get('nameBangla') || ''),
-      nameArabic: String(formData.get('nameArabic') || ''),
+      nameEnglish,
+      nameBangla: translatedNames.translatedBangla,
+      nameArabic: translatedNames.translatedArabic,
       sku: String(formData.get('sku') || ''),
       priceMinor,
       vatCategory: String(formData.get('vatCategory')) as ProductSummary['vatCategory'],
@@ -82,16 +172,48 @@ function ProductForm({ dictionary, onDone, product }: ProductFormProps) {
     <form onSubmit={submit} className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="nameEnglish">{dictionary.nameEnglish}</Label>
-          <Input id="nameEnglish" name="nameEnglish" defaultValue={product?.nameEnglish} required />
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="nameEnglish">{dictionary.nameEnglish}</Label>
+            <Button
+              type="button"
+              size="xs"
+              variant="outline"
+              disabled={pending || translationPending}
+              onClick={autoTranslate}
+            >
+              <Languages aria-hidden="true" />
+              {dictionary.autoTranslate}
+            </Button>
+          </div>
+          <Input
+            id="nameEnglish"
+            name="nameEnglish"
+            disabled={translationPending}
+            onChange={(event) => setNameEnglish(event.target.value)}
+            value={nameEnglish}
+            required
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="nameBangla">{dictionary.nameBangla}</Label>
-          <Input id="nameBangla" name="nameBangla" defaultValue={product?.nameBangla || ''} />
+          <Input
+            id="nameBangla"
+            name="nameBangla"
+            disabled={translationPending}
+            onChange={(event) => setNameBangla(event.target.value)}
+            value={nameBangla}
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="nameArabic">{dictionary.nameArabic}</Label>
-          <Input id="nameArabic" name="nameArabic" dir="rtl" defaultValue={product?.nameArabic} required />
+          <Input
+            id="nameArabic"
+            name="nameArabic"
+            dir="rtl"
+            disabled={translationPending}
+            onChange={(event) => setNameArabic(event.target.value)}
+            value={nameArabic}
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="sku">{dictionary.sku}</Label>
@@ -125,10 +247,17 @@ function ProductForm({ dictionary, onDone, product }: ProductFormProps) {
         <Checkbox checked={includesVat} onCheckedChange={setIncludesVat} />
         {dictionary.priceIncludesVat}
       </label>
+      {translationMessage && (
+        <p className="text-sm text-muted-foreground" role="status">
+          {translationMessage}
+        </p>
+      )}
       {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
       <DialogFooter className="mx-0 mb-0 px-0 pb-0">
         <Button type="button" variant="outline" onClick={onDone}>{dictionary.cancel}</Button>
-        <Button type="submit" disabled={pending}>{pending ? dictionary.saving : dictionary.save}</Button>
+        <Button type="submit" disabled={pending || translationPending}>
+          {pending ? dictionary.saving : dictionary.save}
+        </Button>
       </DialogFooter>
     </form>
   )
