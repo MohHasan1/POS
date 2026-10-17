@@ -105,11 +105,12 @@ $utf8WithoutBom = New-Object System.Text.UTF8Encoding($false)
   $utf8WithoutBom
 )
 
+$runtimeNodePath = Join-Path $runtimeDirectory "node.exe"
 $requiredFiles = @(
   (Join-Path $applicationDirectory "server.js"),
   (Join-Path $applicationDirectory ".next\static"),
   (Join-Path $applicationDirectory "public\icon.svg"),
-  (Join-Path $runtimeDirectory "node.exe"),
+  $runtimeNodePath,
   (Join-Path $launcherDirectory "quickpos-launcher.mjs"),
   (Join-Path $launcherDirectory "quickpos-stop.mjs")
 )
@@ -117,6 +118,20 @@ foreach ($requiredFile in $requiredFiles) {
   if (-not (Test-Path $requiredFile)) {
     throw "The Windows release is incomplete: $requiredFile is missing."
   }
+}
+
+# The release copy must remain runnable without pnpm's development-time
+# symlink graph. Loading a Next.js runtime module here catches broken or
+# incomplete standalone dependency layouts before the launcher smoke test.
+Push-Location $applicationDirectory
+try {
+  & $runtimeNodePath -e "require('./node_modules/next/dist/shared/lib/constants.js')"
+  if ($LASTEXITCODE -ne 0) {
+    throw "The packaged Next.js runtime dependency check failed with exit code $LASTEXITCODE."
+  }
+}
+finally {
+  Pop-Location
 }
 
 $nativeLibsql = @(Get-ChildItem $applicationDirectory -Recurse -File -Filter "*.node" | Where-Object {
