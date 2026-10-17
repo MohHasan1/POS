@@ -11,6 +11,9 @@ importers:
       '@base-ui/react':
         specifier: ^1.9.0
         version: 1.9.0(@date-fns/tz@1.2.0)(@types/react@19.2.14)(date-fns@4.1.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@neon-rs/load':
+        specifier: 0.0.4
+        version: 0.0.4
       '@payloadcms/db-mongodb':
         specifier: 3.91.0
         version: 3.91.0(payload@3.91.0(graphql@16.14.2)(typescript@5.7.3))(socks@2.8.10)
@@ -32,12 +35,18 @@ importers:
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
+      detect-libc:
+        specifier: 2.0.2
+        version: 2.0.2
       dotenv:
         specifier: 16.4.7
         version: 16.4.7
       graphql:
         specifier: ^16.8.1
         version: 16.14.2
+      libsql:
+        specifier: 0.4.7
+        version: 0.4.7
       lucide-react:
         specifier: ^1.59.0
         version: 1.59.0(@types/react@19.2.14)(react@19.2.6)
@@ -105,6 +114,28 @@ importers:
       typescript:
         specifier: 5.7.3
         version: 5.7.3
+    optionalDependencies:
+      '@libsql/darwin-arm64':
+        specifier: 0.4.7
+        version: 0.4.7
+      '@libsql/darwin-x64':
+        specifier: 0.4.7
+        version: 0.4.7
+      '@libsql/linux-arm64-gnu':
+        specifier: 0.4.7
+        version: 0.4.7
+      '@libsql/linux-arm64-musl':
+        specifier: 0.4.7
+        version: 0.4.7
+      '@libsql/linux-x64-gnu':
+        specifier: 0.4.7
+        version: 0.4.7
+      '@libsql/linux-x64-musl':
+        specifier: 0.4.7
+        version: 0.4.7
+      '@libsql/win32-x64-msvc':
+        specifier: 0.4.7
+        version: 0.4.7
 
 packages:
 

@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Reproducible Windows x64 offline installer workflow with a bundled Node.js runtime and Inno Setup.
+- Hidden single-instance Windows launcher with a database-backed health check, browser startup, logs, and safe shutdown shortcut.
+- Persistent per-user SQLite storage, generated Payload secret, and rolling pre-migration backups under Local AppData.
 - Separate Business Information page backed by the existing shop settings Global.
 - Persistent English/Bangla language and Light/Dark/System appearance controls in Application Settings.
 - Shop display names and recent-invoice shortcuts on the redesigned Home page.
@@ -25,6 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Enabled Next.js standalone output and explicit Windows libSQL runtime tracing for offline packaging.
 - Split legal business details from device-level application and invoicing preferences.
 - Centralized application navigation and added distinct Business Information and Settings entries.
 - Reworked the Home page around a primary Start Checkout action and practical daily shortcuts.

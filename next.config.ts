@@ -7,6 +7,15 @@ const __filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(__filename)
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
+  outputFileTracingIncludes: {
+    '/*': [
+      'node_modules/@libsql/**/*',
+      'node_modules/@neon-rs/load/**/*',
+      'node_modules/detect-libc/**/*',
+      'node_modules/libsql/**/*',
+    ],
+  },
   async headers() {
     return [
       {

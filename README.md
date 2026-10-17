@@ -38,3 +38,9 @@ pnpm build
 ```
 
 Browser printing provides A4 PDF output. The generated QR payload implements the five ZATCA Phase 1 TLV fields; this project does not implement Phase 2 signing, clearance/reporting, certificates, or a complete production compliance control environment.
+
+## Offline Windows installer
+
+Run the manual **Build Windows installer** GitHub Actions workflow to create the private `QuickPOS-Setup.exe` artifact. It bundles the standalone server, Windows SQLite runtime, Node.js, launcher, and Inno Setup installer; the customer does not need Node.js, pnpm, Docker, a terminal, or internet access after installation.
+
+See [Windows installer, updates, and recovery](docs/windows-installer.md) for build instructions, persistent data locations, backup restoration, and the manual acceptance checklist.

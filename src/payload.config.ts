@@ -12,11 +12,22 @@ import { ShopSettings } from './globals/ShopSettings'
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 const databaseURL = process.env.DATABASE_URL || 'file:./pos.db'
+const payloadSecret = process.env.PAYLOAD_SECRET
+
+if (!payloadSecret) {
+  throw new Error('PAYLOAD_SECRET is required.')
+}
 
 const db =
   process.env.DATABASE_ADAPTER === 'mongodb'
     ? mongooseAdapter({ url: databaseURL })
-    : sqliteAdapter({ client: { url: databaseURL } })
+    : sqliteAdapter({
+        busyTimeout: 5000,
+        client: { url: databaseURL },
+        migrationDir: path.resolve(dirname, 'migrations'),
+        transactionOptions: { behavior: 'immediate' },
+        wal: { journalSizeLimit: 67_108_864, synchronous: 'FULL' },
+      })
 
 export default buildConfig({
   admin: {
@@ -27,7 +38,7 @@ export default buildConfig({
   },
   collections: [Users, Products, Invoices],
   globals: [ShopSettings],
-  secret: process.env.PAYLOAD_SECRET || '',
+  secret: payloadSecret,
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },

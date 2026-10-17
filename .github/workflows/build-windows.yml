@@ -1,0 +1,98 @@
+name: Build Windows installer
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-installer:
+    name: QuickPOS Windows x64
+    runs-on: windows-2025
+    timeout-minutes: 60
+    env:
+      NODE_VERSION: 24.22.0
+      PNPM_VERSION: 10.32.1
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run source checks
+        run: |
+          pnpm typecheck
+          pnpm lint
+          pnpm windows:check
+          pnpm test
+
+      - name: Build standalone application
+        run: pnpm build
+        env:
+          DATABASE_ADAPTER: sqlite
+          DATABASE_URL: file:./ci-build.db
+          NEXT_TELEMETRY_DISABLED: '1'
+          PAYLOAD_SECRET: windows-build-only-secret-not-packaged
+
+      - name: Assemble offline Windows release
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File scripts/windows/package-release.ps1
+          -NodeVersion $env:NODE_VERSION
+
+      - name: Smoke-test packaged runtime
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File scripts/windows/smoke-test.ps1
+
+      - name: Compile Inno Setup installer
+        shell: powershell
+        run: |
+          $iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) {
+            $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          }
+          if (-not (Test-Path $iscc)) {
+            throw "Inno Setup 6 is not installed on this Windows runner."
+          }
+
+          $version = node -p "require('./package.json').version"
+          & $iscc "/DMyAppVersion=$version" "installer\quickpos.iss"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Inno Setup failed with exit code $LASTEXITCODE."
+          }
+
+      - name: Verify installer artifact
+        shell: powershell
+        run: |
+          $installer = "dist\windows\installer\QuickPOS-Setup.exe"
+          if (-not (Test-Path $installer)) {
+            throw "QuickPOS-Setup.exe was not created."
+          }
+          Get-FileHash $installer -Algorithm SHA256
+
+      - name: Upload private workflow artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: QuickPOS-Windows-x64
+          path: dist/windows/installer/QuickPOS-Setup.exe
+          if-no-files-found: error
+          retention-days: 14
