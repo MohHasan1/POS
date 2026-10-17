@@ -4,6 +4,8 @@ import { randomUUID } from 'node:crypto'
 import { after, describe, it } from 'node:test'
 import { getPayload } from 'payload'
 
+import { minorToDecimal } from '@/lib/money'
+import { decodeZatcaQr } from '@/lib/zatca-qr'
 import { finalizeInvoice } from '@/services/invoices'
 
 const createdInvoiceIds: string[] = []
@@ -52,5 +54,84 @@ describe('invoice finalization', () => {
 
     assert.equal(second.id, first.id)
     assert.equal(count.totalDocs, 1)
+
+    const qrFields = decodeZatcaQr(first.qrPayload)
+    assert.equal(qrFields.sellerName, first.seller.nameArabic)
+    assert.equal(qrFields.vatNumber, first.seller.vatNumber)
+    assert.equal(new Date(qrFields.timestamp).getTime(), new Date(first.issuedAt).getTime())
+    assert.equal(qrFields.total, minorToDecimal(first.totalMinor))
+    assert.equal(qrFields.vatTotal, minorToDecimal(first.vatMinor))
+  })
+
+  it('allows a standard invoice for a non-VAT-registered buyer', async () => {
+    const invoice = await finalizeInvoice({
+      buyer: {
+        address: 'Riyadh, Saudi Arabia',
+        name: 'Walk-in Business Customer',
+      },
+      idempotencyKey: randomUUID(),
+      invoiceType: 'standard',
+      items: [
+        {
+          descriptionEnglish: 'Consulting service',
+          descriptionArabic: 'خدمة استشارية',
+          unitPriceMinor: 10_000,
+          quantityMilliunits: 1000,
+          vatCategory: 'standard',
+          priceIncludesVat: false,
+        },
+      ],
+    })
+    createdInvoiceIds.push(invoice.id)
+
+    assert.equal(invoice.buyer?.name, 'Walk-in Business Customer')
+    assert.equal(invoice.buyer?.vatNumber, null)
+    assert.equal(invoice.buyer?.identification, null)
+  })
+
+  it('requires the buyer name and address for a standard invoice', async () => {
+    await assert.rejects(
+      finalizeInvoice({
+        buyer: { name: 'Buyer without an address' },
+        idempotencyKey: randomUUID(),
+        invoiceType: 'standard',
+        items: [
+          {
+            descriptionEnglish: 'Test item',
+            descriptionArabic: 'عنصر اختبار',
+            unitPriceMinor: 100,
+            quantityMilliunits: 1000,
+            vatCategory: 'standard',
+            priceIncludesVat: false,
+          },
+        ],
+      }),
+      /buyer name and address/,
+    )
+  })
+
+  it('validates a buyer VAT number when one is supplied', async () => {
+    await assert.rejects(
+      finalizeInvoice({
+        buyer: {
+          address: 'Riyadh, Saudi Arabia',
+          name: 'Registered Buyer',
+          vatNumber: '123',
+        },
+        idempotencyKey: randomUUID(),
+        invoiceType: 'standard',
+        items: [
+          {
+            descriptionEnglish: 'Test item',
+            descriptionArabic: 'عنصر اختبار',
+            unitPriceMinor: 100,
+            quantityMilliunits: 1000,
+            vatCategory: 'standard',
+            priceIncludesVat: false,
+          },
+        ],
+      }),
+      /valid 15-digit Saudi buyer VAT number/,
+    )
   })
 })

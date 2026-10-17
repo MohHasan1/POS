@@ -86,15 +86,13 @@ export async function finalizeInvoice(input: FinalizeInvoiceInput): Promise<Invo
     if (!buyer?.name?.trim() || !buyer.address?.trim()) {
       throw new Error('Standard invoices require the buyer name and address.')
     }
-    if (!buyer.vatNumber?.trim() && !buyer.identification?.trim()) {
-      throw new Error('Standard invoices require a buyer VAT number or other identification.')
-    }
     if (buyer.vatNumber?.trim() && !/^3\d{13}3$/.test(buyer.vatNumber.trim())) {
       throw new Error('Enter a valid 15-digit Saudi buyer VAT number.')
     }
   }
 
   const issuedAt = new Date()
+  issuedAt.setMilliseconds(0)
   const items = await Promise.all(input.items.map(resolveItem))
   const totals = calculateInvoiceTotals(items)
   const seller = {

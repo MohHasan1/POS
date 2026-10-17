@@ -46,7 +46,6 @@
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
 }
-
 :root {
     color-scheme: light;
     --background: oklch(1 0 0);
@@ -162,6 +161,7 @@ textarea {
   html,
   body {
     background: white !important;
+    min-width: 0;
   }
 
   body * {
@@ -174,21 +174,35 @@ textarea {
   }
 
   .invoice-page {
-    position: absolute;
-    inset: 0;
-    width: 190mm;
-    min-height: 277mm;
+    position: static;
+    width: auto;
+    max-width: none;
+    min-height: 0;
+    margin: 0;
+    overflow: visible;
     padding: 0 !important;
     border: 0 !important;
     box-shadow: none !important;
+  }
+
+  main {
+    max-width: none !important;
+    padding: 0 !important;
   }
 
   .no-print {
     display: none !important;
   }
 
-  tr,
+  .invoice-items thead {
+    display: table-header-group;
+  }
+
+  .invoice-item-row,
+  .invoice-summary,
+  .invoice-footer,
   img {
     break-inside: avoid;
+    page-break-inside: avoid;
   }
 }
