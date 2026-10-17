@@ -23,6 +23,7 @@ describe('invoice finalization', () => {
     await payload.updateGlobal({
       slug: 'shop-settings',
       data: {
+        displayName: 'QuickPOS Display Name',
         sellerNameArabic: 'متجر الاختبار',
         sellerNameEnglish: 'Test Shop',
         vatNumber: '310000000000003',
@@ -34,14 +35,16 @@ describe('invoice finalization', () => {
     const input = {
       idempotencyKey: randomUUID(),
       invoiceType: 'simplified' as const,
-      items: [{
-        descriptionEnglish: 'Test item',
-        descriptionArabic: 'عنصر اختبار',
-        unitPriceMinor: 1150,
-        quantityMilliunits: 1000,
-        vatCategory: 'standard' as const,
-        priceIncludesVat: true,
-      }],
+      items: [
+        {
+          descriptionEnglish: 'Test item',
+          descriptionArabic: 'عنصر اختبار',
+          unitPriceMinor: 1150,
+          quantityMilliunits: 1000,
+          vatCategory: 'standard' as const,
+          priceIncludesVat: true,
+        },
+      ],
     }
 
     const first = await finalizeInvoice(input)
@@ -54,6 +57,7 @@ describe('invoice finalization', () => {
 
     assert.equal(second.id, first.id)
     assert.equal(count.totalDocs, 1)
+    assert.equal(first.seller.nameEnglish, 'Test Shop')
 
     const qrFields = decodeZatcaQr(first.qrPayload)
     assert.equal(qrFields.sellerName, first.seller.nameArabic)

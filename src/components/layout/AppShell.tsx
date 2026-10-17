@@ -1,9 +1,8 @@
-import { Boxes, FileText, Home, Settings, ShoppingCart, Store } from 'lucide-react'
+import { Store } from 'lucide-react'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 
-import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
-import { ThemeToggle } from '@/components/layout/ThemeToggle'
+import { appNavigation } from '@/lib/app-navigation'
 import type { Dictionary } from '@/lib/localization'
 
 export function AppShell({
@@ -13,14 +12,6 @@ export function AppShell({
   children: ReactNode
   dictionary: Dictionary
 }) {
-  const links = [
-    { href: '/', label: dictionary.home, icon: Home },
-    { href: '/checkout', label: dictionary.checkout, icon: ShoppingCart },
-    { href: '/products', label: dictionary.products, icon: Boxes },
-    { href: '/invoices', label: dictionary.invoices, icon: FileText },
-    { href: '/settings', label: dictionary.settings, icon: Settings },
-  ]
-
   return (
     <div className="min-h-screen bg-muted/30">
       <header className="no-print sticky top-0 z-40 border-b bg-background">
@@ -29,21 +20,19 @@ export function AppShell({
             <span className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
               <Store className="size-4" aria-hidden="true" />
             </span>
-            <span className="hidden sm:inline">{dictionary.appName} POS</span>
+            <span className="hidden sm:inline">{dictionary.appName}</span>
           </Link>
           <nav aria-label="Primary" className="ml-auto flex items-center gap-1 overflow-x-auto">
-            {links.map(({ href, label, icon: Icon }) => (
+            {appNavigation.map(({ href, labelKey, icon: Icon }) => (
               <Link
                 key={href}
                 href={href}
                 className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Icon className="size-4" aria-hidden="true" />
-                <span className="hidden md:inline">{label}</span>
+                <span className="hidden md:inline">{dictionary[labelKey]}</span>
               </Link>
             ))}
-            <ThemeToggle label={dictionary.themeToggle} />
-            <LanguageSwitcher label={dictionary.language} />
           </nav>
         </div>
       </header>

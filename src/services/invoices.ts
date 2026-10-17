@@ -78,7 +78,7 @@ export async function finalizeInvoice(input: FinalizeInvoiceInput): Promise<Invo
 
   const settings = await getShopSettings()
   if (!areShopSettingsComplete(settings)) {
-    throw new Error('Complete the shop settings before finalizing an invoice.')
+    throw new Error('Complete the business information before finalizing an invoice.')
   }
 
   if (input.invoiceType === 'standard') {
@@ -137,15 +137,13 @@ export async function finalizeInvoice(input: FinalizeInvoiceInput): Promise<Invo
   throw new Error('Unable to allocate a unique invoice number.')
 }
 
-export async function getInvoices(search?: string): Promise<Invoice[]> {
+export async function getInvoices(search?: string, limit = 100): Promise<Invoice[]> {
   const payload = await getPayload({ config })
   const result = await payload.find({
     collection: 'invoices',
-    limit: 100,
+    limit,
     sort: '-issuedAt',
-    where: search?.trim()
-      ? { invoiceNumber: { contains: search.trim() } }
-      : undefined,
+    where: search?.trim() ? { invoiceNumber: { contains: search.trim() } } : undefined,
   })
   return result.docs
 }

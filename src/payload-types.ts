@@ -425,6 +425,10 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
  */
 export interface ShopSetting {
   id: number;
+  /**
+   * The shop name shown in the POS interface. Legal invoice names are stored separately.
+   */
+  displayName?: string | null;
   sellerNameArabic: string;
   sellerNameEnglish: string;
   vatNumber: string;
@@ -438,6 +442,7 @@ export interface ShopSetting {
  * via the `definition` "shop-settings_select".
  */
 export interface ShopSettingsSelect<T extends boolean = true> {
+  displayName?: T;
   sellerNameArabic?: T;
   sellerNameEnglish?: T;
   vatNumber?: T;

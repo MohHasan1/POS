@@ -78,7 +78,9 @@ function TranslationModelStatus({
   return (
     <div className="space-y-2 border-t pt-3 first:border-t-0 first:pt-0">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm">English → {languageLabel}</span>
+        <span className="text-sm">
+          {dictionary.english} → {languageLabel}
+        </span>
         <Badge variant={status === 'unavailable' ? 'outline' : 'secondary'}>
           {statusText[status]}
           {status === 'downloading' && progress !== null ? ` ${progress}%` : ''}

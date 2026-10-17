@@ -1,4 +1,4 @@
-# Counter POS
+# QuickPOS
 
 A compact Saudi Arabia retail POS PWA built with Next.js, Payload CMS, Tailwind CSS, and shadcn/ui.
 
@@ -9,7 +9,7 @@ A compact Saudi Arabia retail POS PWA built with Next.js, Payload CMS, Tailwind 
 3. Install dependencies with `pnpm install`.
 4. Start the app with `pnpm dev`.
 5. Open `http://localhost:3000/admin` once to create the first Payload administrator.
-6. Configure seller details at `http://localhost:3000/settings` before issuing an invoice.
+6. Configure seller details at `http://localhost:3000/business` before issuing an invoice.
 
 SQLite is the default local database. The cashier UI is intentionally a trusted-device MVP without its own login gate.
 

@@ -1,9 +1,18 @@
 'use client'
 
-import { Languages, Minus, Plus, Search, ShoppingCart, Trash2 } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronUp,
+  Languages,
+  Minus,
+  Plus,
+  Search,
+  ShoppingCart,
+  Trash2,
+} from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { type SubmitEvent, useState, useTransition } from 'react'
+import { type SubmitEvent, useCallback, useEffect, useRef, useState, useTransition } from 'react'
 
 import { finalizeInvoiceAction } from '@/actions/checkout'
 import { createProductAction } from '@/actions/products'
@@ -20,6 +29,13 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
 import type { Dictionary, Locale } from '@/lib/localization'
@@ -213,7 +229,14 @@ function CustomItemDialog({
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
-                  <Label htmlFor="custom-name-en">{dictionary.nameEnglish}</Label>
+                  <Label htmlFor="custom-name-en">
+                    <span>
+                      {dictionary.nameEnglish}{' '}
+                      <span className="text-destructive" aria-hidden="true">
+                        *
+                      </span>
+                    </span>
+                  </Label>
                   <Button
                     type="button"
                     size="xs"
@@ -260,7 +283,14 @@ function CustomItemDialog({
                 <Input id="custom-sku" name="sku" />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="custom-price">{dictionary.price} (SAR)</Label>
+                <Label htmlFor="custom-price">
+                  <span>
+                    {dictionary.price} (SAR){' '}
+                    <span className="text-destructive" aria-hidden="true">
+                      *
+                    </span>
+                  </span>
+                </Label>
                 <Input id="custom-price" name="price" inputMode="decimal" required />
               </div>
               <div className="space-y-1.5">
@@ -277,16 +307,16 @@ function CustomItemDialog({
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="custom-vat">{dictionary.vatCategory}</Label>
-                <select
-                  id="custom-vat"
-                  name="vatCategory"
-                  defaultValue="standard"
-                  className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm"
-                >
-                  <option value="standard">{dictionary.standardRated}</option>
-                  <option value="zero">{dictionary.zeroRated}</option>
-                  <option value="exempt">{dictionary.exempt}</option>
-                </select>
+                <Select name="vatCategory" defaultValue="standard">
+                  <SelectTrigger id="custom-vat" className="w-full bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="start">
+                    <SelectItem value="standard">{dictionary.standardRated}</SelectItem>
+                    <SelectItem value="zero">{dictionary.zeroRated}</SelectItem>
+                    <SelectItem value="exempt">{dictionary.exempt}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <label className="flex items-center gap-2 text-sm">
@@ -341,6 +371,19 @@ export function CheckoutClient({
   const [invoiceType, setInvoiceType] = useState<'simplified' | 'standard'>('simplified')
   const [buyer, setBuyer] = useState<BuyerInput>({})
   const [error, setError] = useState('')
+  const [cartActivity, setCartActivity] = useState<{
+    id: number
+    itemKey: string
+  } | null>(null)
+  const [highlightedItemKey, setHighlightedItemKey] = useState<string | null>(null)
+  const [cartScrollState, setCartScrollState] = useState({
+    hasOverflow: false,
+    canScrollUp: false,
+    canScrollDown: false,
+  })
+  const cartActivityId = useRef(0)
+  const cartScrollContainer = useRef<HTMLDivElement>(null)
+  const cartItemElements = useRef(new Map<string, HTMLDivElement>())
   const [idempotencyKey] = useState(() => crypto.randomUUID())
   const [pending, startTransition] = useTransition()
 
@@ -352,6 +395,82 @@ export function CheckoutClient({
   )
   const calculated = cart.map((item) => calculateLine(item))
   const totals = calculateInvoiceTotals(calculated)
+  const cartQuantityMilliunits = cart.reduce((total, item) => total + item.quantityMilliunits, 0)
+  const cartQuantity = new Intl.NumberFormat(locale === 'bn' ? 'bn-BD' : 'en-US', {
+    maximumFractionDigits: 3,
+  }).format(cartQuantityMilliunits / 1000)
+
+  const activityId = cartActivity?.id
+  const activityItemKey = cartActivity?.itemKey
+
+  const syncCartScrollState = useCallback((element: HTMLDivElement) => {
+    const hasOverflow = element.scrollHeight > element.clientHeight + 1
+    const canScrollUp = hasOverflow && element.scrollTop > 1
+    const canScrollDown =
+      hasOverflow && element.scrollTop + element.clientHeight < element.scrollHeight - 1
+
+    setCartScrollState((current) =>
+      current.hasOverflow === hasOverflow &&
+      current.canScrollUp === canScrollUp &&
+      current.canScrollDown === canScrollDown
+        ? current
+        : { hasOverflow, canScrollUp, canScrollDown },
+    )
+  }, [])
+
+  useEffect(() => {
+    const element = cartScrollContainer.current
+    if (!element) return
+
+    const frame = window.requestAnimationFrame(() => syncCartScrollState(element))
+    const handleResize = () => syncCartScrollState(element)
+    window.addEventListener('resize', handleResize)
+
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [cart.length, syncCartScrollState])
+
+  useEffect(() => {
+    if (activityId === undefined || !activityItemKey) return
+
+    const focusTimer = window.setTimeout(() => {
+      const itemElement = cartItemElements.current.get(activityItemKey)
+      if (!itemElement) return
+
+      itemElement.focus({ preventScroll: true })
+      itemElement.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+        block: 'nearest',
+      })
+    }, 150)
+    const highlightTimer = window.setTimeout(() => {
+      setHighlightedItemKey((current) => (current === activityItemKey ? null : current))
+      setCartActivity((current) => (current?.id === activityId ? null : current))
+    }, 1800)
+
+    return () => {
+      window.clearTimeout(focusTimer)
+      window.clearTimeout(highlightTimer)
+    }
+  }, [activityId, activityItemKey])
+
+  function revealCartItem(itemKey: string) {
+    cartActivityId.current += 1
+    setHighlightedItemKey(itemKey)
+    setCartActivity({ id: cartActivityId.current, itemKey })
+  }
+
+  function scrollCart(direction: 'up' | 'down') {
+    const element = cartScrollContainer.current
+    if (!element) return
+
+    element.scrollBy({
+      top: (direction === 'down' ? 1 : -1) * Math.max(140, element.clientHeight * 0.7),
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    })
+  }
 
   function addProduct(product: ProductSummary) {
     const key = `product:${product.id}`
@@ -377,10 +496,12 @@ export function CheckoutClient({
         },
       ]
     })
+    revealCartItem(key)
   }
 
   function addCustom(item: CartItem) {
     setCart((current) => [...current, item])
+    revealCartItem(item.key)
   }
 
   function updateItem(key: string, changes: Partial<CartItem>) {
@@ -456,16 +577,18 @@ export function CheckoutClient({
               onClick={() => addProduct(product)}
               className="flex min-h-24 flex-col justify-between bg-background p-3 text-left hover:bg-muted focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
             >
-              <span>
-                <span className="block text-sm font-medium">
+              <span className="grid w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-start gap-3">
+                <span className="min-w-0 text-sm font-medium">
                   {locale === 'bn' && product.nameBangla ? product.nameBangla : product.nameEnglish}
                 </span>
-                <span className="mt-0.5 block text-xs text-muted-foreground" dir="rtl">
+                <span className="min-w-0 text-right text-sm text-muted-foreground" dir="rtl">
                   {product.nameArabic}
                 </span>
+                <span className="shrink-0 font-semibold tabular-nums">
+                  {formatSAR(product.priceMinor)}
+                </span>
               </span>
-              <span className="mt-3 flex items-end justify-between gap-2">
-                <span className="font-medium tabular-nums">{formatSAR(product.priceMinor)}</span>
+              <span className="mt-3 flex justify-end">
                 <Badge variant="outline">
                   {product.vatCategory === 'standard'
                     ? '15%'
@@ -484,30 +607,94 @@ export function CheckoutClient({
         </div>
       </section>
 
-      <aside className="rounded-lg border bg-background lg:sticky lg:top-20">
-        <div className="flex items-center justify-between border-b p-3">
+      <aside className="overflow-hidden rounded-lg border bg-background lg:sticky lg:top-20">
+        <div className="flex items-center justify-between border-b bg-muted/40 p-3">
           <h2 className="flex items-center gap-2 font-medium">
             <ShoppingCart className="size-4" aria-hidden="true" />
             {dictionary.cart}
+            {cartQuantityMilliunits > 0 && (
+              <Badge
+                key={cartQuantityMilliunits}
+                variant="secondary"
+                className="animate-in zoom-in-75 duration-200 tabular-nums"
+                aria-label={`${dictionary.cart}: ${cartQuantity}`}
+              >
+                {cartQuantity}
+              </Badge>
+            )}
           </h2>
           <Button
             size="sm"
             variant="ghost"
             disabled={cart.length === 0}
-            onClick={() => setCart([])}
+            onClick={() => {
+              setCart([])
+              setCartActivity(null)
+              setHighlightedItemKey(null)
+            }}
           >
             {dictionary.clearCart}
           </Button>
         </div>
-        <div className="max-h-[42vh] divide-y overflow-y-auto">
+        {cartScrollState.hasOverflow && (
+          <div className="flex items-center justify-between gap-2 border-b bg-muted/40 px-3 py-2">
+            <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+              {cartScrollState.canScrollDown ? dictionary.moreItemsBelow : dictionary.endOfCart}
+              {cartScrollState.canScrollDown && (
+                <ChevronDown className="size-3.5 animate-bounce" aria-hidden="true" />
+              )}
+            </span>
+            <div className="flex gap-1">
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="outline"
+                disabled={!cartScrollState.canScrollUp}
+                aria-label={dictionary.scrollCartUp}
+                title={dictionary.scrollCartUp}
+                onClick={() => scrollCart('up')}
+              >
+                <ChevronUp />
+              </Button>
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="outline"
+                disabled={!cartScrollState.canScrollDown}
+                aria-label={dictionary.scrollCartDown}
+                title={dictionary.scrollCartDown}
+                onClick={() => scrollCart('down')}
+              >
+                <ChevronDown />
+              </Button>
+            </div>
+          </div>
+        )}
+        <div
+          ref={cartScrollContainer}
+          className="cart-scroll-area max-h-[42vh] divide-y overflow-y-scroll"
+          onScroll={(event) => syncCartScrollState(event.currentTarget)}
+        >
           {cart.map((item, index) => {
             const line = calculated[index]
             return (
-              <div key={item.key} className="space-y-2 p-3">
+              <div
+                key={item.key}
+                ref={(element) => {
+                  if (element) cartItemElements.current.set(item.key, element)
+                  else cartItemElements.current.delete(item.key)
+                }}
+                tabIndex={-1}
+                className={`space-y-2 p-3 outline-none transition-colors duration-500 ${
+                  highlightedItemKey === item.key
+                    ? 'bg-emerald-100 ring-2 ring-inset ring-emerald-500 dark:bg-emerald-950'
+                    : 'bg-background'
+                }`}
+              >
                 <div className="flex items-start justify-between gap-2">
-                  <div>
+                  <div className="grid min-w-0 flex-1 grid-cols-2 items-start gap-3">
                     <p className="text-sm font-medium">{itemName(item, locale)}</p>
-                    <p className="text-xs text-muted-foreground" dir="rtl">
+                    <p className="text-right text-sm text-muted-foreground" dir="rtl">
                       {item.descriptionArabic}
                     </p>
                   </div>
@@ -515,6 +702,7 @@ export function CheckoutClient({
                     aria-label={dictionary.remove}
                     size="icon-sm"
                     variant="ghost"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
                     onClick={() =>
                       setCart((current) =>
                         current.filter((currentItem) => currentItem.key !== item.key),
@@ -547,6 +735,7 @@ export function CheckoutClient({
                       aria-label="Decrease quantity"
                       size="icon-sm"
                       variant="outline"
+                      className="border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 hover:text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-amber-900"
                       onClick={() => updateQuantity(item.key, -1000)}
                     >
                       <Minus />
@@ -567,6 +756,7 @@ export function CheckoutClient({
                       aria-label="Increase quantity"
                       size="icon-sm"
                       variant="outline"
+                      className="border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200 dark:hover:bg-emerald-900"
                       onClick={() => updateQuantity(item.key, 1000)}
                     >
                       <Plus />
@@ -584,7 +774,7 @@ export function CheckoutClient({
           )}
         </div>
 
-        <div className="space-y-3 border-t p-3">
+        <div className="space-y-3 border-t-2 bg-muted/50 p-3">
           <div className="space-y-1 text-sm tabular-nums">
             <div className="flex justify-between">
               <span className="text-muted-foreground">{dictionary.subtotal}</span>
@@ -603,15 +793,20 @@ export function CheckoutClient({
 
           <div className="space-y-1.5">
             <Label htmlFor="invoiceType">{dictionary.invoiceType}</Label>
-            <select
-              id="invoiceType"
+            <Select
               value={invoiceType}
-              onChange={(event) => setInvoiceType(event.target.value as typeof invoiceType)}
-              className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm"
+              onValueChange={(value) => {
+                if (value === 'simplified' || value === 'standard') setInvoiceType(value)
+              }}
             >
-              <option value="simplified">{dictionary.simplifiedInvoice}</option>
-              <option value="standard">{dictionary.standardInvoice}</option>
-            </select>
+              <SelectTrigger id="invoiceType" className="w-full bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectItem value="simplified">{dictionary.simplifiedInvoice}</SelectItem>
+                <SelectItem value="standard">{dictionary.standardInvoice}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {invoiceType === 'standard' && (
@@ -646,8 +841,8 @@ export function CheckoutClient({
           {!settingsReady && (
             <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-sm text-amber-900">
               Complete{' '}
-              <Link href="/settings" className="font-medium underline">
-                {dictionary.shopSettings}
+              <Link href="/business" className="font-medium underline">
+                {dictionary.businessInformation}
               </Link>{' '}
               before finalizing.
             </p>

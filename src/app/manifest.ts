@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Counter POS',
-    short_name: 'Counter',
+    name: 'QuickPOS',
+    short_name: 'QuickPOS',
     description: 'A lightweight Saudi Arabia retail point of sale application.',
     start_url: '/',
     display: 'standalone',

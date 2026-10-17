@@ -1,20 +1,20 @@
 import type { Metadata } from 'next'
-import Script from 'next/script'
 import React from 'react'
 
 import { AppShell } from '@/components/layout/AppShell'
 import { PwaRegistration } from '@/components/layout/PwaRegistration'
+import { ThemeProvider } from '@/components/layout/ThemeProvider'
 import { getDictionary } from '@/lib/localization'
 
 import './styles.css'
 
 export const metadata: Metadata = {
   title: {
-    default: 'Counter POS',
-    template: '%s | Counter POS',
+    default: 'QuickPOS',
+    template: '%s | QuickPOS',
   },
   description: 'A lightweight Saudi Arabia retail point of sale application.',
-  applicationName: 'Counter POS',
+  applicationName: 'QuickPOS',
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -23,15 +23,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={locale} suppressHydrationWarning>
       <body>
-        <Script id="theme-initializer" strategy="beforeInteractive">
-          {`try {
-            const savedTheme = localStorage.getItem('counter-pos-theme');
-            const isDark = savedTheme === 'dark' || (!savedTheme && matchMedia('(prefers-color-scheme: dark)').matches);
-            document.documentElement.classList.toggle('dark', isDark);
-          } catch {}`}
-        </Script>
-        <AppShell dictionary={dictionary}>{children}</AppShell>
-        <PwaRegistration />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+          storageKey="counter-pos-theme"
+        >
+          <AppShell dictionary={dictionary}>{children}</AppShell>
+          <PwaRegistration />
+        </ThemeProvider>
       </body>
     </html>
   )

@@ -4,11 +4,20 @@ const authenticated = ({ req }: { req: { user: unknown } }) => Boolean(req.user)
 
 export const ShopSettings: GlobalConfig = {
   slug: 'shop-settings',
+  label: 'Business Information',
   access: {
     read: authenticated,
     update: authenticated,
   },
   fields: [
+    {
+      name: 'displayName',
+      type: 'text',
+      admin: {
+        description:
+          'The shop name shown in the POS interface. Legal invoice names are stored separately.',
+      },
+    },
     { name: 'sellerNameArabic', type: 'text', required: true },
     { name: 'sellerNameEnglish', type: 'text', required: true },
     {

@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Separate Business Information page backed by the existing shop settings Global.
+- Persistent English/Bangla language and Light/Dark/System appearance controls in Application Settings.
+- Shop display names and recent-invoice shortcuts on the redesigned Home page.
 - Saudi retail POS application shell with English and Bangla UI switching.
 - Product catalogue management with multilingual names, VAT categories, and price modes.
 - Checkout cart with custom items, decimal-safe VAT totals, and simplified or standard invoice issuance.
@@ -22,6 +25,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Split legal business details from device-level application and invoicing preferences.
+- Centralized application navigation and added distinct Business Information and Settings entries.
+- Reworked the Home page around a primary Start Checkout action and practical daily shortcuts.
+- Renamed the application to QuickPOS and moved Start Checkout into a full-width Quick Actions row.
 - Removed the deprecated TypeScript `baseUrl` option while preserving explicit source aliases.
 
 ### Security

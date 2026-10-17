@@ -142,6 +142,27 @@ textarea {
   touch-action: manipulation;
 }
 
+.cart-scroll-area {
+  scrollbar-color: var(--muted-foreground) var(--muted);
+  scrollbar-gutter: stable;
+  scrollbar-width: auto;
+}
+
+.cart-scroll-area::-webkit-scrollbar {
+  width: 14px;
+}
+
+.cart-scroll-area::-webkit-scrollbar-track {
+  background: var(--muted);
+}
+
+.cart-scroll-area::-webkit-scrollbar-thumb {
+  min-height: 40px;
+  border: 3px solid var(--muted);
+  border-radius: 999px;
+  background: var(--muted-foreground);
+}
+
 .invoice-page {
   width: 100%;
   max-width: 210mm;

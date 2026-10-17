@@ -1,4 +1,4 @@
-const CACHE_NAME = 'counter-pos-shell-v1'
+const CACHE_NAME = 'quickpos-shell-v1'
 const OFFLINE_URL = '/offline'
 
 self.addEventListener('install', (event) => {
@@ -10,7 +10,9 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))),
+      .then((keys) =>
+        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))),
+      ),
   )
   self.clients.claim()
 })

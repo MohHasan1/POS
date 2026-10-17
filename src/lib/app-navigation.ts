@@ -1,0 +1,52 @@
+import { Boxes, Building2, FileText, Home, Settings, ShoppingCart } from 'lucide-react'
+
+export const appNavigation = [
+  {
+    href: '/',
+    labelKey: 'home',
+    homeLabelKey: 'home',
+    homeDescriptionKey: 'welcome',
+    icon: Home,
+    primary: false,
+  },
+  {
+    href: '/checkout',
+    labelKey: 'checkout',
+    homeLabelKey: 'startCheckout',
+    homeDescriptionKey: 'homeCheckoutDescription',
+    icon: ShoppingCart,
+    primary: true,
+  },
+  {
+    href: '/products',
+    labelKey: 'products',
+    homeLabelKey: 'manageProducts',
+    homeDescriptionKey: 'homeProductsDescription',
+    icon: Boxes,
+    primary: false,
+  },
+  {
+    href: '/invoices',
+    labelKey: 'invoices',
+    homeLabelKey: 'invoiceHistory',
+    homeDescriptionKey: 'homeInvoicesDescription',
+    icon: FileText,
+    primary: false,
+  },
+  {
+    href: '/business',
+    labelKey: 'businessInformation',
+    homeLabelKey: 'businessInformation',
+    homeDescriptionKey: 'homeBusinessDescription',
+    icon: Building2,
+    primary: false,
+  },
+  {
+    href: '/settings',
+    labelKey: 'settings',
+    homeLabelKey: 'settings',
+    homeDescriptionKey: 'homeSettingsDescription',
+    icon: Settings,
+    primary: false,
+  },
+] as const

@@ -23,6 +23,13 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Table,
   TableBody,
   TableCell,
@@ -90,9 +97,7 @@ function ProductForm({ dictionary, onDone, product }: ProductFormProps) {
         setTranslationMessage(dictionary.translatingArabic)
         try {
           translatedArabic = await translateEnglishProductName(nameEnglish, 'ar', (loaded) => {
-            setTranslationMessage(
-              `${dictionary.translatingArabic} ${Math.round(loaded * 100)}%`,
-            )
+            setTranslationMessage(`${dictionary.translatingArabic} ${Math.round(loaded * 100)}%`)
           })
           setNameArabic(translatedArabic)
         } catch (translationError) {
@@ -105,9 +110,7 @@ function ProductForm({ dictionary, onDone, product }: ProductFormProps) {
         setTranslationMessage(dictionary.translatingBangla)
         try {
           translatedBangla = await translateEnglishProductName(nameEnglish, 'bn', (loaded) => {
-            setTranslationMessage(
-              `${dictionary.translatingBangla} ${Math.round(loaded * 100)}%`,
-            )
+            setTranslationMessage(`${dictionary.translatingBangla} ${Math.round(loaded * 100)}%`)
           })
           setNameBangla(translatedBangla)
         } catch (translationError) {
@@ -173,7 +176,14 @@ function ProductForm({ dictionary, onDone, product }: ProductFormProps) {
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
-            <Label htmlFor="nameEnglish">{dictionary.nameEnglish}</Label>
+            <Label htmlFor="nameEnglish">
+              <span>
+                {dictionary.nameEnglish}{' '}
+                <span className="text-destructive" aria-hidden="true">
+                  *
+                </span>
+              </span>
+            </Label>
             <Button
               type="button"
               size="xs"
@@ -220,7 +230,14 @@ function ProductForm({ dictionary, onDone, product }: ProductFormProps) {
           <Input id="sku" name="sku" defaultValue={product?.sku || ''} />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="price">{dictionary.price} (SAR)</Label>
+          <Label htmlFor="price">
+            <span>
+              {dictionary.price} (SAR){' '}
+              <span className="text-destructive" aria-hidden="true">
+                *
+              </span>
+            </span>
+          </Label>
           <Input
             id="price"
             name="price"
@@ -231,16 +248,16 @@ function ProductForm({ dictionary, onDone, product }: ProductFormProps) {
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="vatCategory">{dictionary.vatCategory}</Label>
-          <select
-            id="vatCategory"
-            name="vatCategory"
-            defaultValue={product?.vatCategory || 'standard'}
-            className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-          >
-            <option value="standard">{dictionary.standardRated}</option>
-            <option value="zero">{dictionary.zeroRated}</option>
-            <option value="exempt">{dictionary.exempt}</option>
-          </select>
+          <Select name="vatCategory" defaultValue={product?.vatCategory || 'standard'}>
+            <SelectTrigger id="vatCategory" className="w-full bg-background">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="start">
+              <SelectItem value="standard">{dictionary.standardRated}</SelectItem>
+              <SelectItem value="zero">{dictionary.zeroRated}</SelectItem>
+              <SelectItem value="exempt">{dictionary.exempt}</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
       <label className="flex items-center gap-2 text-sm">
@@ -252,9 +269,15 @@ function ProductForm({ dictionary, onDone, product }: ProductFormProps) {
           {translationMessage}
         </p>
       )}
-      {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
+      {error && (
+        <p className="text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      )}
       <DialogFooter className="mx-0 mb-0 px-0 pb-0">
-        <Button type="button" variant="outline" onClick={onDone}>{dictionary.cancel}</Button>
+        <Button type="button" variant="outline" onClick={onDone}>
+          {dictionary.cancel}
+        </Button>
         <Button type="submit" disabled={pending || translationPending}>
           {pending ? dictionary.saving : dictionary.save}
         </Button>
@@ -301,7 +324,10 @@ export function ProductsManager({
     <section className="rounded-lg border bg-background">
       <div className="flex flex-col gap-3 border-b p-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-sm">
-          <Search className="pointer-events-none absolute left-2.5 top-2 size-4 text-muted-foreground" aria-hidden="true" />
+          <Search
+            className="pointer-events-none absolute left-2.5 top-2 size-4 text-muted-foreground"
+            aria-hidden="true"
+          />
           <Input
             aria-label={dictionary.search}
             className="pl-8"
@@ -316,7 +342,11 @@ export function ProductsManager({
           {dictionary.addProduct}
         </Button>
       </div>
-      {actionError && <p className="border-b p-3 text-sm text-destructive" role="alert">{actionError}</p>}
+      {actionError && (
+        <p className="border-b p-3 text-sm text-destructive" role="alert">
+          {actionError}
+        </p>
+      )}
       <Table>
         <TableHeader>
           <TableRow>
@@ -334,19 +364,37 @@ export function ProductsManager({
             <TableRow key={product.id}>
               <TableCell>
                 <span className="font-medium">{product.nameEnglish}</span>
-                {product.nameBangla && <span className="block text-xs text-muted-foreground">{product.nameBangla}</span>}
+                {product.nameBangla && (
+                  <span className="block text-xs text-muted-foreground">{product.nameBangla}</span>
+                )}
               </TableCell>
               <TableCell dir="rtl">{product.nameArabic}</TableCell>
               <TableCell>{product.sku || '—'}</TableCell>
               <TableCell>{formatSAR(product.priceMinor)}</TableCell>
-              <TableCell>{product.vatCategory === 'standard' ? '15%' : product.vatCategory === 'zero' ? '0%' : dictionary.exempt}</TableCell>
-              <TableCell><Badge variant={product.active ? 'secondary' : 'outline'}>{product.active ? dictionary.active : dictionary.inactive}</Badge></TableCell>
+              <TableCell>
+                {product.vatCategory === 'standard'
+                  ? '15%'
+                  : product.vatCategory === 'zero'
+                    ? '0%'
+                    : dictionary.exempt}
+              </TableCell>
+              <TableCell>
+                <Badge variant={product.active ? 'secondary' : 'outline'}>
+                  {product.active ? dictionary.active : dictionary.inactive}
+                </Badge>
+              </TableCell>
               <TableCell>
                 <div className="flex justify-end gap-1">
                   <Button size="sm" variant="ghost" onClick={() => openForm(product)}>
-                    <Pencil aria-hidden="true" />{dictionary.edit}
+                    <Pencil aria-hidden="true" />
+                    {dictionary.edit}
                   </Button>
-                  <Button size="sm" variant="ghost" disabled={pending} onClick={() => toggleActive(product)}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={pending}
+                    onClick={() => toggleActive(product)}
+                  >
                     {product.active ? dictionary.deactivate : dictionary.activate}
                   </Button>
                 </div>
@@ -354,7 +402,11 @@ export function ProductsManager({
             </TableRow>
           ))}
           {filtered.length === 0 && (
-            <TableRow><TableCell colSpan={7} className="h-24 text-center text-muted-foreground">{dictionary.noProducts}</TableCell></TableRow>
+            <TableRow>
+              <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                {dictionary.noProducts}
+              </TableCell>
+            </TableRow>
           )}
         </TableBody>
       </Table>

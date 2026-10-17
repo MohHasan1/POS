@@ -7,6 +7,7 @@ export type ShopSettingsInput = Pick<
   ShopSetting,
   | 'businessAddress'
   | 'defaultPriceIncludesVat'
+  | 'displayName'
   | 'sellerNameArabic'
   | 'sellerNameEnglish'
   | 'vatNumber'
@@ -17,7 +18,7 @@ export async function getShopSettings(): Promise<ShopSetting> {
   return payload.findGlobal({ slug: 'shop-settings' })
 }
 
-export async function updateShopSettings(data: ShopSettingsInput): Promise<ShopSetting> {
+export async function updateShopSettings(data: Partial<ShopSettingsInput>): Promise<ShopSetting> {
   const payload = await getPayload({ config })
   return payload.updateGlobal({ slug: 'shop-settings', data })
 }
@@ -25,9 +26,9 @@ export async function updateShopSettings(data: ShopSettingsInput): Promise<ShopS
 export function areShopSettingsComplete(settings: Partial<ShopSetting>): boolean {
   return Boolean(
     settings.sellerNameArabic?.trim() &&
-      settings.sellerNameEnglish?.trim() &&
-      settings.businessAddress?.trim() &&
-      settings.vatNumber &&
-      /^3\d{13}3$/.test(settings.vatNumber),
+    settings.sellerNameEnglish?.trim() &&
+    settings.businessAddress?.trim() &&
+    settings.vatNumber &&
+    /^3\d{13}3$/.test(settings.vatNumber),
   )
 }
