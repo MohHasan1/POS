@@ -1,6 +1,7 @@
 param(
   [string]$OutputDirectory = "dist/windows/release",
-  [string]$NodeVersion = "24.22.0"
+  [string]$NodeVersion = "24.22.0",
+  [string]$NodeExecutable = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -18,8 +19,14 @@ $releaseDirectory = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot $Ou
 $applicationDirectory = Join-Path $releaseDirectory "app"
 $launcherDirectory = Join-Path $releaseDirectory "launcher"
 $runtimeDirectory = Join-Path $releaseDirectory "runtime"
-$temporaryRoot = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { $env:TEMP }
-$temporaryDirectory = Join-Path $temporaryRoot "quickpos-node-runtime"
+
+function Copy-DirectoryContents([string]$Source, [string]$Destination) {
+  New-Item $Destination -ItemType Directory -Force | Out-Null
+  & robocopy.exe $Source $Destination /E /COPY:DAT /DCOPY:DAT /R:2 /W:1 /NFL /NDL /NJH /NJS /NP
+  if ($LASTEXITCODE -ge 8) {
+    throw "Failed to copy $Source to $Destination (robocopy exit code $LASTEXITCODE)."
+  }
+}
 
 if (-not (Test-Path (Join-Path $standaloneDirectory "server.js"))) {
   throw "Missing .next\standalone\server.js. Run pnpm build before packaging."
@@ -31,16 +38,12 @@ if (-not (Test-Path $staticDirectory)) {
 if (Test-Path $releaseDirectory) {
   Remove-Item $releaseDirectory -Recurse -Force
 }
-if (Test-Path $temporaryDirectory) {
-  Remove-Item $temporaryDirectory -Recurse -Force
-}
 
 New-Item $applicationDirectory -ItemType Directory -Force | Out-Null
 New-Item $launcherDirectory -ItemType Directory -Force | Out-Null
 New-Item $runtimeDirectory -ItemType Directory -Force | Out-Null
-New-Item $temporaryDirectory -ItemType Directory -Force | Out-Null
 
-Get-ChildItem $standaloneDirectory -Force | Copy-Item -Destination $applicationDirectory -Recurse -Force
+Copy-DirectoryContents $standaloneDirectory $applicationDirectory
 
 # Next.js copies root environment files into standalone output. Runtime settings are
 # supplied by the launcher, so no build-time environment file belongs in a release.
@@ -49,47 +52,37 @@ Get-ChildItem $applicationDirectory -Recurse -Force -File | Where-Object {
 } | Remove-Item -Force
 
 $packagedStaticDirectory = Join-Path $applicationDirectory ".next\static"
-New-Item $packagedStaticDirectory -ItemType Directory -Force | Out-Null
-Get-ChildItem $staticDirectory -Force | Copy-Item -Destination $packagedStaticDirectory -Recurse -Force
+Copy-DirectoryContents $staticDirectory $packagedStaticDirectory
 
 $packagedPublicDirectory = Join-Path $applicationDirectory "public"
-New-Item $packagedPublicDirectory -ItemType Directory -Force | Out-Null
-Get-ChildItem $publicDirectory -Force | Copy-Item -Destination $packagedPublicDirectory -Recurse -Force
+Copy-DirectoryContents $publicDirectory $packagedPublicDirectory
 
 foreach ($launcherFile in @("quickpos-launcher.mjs", "quickpos-stop.mjs", "start.vbs", "stop.vbs")) {
   Copy-Item (Join-Path $PSScriptRoot $launcherFile) (Join-Path $launcherDirectory $launcherFile) -Force
 }
 
-$archiveName = "node-v$NodeVersion-win-x64.zip"
-$nodeBaseUrl = "https://nodejs.org/dist/v$NodeVersion"
-$archivePath = Join-Path $temporaryDirectory $archiveName
-$checksumPath = Join-Path $temporaryDirectory "SHASUMS256.txt"
-
-try {
-  Invoke-WebRequest "$nodeBaseUrl/$archiveName" -OutFile $archivePath -UseBasicParsing
-  Invoke-WebRequest "$nodeBaseUrl/SHASUMS256.txt" -OutFile $checksumPath -UseBasicParsing
-
-  $checksumLine = Get-Content $checksumPath | Where-Object { $_ -match "\s+$([regex]::Escape($archiveName))$" }
-  if (-not $checksumLine) {
-    throw "The Node.js checksum list does not contain $archiveName."
-  }
-
-  $expectedHash = ($checksumLine -split "\s+")[0].ToLowerInvariant()
-  $actualHash = (Get-FileHash $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
-  if ($actualHash -ne $expectedHash) {
-    throw "Node.js runtime checksum mismatch. Expected $expectedHash but received $actualHash."
-  }
-
-  Expand-Archive $archivePath -DestinationPath $temporaryDirectory -Force
-  $expandedRuntime = Join-Path $temporaryDirectory "node-v$NodeVersion-win-x64"
-  Copy-Item (Join-Path $expandedRuntime "node.exe") $runtimeDirectory -Force
-  Copy-Item (Join-Path $expandedRuntime "LICENSE") (Join-Path $runtimeDirectory "NODE-LICENSE.txt") -Force
+$sourceNodePath = if ($NodeExecutable) {
+  [System.IO.Path]::GetFullPath($NodeExecutable)
+} else {
+  (Get-Command node.exe -ErrorAction Stop).Source
 }
-finally {
-  if (Test-Path $temporaryDirectory) {
-    Remove-Item $temporaryDirectory -Recurse -Force
-  }
+$sourceNodeDirectory = Split-Path $sourceNodePath -Parent
+$sourceNodeLicense = Join-Path $sourceNodeDirectory "LICENSE"
+$sourceNodeVersion = (& $sourceNodePath -p "process.versions.node").Trim()
+$sourceNodeArchitecture = (& $sourceNodePath -p "process.arch").Trim()
+
+if ($sourceNodeVersion -ne $NodeVersion) {
+  throw "Expected Node.js $NodeVersion but found $sourceNodeVersion at $sourceNodePath."
 }
+if ($sourceNodeArchitecture -ne "x64") {
+  throw "Expected an x64 Node.js runtime but found $sourceNodeArchitecture at $sourceNodePath."
+}
+if (-not (Test-Path $sourceNodeLicense)) {
+  throw "The Node.js runtime license is missing: $sourceNodeLicense"
+}
+
+Copy-Item $sourceNodePath (Join-Path $runtimeDirectory "node.exe") -Force
+Copy-Item $sourceNodeLicense (Join-Path $runtimeDirectory "NODE-LICENSE.txt") -Force
 
 $package = Get-Content (Join-Path $repositoryRoot "package.json") -Raw | ConvertFrom-Json
 $release = [ordered]@{

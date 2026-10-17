@@ -4,15 +4,17 @@ QuickPOS is packaged as a local Windows application without Electron or another 
 
 ## Build the installer
 
-The installer must be built on Windows so the standalone trace contains Windows-native SQLite files. In GitHub:
+The installer must be built on Windows so the standalone trace contains Windows-native SQLite files. For a quick test build in GitHub:
 
-1. Open **Actions → Build Windows installer**.
+1. Open **Actions → Build Windows installer (fast)**.
 2. Select **Run workflow**.
-3. Wait for the `QuickPOS Windows x64` job to finish.
-4. Download the private `QuickPOS-Windows-x64` workflow artifact.
+3. Wait for the `QuickPOS Windows x64 fast` job to finish.
+4. Download the private `QuickPOS-Windows-x64-fast` workflow artifact.
 5. Extract `QuickPOS-Setup.exe` before running it.
 
-The workflow does not publish a GitHub Release or make the installer public. It uses Node.js 24.22.0 and pnpm 10.32.1, installs from the frozen lockfile, runs the source tests, creates a Next.js standalone build, verifies the Windows libSQL native module, exercises the packaged launcher twice, and compiles `installer/quickpos.iss` with Inno Setup.
+The fast workflow skips the separate lint, unit-test, and `tsc` jobs, but it still creates the production standalone build, validates the launcher syntax and Windows libSQL native module, exercises the packaged launcher twice, and compiles the real Inno Setup installer. Use **Build Windows installer** for final release validation; it performs all source checks before packaging and uploads the longer-lived `QuickPOS-Windows-x64` artifact.
+
+Both workflows use Node.js 24.22.0 and pnpm 10.32.1, install from the frozen lockfile, share the Next.js build cache, and reuse the pinned Node.js runtime already installed by GitHub Actions instead of downloading it again. Neither workflow publishes a GitHub Release or makes the installer public.
 
 For debugging on a Windows workstation, run:
 
@@ -30,6 +32,8 @@ pnpm package:windows
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/smoke-test.ps1
 & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\quickpos.iss
 ```
+
+`pnpm package:windows` expects the active Windows Node.js runtime to be x64 version 24.22.0, matching the runtime bundled by the workflows.
 
 Do not build a customer installer from macOS. The native dependency check intentionally rejects a release without the Windows x64 libSQL module.
 

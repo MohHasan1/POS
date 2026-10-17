@@ -35,6 +35,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Restore Next.js build cache
+        uses: actions/cache@v6
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-next-${{ hashFiles('pnpm-lock.yaml', 'next.config.ts', 'src/**') }}
+          restore-keys: |
+            ${{ runner.os }}-next-${{ hashFiles('pnpm-lock.yaml') }}-
+
       - name: Run source checks
         run: |
           pnpm typecheck
@@ -52,10 +60,12 @@ jobs:
 
       - name: Assemble offline Windows release
         shell: powershell
-        run: >-
-          powershell -NoProfile -ExecutionPolicy Bypass
-          -File scripts/windows/package-release.ps1
-          -NodeVersion $env:NODE_VERSION
+        run: |
+          $nodeExecutable = (Get-Command node.exe).Source
+          powershell -NoProfile -ExecutionPolicy Bypass `
+            -File scripts/windows/package-release.ps1 `
+            -NodeVersion $env:NODE_VERSION `
+            -NodeExecutable $nodeExecutable
 
       - name: Smoke-test packaged runtime
         shell: powershell
