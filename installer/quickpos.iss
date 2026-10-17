@@ -24,7 +24,9 @@ OutputDir=..\dist\windows\installer
 PrivilegesRequired=lowest
 RestartApplications=no
 SetupLogging=yes
+SetupIconFile=assets\quickpos.ico
 SolidCompression=yes
+UninstallDisplayIcon={app}\assets\quickpos.ico
 UninstallDisplayName={#MyAppName}
 UsePreviousAppDir=yes
 UsePreviousGroup=yes
@@ -34,9 +36,9 @@ WizardStyle=modern
 Source: "..\dist\windows\release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\QuickPOS"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\launcher\start.vbs"""; WorkingDir: "{app}"
-Name: "{group}\Stop QuickPOS"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\launcher\stop.vbs"""; WorkingDir: "{app}"
-Name: "{userdesktop}\QuickPOS"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\launcher\start.vbs"""; WorkingDir: "{app}"
+Name: "{group}\QuickPOS"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\launcher\start.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\assets\quickpos.ico"
+Name: "{group}\Stop QuickPOS"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\launcher\stop.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\assets\quickpos.ico"
+Name: "{userdesktop}\QuickPOS"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\launcher\start.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\assets\quickpos.ico"
 
 [Run]
 Filename: "{sys}\wscript.exe"; Parameters: """{app}\launcher\start.vbs"""; Description: "Open QuickPOS"; Flags: nowait postinstall skipifsilent

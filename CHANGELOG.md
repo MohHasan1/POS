@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Persistent per-user SQLite storage, generated Payload secret, and rolling pre-migration backups under Local AppData.
 - Fast Windows installer workflow for short build-test iterations while retaining the full release-validation workflow.
 - Versioned Windows workflow artifacts with JSON build metadata and SHA-256 checksum manifests.
+- QuickPOS icons for the application header, App Router favicon, PWA manifest, Windows installer, and installed shortcuts.
 - Separate Business Information page backed by the existing shop settings Global.
 - Persistent English/Bangla language and Light/Dark/System appearance controls in Application Settings.
 - Shop display names and recent-invoice shortcuts on the redesigned Home page.

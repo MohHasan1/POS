@@ -15,8 +15,10 @@ $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."
 $standaloneDirectory = Join-Path $repositoryRoot ".next\standalone"
 $staticDirectory = Join-Path $repositoryRoot ".next\static"
 $publicDirectory = Join-Path $repositoryRoot "public"
+$installerAssetsDirectory = Join-Path $repositoryRoot "installer\assets"
 $releaseDirectory = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot $OutputDirectory))
 $applicationDirectory = Join-Path $releaseDirectory "app"
+$assetsDirectory = Join-Path $releaseDirectory "assets"
 $launcherDirectory = Join-Path $releaseDirectory "launcher"
 $runtimeDirectory = Join-Path $releaseDirectory "runtime"
 
@@ -33,6 +35,9 @@ if (-not (Test-Path (Join-Path $standaloneDirectory "server.js"))) {
 }
 if (-not (Test-Path $staticDirectory)) {
   throw "Missing .next\static. Run pnpm build before packaging."
+}
+if (-not (Test-Path (Join-Path $installerAssetsDirectory "quickpos.ico"))) {
+  throw "Missing installer\assets\quickpos.ico."
 }
 
 if (Test-Path $releaseDirectory) {
@@ -56,6 +61,8 @@ Copy-DirectoryContents $staticDirectory $packagedStaticDirectory
 
 $packagedPublicDirectory = Join-Path $applicationDirectory "public"
 Copy-DirectoryContents $publicDirectory $packagedPublicDirectory
+
+Copy-DirectoryContents $installerAssetsDirectory $assetsDirectory
 
 foreach ($launcherFile in @("quickpos-launcher.mjs", "quickpos-stop.mjs", "start.vbs", "stop.vbs")) {
   Copy-Item (Join-Path $PSScriptRoot $launcherFile) (Join-Path $launcherDirectory $launcherFile) -Force
@@ -102,7 +109,9 @@ $runtimeNodePath = Join-Path $runtimeDirectory "node.exe"
 $requiredFiles = @(
   (Join-Path $applicationDirectory "server.js"),
   (Join-Path $applicationDirectory ".next\static"),
-  (Join-Path $applicationDirectory "public\icon.svg"),
+  (Join-Path $applicationDirectory "public\web-app-manifest-192x192.png"),
+  (Join-Path $applicationDirectory "public\web-app-manifest-512x512.png"),
+  (Join-Path $assetsDirectory "quickpos.ico"),
   $runtimeNodePath,
   (Join-Path $launcherDirectory "quickpos-launcher.mjs"),
   (Join-Path $launcherDirectory "quickpos-stop.mjs")

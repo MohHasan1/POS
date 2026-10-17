@@ -27,7 +27,7 @@ if ($release.version -ne $package.version) {
 $installer = Get-Item $resolvedInstallerPath
 $installerHash = (Get-FileHash $resolvedInstallerPath -Algorithm SHA256).Hash.ToLowerInvariant()
 $installerDirectory = $installer.DirectoryName
-$manifestPath = Join-Path $installerDirectory "QuickPOS-Setup.manifest.json"
+$manifestPath = Join-Path $installerDirectory "manifest.json"
 $checksumPath = Join-Path $installerDirectory "SHA256SUMS.txt"
 $manifest = [ordered]@{
   schemaVersion = 1

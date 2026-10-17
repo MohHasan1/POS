@@ -84,16 +84,25 @@ function Stop-PackagedQuickPos([System.Diagnostics.Process]$LauncherProcess) {
 try {
   $firstRun = Start-PackagedQuickPos 1
   $homeResponse = Invoke-WebRequest "$baseUrl/" -UseBasicParsing -TimeoutSec 10
-  $icon = Invoke-WebRequest "$baseUrl/icon.svg" -UseBasicParsing -TimeoutSec 10
+  $appIcon = Invoke-WebRequest "$baseUrl/web-app-manifest-192x192.png" -UseBasicParsing -TimeoutSec 10
+  $favicon = Invoke-WebRequest "$baseUrl/favicon.ico" -UseBasicParsing -TimeoutSec 10
   $manifest = Invoke-RestMethod "$baseUrl/manifest.webmanifest" -TimeoutSec 10
 
   if ($homeResponse.StatusCode -ne 200 -or $homeResponse.Content -notmatch "QuickPOS") {
     throw "The packaged Home page did not render QuickPOS."
   }
-  if ($icon.StatusCode -ne 200 -or $icon.Content -notmatch "<svg") {
-    throw "The packaged public icon did not load."
+  if ($appIcon.StatusCode -ne 200 -or $appIcon.Headers["Content-Type"] -notmatch "^image/png") {
+    throw "The packaged PWA icon did not load."
   }
-  if ($manifest.name -ne "QuickPOS") {
+  if ($favicon.StatusCode -ne 200 -or $favicon.RawContentLength -lt 1000) {
+    throw "The packaged favicon did not load."
+  }
+  $manifestIconPaths = @($manifest.icons | ForEach-Object { $_.src })
+  if (
+    $manifest.name -ne "QuickPOS" -or
+    $manifestIconPaths -notcontains "/web-app-manifest-192x192.png" -or
+    $manifestIconPaths -notcontains "/web-app-manifest-512x512.png"
+  ) {
     throw "The packaged web manifest did not load."
   }
 

@@ -16,7 +16,9 @@ The fast workflow skips the separate lint, unit-test, and `tsc` jobs, but it sti
 
 Both workflows use Node.js 24.22.0 and pnpm 10.32.1, install from the frozen lockfile, share the Next.js build cache, and reuse the pinned Node.js runtime already installed by GitHub Actions instead of downloading it again. Neither workflow publishes a GitHub Release or makes the installer public.
 
-Each downloaded artifact contains `QuickPOS-Setup.exe`, `QuickPOS-Setup.manifest.json`, and `SHA256SUMS.txt`. The artifact name and JSON manifest take their version from `package.json`; the manifest also records the platform, bundled Node.js version, source commit, installer size, and SHA-256 checksum.
+Each downloaded artifact contains `QuickPOS-Setup.exe`, `manifest.json`, and `SHA256SUMS.txt`. The artifact name and JSON manifest take their version from `package.json`; the manifest also records the platform, bundled Node.js version, source commit, installer size, and SHA-256 checksum.
+
+The installer, desktop shortcut, and Start Menu shortcuts use the multi-resolution QuickPOS icon stored at `installer/assets/quickpos.ico`. The packaged application also includes the App Router favicon and the 192px and 512px PWA icons.
 
 For debugging on a Windows workstation, run:
 
