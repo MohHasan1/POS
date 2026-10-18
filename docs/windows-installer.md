@@ -62,12 +62,13 @@ Customer data never lives in the installation directory:
 | Purpose                   | Location                                      |
 | ------------------------- | --------------------------------------------- |
 | SQLite database           | `%LOCALAPPDATA%\QuickPOS\data\pos.db`         |
+| Uploaded business media   | `%LOCALAPPDATA%\QuickPOS\data\media`          |
 | Persistent Payload secret | `%LOCALAPPDATA%\QuickPOS\data\payload-secret` |
 | Pre-migration backups     | `%LOCALAPPDATA%\QuickPOS\backups`             |
 | Logs                      | `%LOCALAPPDATA%\QuickPOS\logs`                |
 | Port configuration        | `%LOCALAPPDATA%\QuickPOS\config.json`         |
 
-The launcher keeps the newest ten closed-database backup sets. Each set contains `pos.db` and any SQLite WAL sidecar files that existed before migrations. A migration failure prevents the browser from opening, stops startup, and leaves the backup available for recovery.
+The launcher keeps the newest ten closed-database backup sets. Each set contains `pos.db`, any SQLite WAL sidecar files that existed before migrations, and a copy of the uploaded media directory. A migration failure prevents the browser from opening, stops startup, and leaves the matching database and media backup available for recovery.
 
 To upgrade, run the newer `QuickPOS-Setup.exe` for the same Windows user. The stable Inno Setup application ID causes it to update the existing installation. Setup stops the running server before replacing application files. The next launch backs up the existing database before applying new migrations.
 
@@ -78,10 +79,10 @@ Uninstall removes the application and shortcuts but deliberately preserves `%LOC
 1. Use the **Stop QuickPOS** shortcut and confirm the browser can no longer reach QuickPOS.
 2. Copy `%LOCALAPPDATA%\QuickPOS\data` somewhere safe before changing it.
 3. Choose a complete folder under `%LOCALAPPDATA%\QuickPOS\backups`.
-4. Move the current `pos.db`, `pos.db-wal`, and `pos.db-shm` files out of the `data` folder.
-5. Copy all database files from the selected backup folder into `data`.
+4. Move the current `pos.db`, `pos.db-wal`, `pos.db-shm`, and `media` folder out of the `data` folder.
+5. Copy the database files and `media` folder from the selected backup folder into `data`. Restore them as one set so media records and logo files remain aligned.
 6. Keep the existing `payload-secret`; do not replace or regenerate it.
-7. Start QuickPOS and verify products, invoices, and Business Information.
+7. Start QuickPOS and verify products, invoices, Business Information, and the business logo preview.
 
 If startup still fails, preserve the database and logs and investigate before attempting another migration.
 
@@ -93,6 +94,7 @@ If startup still fails, preserve the database and logs and investigate before at
 - [ ] Confirm one browser tab opens only after the Home page is ready.
 - [ ] Disconnect the computer from the internet and restart QuickPOS.
 - [ ] Configure Business Information and create a product.
+- [ ] Upload a business logo, stop and reopen QuickPOS, and confirm the logo still appears.
 - [ ] Complete simplified and standard checkouts and print both invoice formats.
 - [ ] Scan or decode a finalized simplified invoice's Phase 1 QR code.
 - [ ] Stop and reopen QuickPOS; confirm products, invoices, and settings remain.
@@ -100,7 +102,7 @@ If startup still fails, preserve the database and logs and investigate before at
 - [ ] Put an unrelated server on the configured port; confirm QuickPOS refuses to start and writes a log.
 - [ ] Install a newer QuickPOS build over the old one and confirm data remains.
 - [ ] Confirm a pre-migration backup was created before the upgraded database opened.
-- [ ] Restore a copied backup with QuickPOS stopped and confirm its invoices are readable.
+- [ ] Restore a copied backup with QuickPOS stopped and confirm its invoices and business logo are readable.
 - [ ] Uninstall QuickPOS and confirm `%LOCALAPPDATA%\QuickPOS` still contains customer data.
 
-The Windows GitHub Actions smoke test covers the bundled runtime, migration-driven database initialization, static assets, web manifest, clean shutdown, restart persistence, and pre-migration backup creation. Physical shortcut behavior, default-browser behavior, printing, disconnected operation, upgrade UX, and restore UX still require the manual checks above.
+The Windows GitHub Actions smoke test covers the bundled runtime, migration-driven database initialization, static assets, web manifest, clean shutdown, restart persistence, and pre-migration database/media backup creation. Physical shortcut behavior, default-browser behavior, logo upload and rendering, printing, disconnected operation, upgrade UX, and restore UX still require the manual checks above.

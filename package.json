@@ -13,9 +13,10 @@
     "migrate": "cross-env NODE_OPTIONS=--no-deprecation payload migrate",
     "package:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/package-release.ps1",
     "payload": "cross-env NODE_OPTIONS=--no-deprecation payload",
+    "pretest": "node scripts/reset-test-database.mjs",
     "start": "cross-env NODE_OPTIONS=--no-deprecation next start",
     "typecheck": "tsc --noEmit",
-    "test": "cross-env NODE_OPTIONS=--no-deprecation DATABASE_ADAPTER=sqlite DATABASE_URL=file:./test-pos.db PAYLOAD_SECRET=test-only-secret node --import=tsx --test --test-concurrency=1 --test-force-exit tests/*.spec.ts",
+    "test": "cross-env NODE_OPTIONS=--no-deprecation DATABASE_ADAPTER=sqlite DATABASE_URL=file:./test-pos.db PAYLOAD_SECRET=test-only-secret QUICKPOS_MEDIA_DIR=./test-media node --import=tsx --test --test-concurrency=1 --test-isolation=none --test-force-exit tests/*.spec.ts",
     "windows:check": "node --check scripts/windows/quickpos-launcher.mjs && node --check scripts/windows/quickpos-stop.mjs"
   },
   "dependencies": {

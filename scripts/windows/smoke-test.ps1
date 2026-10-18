@@ -136,11 +136,15 @@ try {
   Stop-PackagedQuickPos $secondRun.Process
 
   $backups = @(Get-ChildItem (Join-Path $quickPosData "backups") -Directory -Filter "pre-migration-*")
-  if ($backups.Count -eq 0 -or -not (Test-Path (Join-Path $backups[0].FullName "pos.db"))) {
-    throw "The launcher did not create a pre-migration SQLite backup on restart."
+  if (
+    $backups.Count -eq 0 -or
+    -not (Test-Path (Join-Path $backups[0].FullName "pos.db")) -or
+    -not (Test-Path (Join-Path $backups[0].FullName "media") -PathType Container)
+  ) {
+    throw "The launcher did not create a complete database and media backup on restart."
   }
 
-  Write-Host "Packaged QuickPOS runtime passed startup, migration, static asset, shutdown, restart, and backup checks."
+  Write-Host "Packaged QuickPOS runtime passed startup, migration, static asset, shutdown, restart, and database/media backup checks."
 }
 catch {
   Write-Host "QuickPOS packaged runtime diagnostics:" -ForegroundColor Yellow

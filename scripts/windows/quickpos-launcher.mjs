@@ -3,6 +3,7 @@ import {
   appendFileSync,
   closeSync,
   copyFileSync,
+  cpSync,
   existsSync,
   mkdirSync,
   openSync,
@@ -44,6 +45,7 @@ const backupDirectory = path.join(userDirectory, 'backups')
 const logDirectory = path.join(userDirectory, 'logs')
 const runDirectory = path.join(userDirectory, 'run')
 const databasePath = path.join(dataDirectory, 'pos.db')
+const mediaDirectory = path.join(dataDirectory, 'media')
 const secretPath = path.join(dataDirectory, 'payload-secret')
 const configPath = path.join(userDirectory, 'config.json')
 const instancePath = path.join(runDirectory, 'instance.json')
@@ -60,6 +62,7 @@ function ensureDirectories() {
   for (const directory of [
     userDirectory,
     dataDirectory,
+    mediaDirectory,
     backupDirectory,
     logDirectory,
     runDirectory,
@@ -194,6 +197,7 @@ function backupDatabase() {
   for (const source of [databasePath, `${databasePath}-wal`, `${databasePath}-shm`]) {
     if (existsSync(source)) copyFileSync(source, path.join(destination, path.basename(source)))
   }
+  cpSync(mediaDirectory, path.join(destination, 'media'), { recursive: true })
 
   writeFileSync(
     path.join(destination, 'backup.json'),
@@ -202,6 +206,7 @@ function backupDatabase() {
         applicationVersion: readRelease().version,
         createdAt: new Date().toISOString(),
         database: 'pos.db',
+        media: 'media',
       },
       null,
       2,
@@ -430,6 +435,7 @@ async function main() {
       PAYLOAD_SECRET: payloadSecret,
       PORT: String(port),
       QUICKPOS_DESKTOP: '1',
+      QUICKPOS_MEDIA_DIR: mediaDirectory,
       QUICKPOS_MIGRATE_ON_STARTUP: '1',
       QUICKPOS_SHUTDOWN_TOKEN: shutdownToken,
     },

@@ -5,6 +5,7 @@ import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 
 import { Invoices } from './collections/Invoices'
+import { Media } from './collections/Media'
 import { Products } from './collections/Products'
 import { Users } from './collections/Users'
 import { ShopSettings } from './globals/ShopSettings'
@@ -36,7 +37,7 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Products, Invoices],
+  collections: [Users, Products, Invoices, Media],
   globals: [ShopSettings],
   secret: payloadSecret,
   typescript: {
@@ -44,4 +45,8 @@ export default buildConfig({
   },
   db,
   plugins: [],
+  upload: {
+    requestSizeLimit: 2_200_000,
+    safeFileNames: true,
+  },
 })

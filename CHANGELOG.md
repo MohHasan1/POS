@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Versioned Windows workflow artifacts with JSON build metadata and SHA-256 checksum manifests.
 - QuickPOS icons for the application header, App Router favicon, PWA manifest, Windows installer, and installed shortcuts.
 - Separate Business Information page backed by the existing shop settings Global.
+- Optional commercial registration, logo, telephone, mobile, and email fields on Business Information, with persistent Payload media storage and preview.
 - Persistent English/Bangla language and Light/Dark/System appearance controls in Application Settings.
 - Shop display names and recent-invoice shortcuts on the redesigned Home page.
 - Saudi retail POS application shell with English and Bangla UI switching.
@@ -32,6 +33,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - Enabled Next.js standalone output and explicit Windows libSQL runtime tracing for offline packaging.
+- Extended Windows upgrade backups and restore guidance to preserve uploaded business media alongside SQLite data.
 - Normalized persistent SQLite file URLs for native Windows paths and exposed packaged-runtime logs when CI smoke tests fail.
 - Materialized pnpm dependencies in a hoisted layout so copied standalone releases retain Next.js runtime module resolution.
 - Shortened Windows installer packaging by caching Next.js output, using faster native directory copies, and reusing the already pinned Node.js runtime.
