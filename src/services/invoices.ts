@@ -3,7 +3,7 @@ import { getPayload } from 'payload'
 
 import { nextInvoiceNumber } from '@/lib/invoice-number'
 import { minorToDecimal } from '@/lib/money'
-import type { FinalizeInvoiceInput } from '@/lib/pos-types'
+import { DEFAULT_INVOICE_ADDRESS, type FinalizeInvoiceInput } from '@/lib/pos-types'
 import { saudiDateKey, toSaudiISOString } from '@/lib/saudi-time'
 import { calculateInvoiceTotals, calculateLine } from '@/lib/vat'
 import { encodeZatcaQr } from '@/lib/zatca-qr'
@@ -81,10 +81,17 @@ export async function finalizeInvoice(input: FinalizeInvoiceInput): Promise<Invo
     throw new Error('Complete the business information before finalizing an invoice.')
   }
 
+  const buyer =
+    input.invoiceType === 'standard'
+      ? {
+          ...input.buyer,
+          address: input.buyer?.address?.trim() || DEFAULT_INVOICE_ADDRESS,
+        }
+      : undefined
+
   if (input.invoiceType === 'standard') {
-    const buyer = input.buyer
-    if (!buyer?.name?.trim() || !buyer.address?.trim()) {
-      throw new Error('Standard invoices require the buyer name and address.')
+    if (!buyer?.name?.trim()) {
+      throw new Error('Standard invoices require the buyer name.')
     }
     if (buyer.vatNumber?.trim() && !/^3\d{13}3$/.test(buyer.vatNumber.trim())) {
       throw new Error('Enter a valid 15-digit Saudi buyer VAT number.')
@@ -121,7 +128,7 @@ export async function finalizeInvoice(input: FinalizeInvoiceInput): Promise<Invo
           invoiceType: input.invoiceType,
           issuedAt: issuedAt.toISOString(),
           seller,
-          buyer: input.invoiceType === 'standard' ? input.buyer : undefined,
+          buyer,
           items,
           ...totals,
           qrPayload,

@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-18
+
 ### Added
 
 - Reproducible Windows x64 offline installer workflow with a bundled Node.js runtime and Inno Setup.
@@ -34,6 +36,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Streamlined product creation to use the saved default VAT pricing mode, with VAT-exclusive pricing as the new-installation default while preserving existing preferences and product tax data.
+- Made checkout prices, quantities, per-item net/VAT/gross amounts, and totals update reactively; compacted the product list into independently scrolling bilingual rows with availability and cart quantity summaries.
+- Refined checkout with invoice-type segments, highlighted Checkout and Receipt Voucher actions, a more prominent final action, warm off-white light-theme surfaces, and removal of the whole-cart clearing action.
+- Added optional business logo, CR number, and VAT number branding to the Home header, with a dedicated full-width Receipt Voucher shortcut.
+- Default standard tax invoices to Riyadh, Saudi Arabia only when no buyer address is supplied, while preserving saved or entered addresses.
 - Replace Receipt Voucher Active/Voided states with an enforced Draft → Issued → Voided lifecycle, draft editing, explicit issuance confirmation, audit timestamps, and print watermarks.
 - Expand SAR amount-in-words coverage across singular, dual, halala, thousand, million, and maximum supported values in English and Arabic.
 - Refined Receipt Voucher printing into a compact bilingual accounting layout with improved A4 spacing, void treatment, and aligned signatures.

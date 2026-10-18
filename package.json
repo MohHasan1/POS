@@ -1,6 +1,6 @@
 {
   "name": "quickpos",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A lightweight Saudi Arabia retail POS PWA",
   "license": "MIT",
   "type": "module",

@@ -40,7 +40,7 @@ import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
 import type { Dictionary, Locale } from '@/lib/localization'
 import { decimalToMinor, formatSAR, minorToDecimal } from '@/lib/money'
-import type { BuyerInput, ProductSummary } from '@/lib/pos-types'
+import { DEFAULT_INVOICE_ADDRESS, type BuyerInput, type ProductSummary } from '@/lib/pos-types'
 import { calculateInvoiceTotals, calculateLine } from '@/lib/vat'
 import {
   ProductTranslationError,
@@ -198,7 +198,14 @@ function CustomItemDialog({
           setError(result.ok ? 'Unable to save the product.' : result.error)
           return
         }
-        onAdd({ ...base, key: `product:${result.data.id}`, productId: result.data.id })
+        onAdd({
+          ...base,
+          key: `product:${result.data.id}`,
+          productId: result.data.id,
+          unitPriceMinor: result.data.priceMinor,
+          vatCategory: result.data.vatCategory,
+          priceIncludesVat: result.data.priceIncludesVat,
+        })
         router.refresh()
       } else {
         onAdd({ ...base, key: `custom:${crypto.randomUUID()}` })
@@ -258,14 +265,15 @@ function CustomItemDialog({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="custom-name-bn">{dictionary.nameBangla}</Label>
-                <Input
-                  id="custom-name-bn"
-                  name="nameBangla"
-                  disabled={translationPending}
-                  onChange={(event) => setNameBangla(event.target.value)}
-                  value={nameBangla}
-                />
+                <Label htmlFor="custom-price">
+                  <span>
+                    {dictionary.price} (SAR){' '}
+                    <span className="text-destructive" aria-hidden="true">
+                      *
+                    </span>
+                  </span>
+                </Label>
+                <Input id="custom-price" name="price" inputMode="decimal" required />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="custom-name-ar">{dictionary.nameArabic}</Label>
@@ -279,19 +287,18 @@ function CustomItemDialog({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="custom-sku">{dictionary.sku}</Label>
-                <Input id="custom-sku" name="sku" />
+                <Label htmlFor="custom-name-bn">{dictionary.nameBangla}</Label>
+                <Input
+                  id="custom-name-bn"
+                  name="nameBangla"
+                  disabled={translationPending}
+                  onChange={(event) => setNameBangla(event.target.value)}
+                  value={nameBangla}
+                />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="custom-price">
-                  <span>
-                    {dictionary.price} (SAR){' '}
-                    <span className="text-destructive" aria-hidden="true">
-                      *
-                    </span>
-                  </span>
-                </Label>
-                <Input id="custom-price" name="price" inputMode="decimal" required />
+                <Label htmlFor="custom-sku">{dictionary.sku}</Label>
+                <Input id="custom-sku" name="sku" />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="custom-quantity">{dictionary.quantity}</Label>
@@ -305,7 +312,7 @@ function CustomItemDialog({
                   required
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 sm:col-span-2">
                 <Label htmlFor="custom-vat">{dictionary.vatCategory}</Label>
                 <Select name="vatCategory" defaultValue="standard">
                   <SelectTrigger id="custom-vat" className="w-full bg-background">
@@ -320,13 +327,15 @@ function CustomItemDialog({
               </div>
             </div>
             <label className="flex items-center gap-2 text-sm">
-              <Checkbox checked={includesVat} onCheckedChange={setIncludesVat} />
-              {dictionary.priceIncludesVat}
-            </label>
-            <label className="flex items-center gap-2 text-sm">
               <Checkbox checked={saveToCatalog} onCheckedChange={setSaveToCatalog} />
               {dictionary.saveToCatalog}
             </label>
+            {!saveToCatalog && (
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={includesVat} onCheckedChange={setIncludesVat} />
+                {dictionary.priceIncludesVat}
+              </label>
+            )}
             {translationMessage && (
               <p className="text-sm text-muted-foreground" role="status">
                 {translationMessage}
@@ -369,7 +378,9 @@ export function CheckoutClient({
   const [search, setSearch] = useState('')
   const [cart, setCart] = useState<CartItem[]>([])
   const [invoiceType, setInvoiceType] = useState<'simplified' | 'standard'>('simplified')
-  const [buyer, setBuyer] = useState<BuyerInput>({})
+  const [buyer, setBuyer] = useState<BuyerInput>({ address: DEFAULT_INVOICE_ADDRESS })
+  const [priceInputs, setPriceInputs] = useState<Record<string, string>>({})
+  const [quantityInputs, setQuantityInputs] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
   const [cartActivity, setCartActivity] = useState<{
     id: number
@@ -399,6 +410,7 @@ export function CheckoutClient({
   const cartQuantity = new Intl.NumberFormat(locale === 'bn' ? 'bn-BD' : 'en-US', {
     maximumFractionDigits: 3,
   }).format(cartQuantityMilliunits / 1000)
+  const uniqueProductCount = cart.length
 
   const activityId = cartActivity?.id
   const activityItemKey = cartActivity?.itemKey
@@ -474,6 +486,11 @@ export function CheckoutClient({
 
   function addProduct(product: ProductSummary) {
     const key = `product:${product.id}`
+    setQuantityInputs((current) => {
+      const next = { ...current }
+      delete next[key]
+      return next
+    })
     setCart((current) => {
       const existing = current.find((item) => item.key === key)
       if (existing) {
@@ -509,6 +526,11 @@ export function CheckoutClient({
   }
 
   function updateQuantity(key: string, delta: number) {
+    setQuantityInputs((current) => {
+      const next = { ...current }
+      delete next[key]
+      return next
+    })
     setCart((current) =>
       current
         .map((item) =>
@@ -518,6 +540,20 @@ export function CheckoutClient({
         )
         .filter((item) => item.quantityMilliunits > 0),
     )
+  }
+
+  function removeItem(key: string) {
+    setCart((current) => current.filter((item) => item.key !== key))
+    setPriceInputs((current) => {
+      const next = { ...current }
+      delete next[key]
+      return next
+    })
+    setQuantityInputs((current) => {
+      const next = { ...current }
+      delete next[key]
+      return next
+    })
   }
 
   function finalize() {
@@ -547,94 +583,103 @@ export function CheckoutClient({
   }
 
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
-      <section className="rounded-lg border bg-background">
-        <div className="flex flex-col gap-3 border-b p-3 sm:flex-row sm:items-center">
-          <div className="relative flex-1">
-            <Search
-              className="pointer-events-none absolute left-2.5 top-2 size-4 text-muted-foreground"
-              aria-hidden="true"
-            />
-            <Input
-              className="pl-8"
-              type="search"
-              placeholder={dictionary.searchProducts}
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
+    <div className="grid items-start gap-4 lg:h-[calc(100dvh-10rem)] lg:min-h-[32rem] lg:grid-cols-[minmax(0,1fr)_420px]">
+      <section className="flex min-h-0 flex-col overflow-hidden rounded-lg border bg-card lg:h-full">
+        <div className="border-b p-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <Search
+                className="pointer-events-none absolute left-2.5 top-2 size-4 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <Input
+                className="pl-8"
+                type="search"
+                placeholder={dictionary.searchProducts}
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </div>
+            <CustomItemDialog
+              defaultPriceIncludesVat={defaultPriceIncludesVat}
+              dictionary={dictionary}
+              onAdd={addCustom}
             />
           </div>
-          <CustomItemDialog
-            defaultPriceIncludesVat={defaultPriceIncludesVat}
-            dictionary={dictionary}
-            onAdd={addCustom}
-          />
+          <p className="mt-1.5 text-xs text-muted-foreground" aria-live="polite">
+            {dictionary.productsAvailable.replace('{count}', String(filtered.length))}
+          </p>
         </div>
-        <div className="grid gap-px bg-border sm:grid-cols-2 xl:grid-cols-3">
+        <div className="cart-scroll-area max-h-[46vh] min-h-0 divide-y overflow-y-auto lg:max-h-none lg:flex-1">
           {filtered.map((product) => (
             <button
               key={product.id}
               type="button"
               onClick={() => addProduct(product)}
-              className="flex min-h-24 flex-col justify-between bg-background p-3 text-left hover:bg-muted focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+              className="flex w-full items-center justify-between gap-4 bg-muted/35 px-3 py-2.5 text-left hover:bg-muted/70 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
             >
-              <span className="grid w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-start gap-3">
-                <span className="min-w-0 text-sm font-medium">
-                  {locale === 'bn' && product.nameBangla ? product.nameBangla : product.nameEnglish}
-                </span>
-                <span className="min-w-0 text-right text-sm text-muted-foreground" dir="rtl">
+              <span className="grid min-w-0 flex-1 grid-cols-2 items-center gap-4">
+                <span className="truncate text-base font-bold">{product.nameEnglish}</span>
+                <span
+                  className="truncate text-right text-base font-medium text-muted-foreground"
+                  dir="rtl"
+                >
                   {product.nameArabic}
                 </span>
-                <span className="shrink-0 font-semibold tabular-nums">
-                  {formatSAR(product.priceMinor)}
-                </span>
               </span>
-              <span className="mt-3 flex justify-end">
-                <Badge variant="outline">
-                  {product.vatCategory === 'standard'
-                    ? '15%'
-                    : product.vatCategory === 'zero'
-                      ? '0%'
-                      : dictionary.exempt}
-                </Badge>
+              <span className="shrink-0 font-semibold tabular-nums">
+                {formatSAR(product.priceMinor)}
               </span>
             </button>
           ))}
           {filtered.length === 0 && (
-            <p className="col-span-full bg-background p-8 text-center text-sm text-muted-foreground">
+            <p className="bg-muted/35 p-8 text-center text-sm text-muted-foreground">
               {dictionary.noProducts}
             </p>
           )}
         </div>
       </section>
 
-      <aside className="overflow-hidden rounded-lg border bg-background lg:sticky lg:top-20">
-        <div className="flex items-center justify-between border-b bg-muted/40 p-3">
-          <h2 className="flex items-center gap-2 font-medium">
+      <aside className="flex min-h-0 flex-col overflow-clip rounded-lg border bg-card lg:sticky lg:top-20 lg:h-full lg:self-start">
+        <div className="sticky top-14 z-20 flex flex-wrap items-center gap-2 border-b bg-muted p-3 lg:top-0">
+          <h2 className="mr-auto flex items-center gap-2 font-medium">
             <ShoppingCart className="size-4" aria-hidden="true" />
             {dictionary.cart}
-            {cartQuantityMilliunits > 0 && (
-              <Badge
-                key={cartQuantityMilliunits}
-                variant="secondary"
-                className="animate-in zoom-in-75 duration-200 tabular-nums"
-                aria-label={`${dictionary.cart}: ${cartQuantity}`}
-              >
-                {cartQuantity}
-              </Badge>
-            )}
           </h2>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={cart.length === 0}
-            onClick={() => {
-              setCart([])
-              setCartActivity(null)
-              setHighlightedItemKey(null)
-            }}
+          <Badge
+            key={cartQuantityMilliunits}
+            variant="secondary"
+            className="animate-in zoom-in-75 duration-200 tabular-nums"
           >
-            {dictionary.clearCart}
-          </Button>
+            {dictionary.cartProducts}: {cartQuantity}
+          </Badge>
+          <Badge variant="outline" className="tabular-nums">
+            {dictionary.uniqueProducts}: {uniqueProductCount}
+          </Badge>
+        </div>
+        <div className="border-b bg-card p-2">
+          <div
+            className="grid grid-cols-2 rounded-md bg-muted p-1"
+            role="radiogroup"
+            aria-label={dictionary.invoiceType}
+          >
+            {(['simplified', 'standard'] as const).map((type) => (
+              <button
+                key={type}
+                type="button"
+                role="radio"
+                aria-checked={invoiceType === type}
+                className={`rounded-sm px-2 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  invoiceType === type
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                onClick={() => setInvoiceType(type)}
+              >
+                {type === 'simplified' ? dictionary.simplifiedInvoice : dictionary.standardInvoice}
+              </button>
+            ))}
+          </div>
         </div>
         {cartScrollState.hasOverflow && (
           <div className="flex items-center justify-between gap-2 border-b bg-muted/40 px-3 py-2">
@@ -672,7 +717,7 @@ export function CheckoutClient({
         )}
         <div
           ref={cartScrollContainer}
-          className="cart-scroll-area max-h-[42vh] divide-y overflow-y-scroll"
+          className="cart-scroll-area min-h-0 flex-1 divide-y overflow-y-auto max-lg:max-h-[36vh]"
           onScroll={(event) => syncCartScrollState(event.currentTarget)}
         >
           {cart.map((item, index) => {
@@ -688,12 +733,12 @@ export function CheckoutClient({
                 className={`space-y-2 p-3 outline-none transition-colors duration-500 ${
                   highlightedItemKey === item.key
                     ? 'bg-emerald-100 ring-2 ring-inset ring-emerald-500 dark:bg-emerald-950'
-                    : 'bg-background'
+                    : 'bg-emerald-50/70 dark:bg-emerald-950/20'
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="grid min-w-0 flex-1 grid-cols-2 items-start gap-3">
-                    <p className="text-sm font-medium">{itemName(item, locale)}</p>
+                    <p className="text-sm font-bold">{itemName(item, locale)}</p>
                     <p className="text-right text-sm text-muted-foreground" dir="rtl">
                       {item.descriptionArabic}
                     </p>
@@ -703,11 +748,7 @@ export function CheckoutClient({
                     size="icon-sm"
                     variant="ghost"
                     className="text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
-                    onClick={() =>
-                      setCart((current) =>
-                        current.filter((currentItem) => currentItem.key !== item.key),
-                      )
-                    }
+                    onClick={() => removeItem(item.key)}
                   >
                     <Trash2 />
                   </Button>
@@ -718,15 +759,28 @@ export function CheckoutClient({
                       {dictionary.price} (SAR)
                     </Label>
                     <Input
-                      key={`${item.key}-${item.unitPriceMinor}`}
                       id={`price-${item.key}`}
                       className="mt-1"
-                      defaultValue={minorToDecimal(item.unitPriceMinor)}
                       inputMode="decimal"
-                      onBlur={(event) => {
-                        const minor = decimalToMinor(event.target.value)
+                      value={priceInputs[item.key] ?? minorToDecimal(item.unitPriceMinor)}
+                      onChange={(event) => {
+                        const value = event.target.value
+                        setPriceInputs((current) => ({ ...current, [item.key]: value }))
+                        const parseable = /^\d+\.$/.test(value.trim()) ? `${value.trim()}0` : value
+                        const minor = decimalToMinor(parseable)
                         if (minor !== null) updateItem(item.key, { unitPriceMinor: minor })
-                        else event.target.value = minorToDecimal(item.unitPriceMinor)
+                      }}
+                      onBlur={(event) => {
+                        const parseable = /^\d+\.$/.test(event.target.value.trim())
+                          ? `${event.target.value.trim()}0`
+                          : event.target.value
+                        const minor = decimalToMinor(parseable)
+                        if (minor !== null) updateItem(item.key, { unitPriceMinor: minor })
+                        setPriceInputs((current) => {
+                          const next = { ...current }
+                          delete next[item.key]
+                          return next
+                        })
                       }}
                     />
                   </div>
@@ -735,7 +789,7 @@ export function CheckoutClient({
                       aria-label="Decrease quantity"
                       size="icon-sm"
                       variant="outline"
-                      className="border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 hover:text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-amber-900"
+                      className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                       onClick={() => updateQuantity(item.key, -1000)}
                     >
                       <Minus />
@@ -743,29 +797,56 @@ export function CheckoutClient({
                     <Input
                       aria-label={dictionary.quantity}
                       className="w-16 text-center"
-                      type="number"
-                      min="0.001"
-                      step="0.001"
-                      value={item.quantityMilliunits / 1000}
+                      inputMode="decimal"
+                      value={quantityInputs[item.key] ?? String(item.quantityMilliunits / 1000)}
                       onChange={(event) => {
-                        const value = Math.round(Number(event.target.value) * 1000)
-                        if (value > 0) updateItem(item.key, { quantityMilliunits: value })
+                        const raw = event.target.value
+                        if (!/^\d*(?:\.\d{0,3})?$/.test(raw)) return
+                        setQuantityInputs((current) => ({ ...current, [item.key]: raw }))
+                        const value = Math.round(Number(raw) * 1000)
+                        if (Number.isSafeInteger(value) && value > 0) {
+                          updateItem(item.key, { quantityMilliunits: value })
+                        }
+                      }}
+                      onBlur={() => {
+                        setQuantityInputs((current) => {
+                          const next = { ...current }
+                          delete next[item.key]
+                          return next
+                        })
                       }}
                     />
                     <Button
                       aria-label="Increase quantity"
                       size="icon-sm"
                       variant="outline"
-                      className="border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200 dark:hover:bg-emerald-900"
+                      className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
                       onClick={() => updateQuantity(item.key, 1000)}
                     >
                       <Plus />
                     </Button>
                   </div>
                 </div>
-                <p className="text-right text-sm font-medium tabular-nums">
-                  {formatSAR(line.totalMinor)}
-                </p>
+                <div className="grid grid-cols-3 gap-2 rounded-md bg-muted/40 p-2 text-xs tabular-nums">
+                  <span>
+                    <span className="block text-muted-foreground">
+                      {dictionary.priceExcludingVat}
+                    </span>
+                    <span className="font-medium text-foreground">{formatSAR(line.netMinor)}</span>
+                  </span>
+                  <span className="text-center">
+                    <span className="block text-muted-foreground">{dictionary.vat}</span>
+                    <span className="font-medium text-foreground">{formatSAR(line.vatMinor)}</span>
+                  </span>
+                  <span className="text-right">
+                    <span className="block text-muted-foreground">
+                      {dictionary.priceIncludingVat}
+                    </span>
+                    <span className="font-semibold text-foreground">
+                      {formatSAR(line.totalMinor)}
+                    </span>
+                  </span>
+                </div>
               </div>
             )
           })}
@@ -774,7 +855,7 @@ export function CheckoutClient({
           )}
         </div>
 
-        <div className="space-y-3 border-t-2 bg-muted/50 p-3">
+        <div className="shrink-0 space-y-3 border-t-2 bg-muted/50 p-3">
           <div className="space-y-1 text-sm tabular-nums">
             <div className="flex justify-between">
               <span className="text-muted-foreground">{dictionary.subtotal}</span>
@@ -791,46 +872,30 @@ export function CheckoutClient({
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="invoiceType">{dictionary.invoiceType}</Label>
-            <Select
-              value={invoiceType}
-              onValueChange={(value) => {
-                if (value === 'simplified' || value === 'standard') setInvoiceType(value)
-              }}
-            >
-              <SelectTrigger id="invoiceType" className="w-full bg-background">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="start">
-                <SelectItem value="simplified">{dictionary.simplifiedInvoice}</SelectItem>
-                <SelectItem value="standard">{dictionary.standardInvoice}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           {invoiceType === 'standard' && (
-            <div className="grid gap-2 border-t pt-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+            <div className="grid gap-2 rounded-md bg-violet-100/60 p-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 dark:bg-violet-950/30">
               <Input
+                className="bg-card"
                 placeholder={dictionary.buyerName}
                 value={buyer.name || ''}
                 onChange={(event) => setBuyer({ ...buyer, name: event.target.value })}
               />
               <Input
+                className="bg-card"
                 placeholder={dictionary.buyerVat}
                 inputMode="numeric"
                 value={buyer.vatNumber || ''}
                 onChange={(event) => setBuyer({ ...buyer, vatNumber: event.target.value })}
               />
               <Textarea
-                className="sm:col-span-2 lg:col-span-1 xl:col-span-2"
+                className="bg-card sm:col-span-2 lg:col-span-1 xl:col-span-2"
                 placeholder={dictionary.buyerAddress}
                 rows={2}
                 value={buyer.address || ''}
                 onChange={(event) => setBuyer({ ...buyer, address: event.target.value })}
               />
               <Input
-                className="sm:col-span-2 lg:col-span-1 xl:col-span-2"
+                className="bg-card sm:col-span-2 lg:col-span-1 xl:col-span-2"
                 placeholder={dictionary.buyerIdentification}
                 value={buyer.identification || ''}
                 onChange={(event) => setBuyer({ ...buyer, identification: event.target.value })}
@@ -853,7 +918,7 @@ export function CheckoutClient({
             </p>
           )}
           <Button
-            className="h-10 w-full"
+            className="h-11 w-full bg-emerald-600 text-base text-white shadow-sm hover:bg-emerald-700 focus-visible:ring-emerald-600 dark:bg-emerald-500 dark:text-emerald-950 dark:hover:bg-emerald-400"
             disabled={!settingsReady || cart.length === 0 || pending}
             onClick={finalize}
           >

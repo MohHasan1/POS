@@ -41,6 +41,45 @@ describe('VAT calculations', () => {
     })
   })
 
+  it('keeps inclusive and exclusive line amounts accurate for fractional quantities', () => {
+    assert.deepEqual(
+      calculateLine({
+        unitPriceMinor: 1150,
+        quantityMilliunits: 1500,
+        vatCategory: 'standard',
+        priceIncludesVat: true,
+      }),
+      {
+        unitPriceMinor: 1150,
+        quantityMilliunits: 1500,
+        vatCategory: 'standard',
+        priceIncludesVat: true,
+        vatRateBps: 1500,
+        netMinor: 1500,
+        vatMinor: 225,
+        totalMinor: 1725,
+      },
+    )
+    assert.deepEqual(
+      calculateLine({
+        unitPriceMinor: 1000,
+        quantityMilliunits: 1500,
+        vatCategory: 'standard',
+        priceIncludesVat: false,
+      }),
+      {
+        unitPriceMinor: 1000,
+        quantityMilliunits: 1500,
+        vatCategory: 'standard',
+        priceIncludesVat: false,
+        vatRateBps: 1500,
+        netMinor: 1500,
+        vatMinor: 225,
+        totalMinor: 1725,
+      },
+    )
+  })
+
   it('keeps invoice totals equal to the sum of saved line totals', () => {
     const lines = [
       calculateLine({ unitPriceMinor: 11_500, quantityMilliunits: 2000, vatCategory: 'standard', priceIncludesVat: true }),

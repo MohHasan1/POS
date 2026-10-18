@@ -13,6 +13,7 @@ import { up as addBusinessInformation } from '@/migrations/20261017_215421_busin
 import { up as addBusinessContactsAndLogo } from '@/migrations/20261018_135207_business_contacts_and_logo'
 import { up as addReceiptVouchers } from '@/migrations/20261018_140414_receipt_vouchers'
 import { up as addReceiptVoucherStatusWorkflow } from '@/migrations/20261018_143226_receipt_voucher_status_workflow'
+import { up as defaultVatExclusiveProducts } from '@/migrations/20261018_191417_default_vat_exclusive_products'
 
 describe('SQLite migration reconciliation', () => {
   it('safely reconciles a schema that Payload already pushed in development', async () => {
@@ -108,6 +109,62 @@ describe('SQLite migration reconciliation', () => {
         sql`SELECT \`receipt_vouchers_id\` FROM \`payload_locked_documents_rels\`;`,
       )
       assert.equal(reference.rows[0]?.receipt_vouchers_id, 'migration-active')
+    } finally {
+      client.close()
+      rmSync(directory, { force: true, recursive: true })
+    }
+  })
+
+  it('changes only the new-row VAT pricing default and preserves saved preferences', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'quickpos-vat-default-migration-'))
+    const client = createClient({ url: `file:${path.join(directory, 'legacy.db')}` })
+    const database = drizzle(client)
+    const db = database as unknown as MigrateUpArgs['db']
+
+    try {
+      await db.run(sql`CREATE TABLE media (
+        id integer PRIMARY KEY NOT NULL
+      );`)
+      await db.run(sql`CREATE TABLE shop_settings (
+        id integer PRIMARY KEY NOT NULL,
+        display_name text,
+        seller_name_arabic text NOT NULL,
+        seller_name_english text NOT NULL,
+        cr_number text,
+        vat_number text NOT NULL,
+        business_address text NOT NULL,
+        logo_id integer,
+        telephone text,
+        additional_telephone text,
+        mobile text,
+        email text,
+        default_price_includes_vat integer DEFAULT true NOT NULL,
+        updated_at text,
+        created_at text
+      );`)
+      await db.run(sql`INSERT INTO shop_settings (
+        id, seller_name_arabic, seller_name_english, vat_number,
+        business_address, default_price_includes_vat
+      ) VALUES (1, 'متجر', 'Shop', '310000000000003', 'Riyadh', true);`)
+
+      await database.transaction(async (transaction) => {
+        await defaultVatExclusiveProducts({
+          db: transaction as unknown as MigrateUpArgs['db'],
+        } as MigrateUpArgs)
+      })
+
+      const existing = await db.run(
+        sql`SELECT default_price_includes_vat FROM shop_settings WHERE id = 1;`,
+      )
+      assert.equal(existing.rows[0]?.default_price_includes_vat, 1)
+
+      await db.run(sql`INSERT INTO shop_settings (
+        id, seller_name_arabic, seller_name_english, vat_number, business_address
+      ) VALUES (2, 'متجر جديد', 'New Shop', '310000000000003', 'Riyadh');`)
+      const created = await db.run(
+        sql`SELECT default_price_includes_vat FROM shop_settings WHERE id = 2;`,
+      )
+      assert.equal(created.rows[0]?.default_price_includes_vat, 0)
     } finally {
       client.close()
       rmSync(directory, { force: true, recursive: true })

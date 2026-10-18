@@ -5,6 +5,7 @@ import { after, describe, it } from 'node:test'
 import { getPayload } from 'payload'
 
 import { minorToDecimal } from '@/lib/money'
+import { DEFAULT_INVOICE_ADDRESS } from '@/lib/pos-types'
 import { decodeZatcaQr } from '@/lib/zatca-qr'
 import { finalizeInvoice } from '@/services/invoices'
 
@@ -70,7 +71,7 @@ describe('invoice finalization', () => {
   it('allows a standard invoice for a non-VAT-registered buyer', async () => {
     const invoice = await finalizeInvoice({
       buyer: {
-        address: 'Riyadh, Saudi Arabia',
+        address: 'Jeddah, Saudi Arabia',
         name: 'Walk-in Business Customer',
       },
       idempotencyKey: randomUUID(),
@@ -89,14 +90,36 @@ describe('invoice finalization', () => {
     createdInvoiceIds.push(invoice.id)
 
     assert.equal(invoice.buyer?.name, 'Walk-in Business Customer')
+    assert.equal(invoice.buyer?.address, 'Jeddah, Saudi Arabia')
     assert.equal(invoice.buyer?.vatNumber, null)
     assert.equal(invoice.buyer?.identification, null)
   })
 
-  it('requires the buyer name and address for a standard invoice', async () => {
+  it('defaults a missing standard-invoice address to Riyadh, Saudi Arabia', async () => {
+    const invoice = await finalizeInvoice({
+      buyer: { name: 'Buyer without an address' },
+      idempotencyKey: randomUUID(),
+      invoiceType: 'standard',
+      items: [
+        {
+          descriptionEnglish: 'Test item',
+          descriptionArabic: 'عنصر اختبار',
+          unitPriceMinor: 100,
+          quantityMilliunits: 1000,
+          vatCategory: 'standard',
+          priceIncludesVat: false,
+        },
+      ],
+    })
+    createdInvoiceIds.push(invoice.id)
+
+    assert.equal(invoice.buyer?.address, DEFAULT_INVOICE_ADDRESS)
+  })
+
+  it('still requires a buyer name for a standard invoice', async () => {
     await assert.rejects(
       finalizeInvoice({
-        buyer: { name: 'Buyer without an address' },
+        buyer: { address: DEFAULT_INVOICE_ADDRESS },
         idempotencyKey: randomUUID(),
         invoiceType: 'standard',
         items: [
@@ -110,7 +133,7 @@ describe('invoice finalization', () => {
           },
         ],
       }),
-      /buyer name and address/,
+      /buyer name/,
     )
   })
 

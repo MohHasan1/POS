@@ -46,6 +46,6 @@ export const ShopSettings: GlobalConfig = {
       validate: (value: null | string | undefined) =>
         !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? true : 'Enter a valid email address.',
     },
-    { name: 'defaultPriceIncludesVat', type: 'checkbox', defaultValue: true, required: true },
+    { name: 'defaultPriceIncludesVat', type: 'checkbox', defaultValue: false, required: true },
   ],
 }

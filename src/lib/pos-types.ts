@@ -1,5 +1,7 @@
 import type { Product } from '@/payload-types'
 
+export const DEFAULT_INVOICE_ADDRESS = 'Riyadh, Saudi Arabia'
+
 export type ProductSummary = Pick<
   Product,
   | 'active'

@@ -47,17 +47,20 @@ import {
 } from '@/services/browser-translator'
 
 type ProductFormProps = {
+  defaultPriceIncludesVat: boolean
   dictionary: Dictionary
   onDone: () => void
   product: ProductSummary | null
 }
 
-function ProductForm({ dictionary, onDone, product }: ProductFormProps) {
+function ProductForm({ defaultPriceIncludesVat, dictionary, onDone, product }: ProductFormProps) {
   const router = useRouter()
   const [nameEnglish, setNameEnglish] = useState(product?.nameEnglish ?? '')
   const [nameBangla, setNameBangla] = useState(product?.nameBangla ?? '')
   const [nameArabic, setNameArabic] = useState(product?.nameArabic ?? '')
-  const [includesVat, setIncludesVat] = useState(product?.priceIncludesVat ?? true)
+  const [includesVat, setIncludesVat] = useState(
+    product?.priceIncludesVat ?? defaultPriceIncludesVat,
+  )
   const [error, setError] = useState('')
   const [translationMessage, setTranslationMessage] = useState('')
   const [translationPending, setTranslationPending] = useState(false)
@@ -205,31 +208,6 @@ function ProductForm({ dictionary, onDone, product }: ProductFormProps) {
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="nameBangla">{dictionary.nameBangla}</Label>
-          <Input
-            id="nameBangla"
-            name="nameBangla"
-            disabled={translationPending}
-            onChange={(event) => setNameBangla(event.target.value)}
-            value={nameBangla}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="nameArabic">{dictionary.nameArabic}</Label>
-          <Input
-            id="nameArabic"
-            name="nameArabic"
-            dir="rtl"
-            disabled={translationPending}
-            onChange={(event) => setNameArabic(event.target.value)}
-            value={nameArabic}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="sku">{dictionary.sku}</Label>
-          <Input id="sku" name="sku" defaultValue={product?.sku || ''} />
-        </div>
-        <div className="space-y-1.5">
           <Label htmlFor="price">
             <span>
               {dictionary.price} (SAR){' '}
@@ -247,6 +225,31 @@ function ProductForm({ dictionary, onDone, product }: ProductFormProps) {
           />
         </div>
         <div className="space-y-1.5">
+          <Label htmlFor="nameArabic">{dictionary.nameArabic}</Label>
+          <Input
+            id="nameArabic"
+            name="nameArabic"
+            dir="rtl"
+            disabled={translationPending}
+            onChange={(event) => setNameArabic(event.target.value)}
+            value={nameArabic}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="nameBangla">{dictionary.nameBangla}</Label>
+          <Input
+            id="nameBangla"
+            name="nameBangla"
+            disabled={translationPending}
+            onChange={(event) => setNameBangla(event.target.value)}
+            value={nameBangla}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="sku">{dictionary.sku}</Label>
+          <Input id="sku" name="sku" defaultValue={product?.sku || ''} />
+        </div>
+        <div className="space-y-1.5">
           <Label htmlFor="vatCategory">{dictionary.vatCategory}</Label>
           <Select name="vatCategory" defaultValue={product?.vatCategory || 'standard'}>
             <SelectTrigger id="vatCategory" className="w-full bg-background">
@@ -260,10 +263,12 @@ function ProductForm({ dictionary, onDone, product }: ProductFormProps) {
           </Select>
         </div>
       </div>
-      <label className="flex items-center gap-2 text-sm">
-        <Checkbox checked={includesVat} onCheckedChange={setIncludesVat} />
-        {dictionary.priceIncludesVat}
-      </label>
+      {product && (
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox checked={includesVat} onCheckedChange={setIncludesVat} />
+          {dictionary.priceIncludesVat}
+        </label>
+      )}
       {translationMessage && (
         <p className="text-sm text-muted-foreground" role="status">
           {translationMessage}
@@ -287,9 +292,11 @@ function ProductForm({ dictionary, onDone, product }: ProductFormProps) {
 }
 
 export function ProductsManager({
+  defaultPriceIncludesVat,
   dictionary,
   products,
 }: {
+  defaultPriceIncludesVat: boolean
   dictionary: Dictionary
   products: ProductSummary[]
 }) {
@@ -419,6 +426,7 @@ export function ProductsManager({
           </DialogHeader>
           <ProductForm
             key={editing?.id || 'new'}
+            defaultPriceIncludesVat={defaultPriceIncludesVat}
             dictionary={dictionary}
             product={editing}
             onDone={() => setDialogOpen(false)}

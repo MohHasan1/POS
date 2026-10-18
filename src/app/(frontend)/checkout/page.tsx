@@ -21,7 +21,7 @@ export default async function CheckoutPage() {
         <p className="mt-1 text-sm text-muted-foreground">{dictionary.checkoutDescription}</p>
       </header>
       <CheckoutClient
-        defaultPriceIncludesVat={settings.defaultPriceIncludesVat ?? true}
+        defaultPriceIncludesVat={settings.defaultPriceIncludesVat ?? false}
         dictionary={dictionary}
         locale={locale}
         products={products}

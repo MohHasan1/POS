@@ -19,7 +19,7 @@ export default async function SettingsPage() {
       </header>
       <ApplicationPreferences dictionary={dictionary} locale={locale} />
       <InvoicingPreferences
-        defaultPriceIncludesVat={settings.defaultPriceIncludesVat ?? true}
+        defaultPriceIncludesVat={settings.defaultPriceIncludesVat ?? false}
         dictionary={dictionary}
       />
       <OfflineTranslationSettings dictionary={dictionary} />

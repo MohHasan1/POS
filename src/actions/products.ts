@@ -10,6 +10,7 @@ import {
   updateProduct,
   type ProductInput,
 } from '@/services/products'
+import { getShopSettings } from '@/services/settings'
 
 const optionalText = z
   .string()
@@ -40,7 +41,11 @@ export async function createProductAction(
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
 
   try {
-    const product = await createProduct(parsed.data as ProductInput)
+    const settings = await getShopSettings()
+    const product = await createProduct({
+      ...(parsed.data as ProductInput),
+      priceIncludesVat: settings.defaultPriceIncludesVat ?? false,
+    })
     revalidatePath('/products')
     revalidatePath('/checkout')
     return { ok: true, data: product }

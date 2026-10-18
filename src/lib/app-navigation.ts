@@ -18,19 +18,19 @@ export const appNavigation = [
     primary: true,
   },
   {
-    href: '/products',
-    labelKey: 'products',
-    homeLabelKey: 'manageProducts',
-    homeDescriptionKey: 'homeProductsDescription',
-    icon: Boxes,
-    primary: false,
-  },
-  {
     href: '/invoices',
     labelKey: 'invoices',
     homeLabelKey: 'invoiceHistory',
     homeDescriptionKey: 'homeInvoicesDescription',
     icon: FileText,
+    primary: false,
+  },
+  {
+    href: '/products',
+    labelKey: 'products',
+    homeLabelKey: 'manageProducts',
+    homeDescriptionKey: 'homeProductsDescription',
+    icon: Boxes,
     primary: false,
   },
   {

@@ -6,11 +6,16 @@ import { ProductsManager } from '@/components/products/ProductsManager'
 import { buttonVariants } from '@/components/ui/button'
 import { getDictionary } from '@/lib/localization'
 import { getProducts } from '@/services/products'
+import { getShopSettings } from '@/services/settings'
 
 export const metadata: Metadata = { title: 'Products' }
 
 export default async function ProductsPage() {
-  const [{ dictionary }, products] = await Promise.all([getDictionary(), getProducts(true)])
+  const [{ dictionary }, products, settings] = await Promise.all([
+    getDictionary(),
+    getProducts(true),
+    getShopSettings(),
+  ])
 
   return (
     <div className="space-y-5">
@@ -27,7 +32,11 @@ export default async function ProductsPage() {
           {dictionary.importExportProducts}
         </Link>
       </header>
-      <ProductsManager dictionary={dictionary} products={products} />
+      <ProductsManager
+        defaultPriceIncludesVat={settings.defaultPriceIncludesVat ?? false}
+        dictionary={dictionary}
+        products={products}
+      />
     </div>
   )
 }
