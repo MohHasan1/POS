@@ -1,19 +1,15 @@
 'use client'
 
 import { type FormEvent, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 
 import { voidReceiptVoucherAction } from '@/actions/receipt-vouchers'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { Dictionary } from '@/lib/localization'
 
-export function VoidReceiptVoucherForm({
-  dictionary,
-  id,
-}: {
-  dictionary: Dictionary
-  id: string
-}) {
+export function VoidReceiptVoucherForm({ dictionary, id }: { dictionary: Dictionary; id: string }) {
+  const router = useRouter()
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
 
@@ -26,7 +22,11 @@ export function VoidReceiptVoucherForm({
         id,
         reason: String(form.get('reason') || ''),
       })
-      if (!result.ok) setError(result.error)
+      if (!result.ok) {
+        setError(result.error)
+        return
+      }
+      router.refresh()
     })
   }
 
@@ -41,7 +41,11 @@ export function VoidReceiptVoucherForm({
           required
           className="w-64"
         />
-        {error && <p className="mt-1 text-xs text-destructive" role="alert">{error}</p>}
+        {error && (
+          <p className="mt-1 text-xs text-destructive" role="alert">
+            {error}
+          </p>
+        )}
       </div>
       <Button type="submit" variant="destructive" disabled={pending}>
         {pending ? dictionary.voidingVoucher : dictionary.voidVoucher}

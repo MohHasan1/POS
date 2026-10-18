@@ -18,14 +18,13 @@ const dateOnly = z
   }, 'Use a valid date.')
 const baseFields = {
   amountMinor: z.number().int().positive().max(99_999_999_999),
-  idempotencyKey: z.string().uuid(),
-  issuedAt: dateOnly,
   notes: z.string().trim().max(2_000).optional(),
   purpose: requiredText('Purpose', 2_000),
   receivedFrom: requiredText('Received from', 200),
+  voucherDate: dateOnly,
 }
 
-export const finalizeReceiptVoucherSchema = z.discriminatedUnion('paymentMethod', [
+export const receiptVoucherDetailsSchema = z.discriminatedUnion('paymentMethod', [
   z.object({
     ...baseFields,
     paymentMethod: z.literal('cash'),
@@ -52,9 +51,15 @@ export const finalizeReceiptVoucherSchema = z.discriminatedUnion('paymentMethod'
   }),
 ])
 
+export const createReceiptVoucherSchema = z.intersection(
+  z.object({ idempotencyKey: z.string().uuid() }),
+  receiptVoucherDetailsSchema,
+)
+
 export const voidReceiptVoucherSchema = z.object({
   id: z.string().uuid(),
   reason: requiredText('Void reason', 1_000),
 })
 
-export type FinalizeReceiptVoucherInput = z.infer<typeof finalizeReceiptVoucherSchema>
+export type CreateReceiptVoucherInput = z.infer<typeof createReceiptVoucherSchema>
+export type ReceiptVoucherDetailsInput = z.infer<typeof receiptVoucherDetailsSchema>

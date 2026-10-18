@@ -3,7 +3,10 @@
 import { useRouter } from 'next/navigation'
 import { type FormEvent, useRef, useState, useTransition } from 'react'
 
-import { finalizeReceiptVoucherAction } from '@/actions/receipt-vouchers'
+import {
+  createReceiptVoucherDraftAction,
+  updateReceiptVoucherDraftAction,
+} from '@/actions/receipt-vouchers'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -16,26 +19,30 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import type { Dictionary } from '@/lib/localization'
-import { decimalToMinor } from '@/lib/money'
-import { amountMinorToWords, type PaymentMethod } from '@/lib/receipt-voucher'
+import { decimalToMinor, minorToDecimal } from '@/lib/money'
+import { amountMinorToWords, toSaudiDateInput, type PaymentMethod } from '@/lib/receipt-voucher'
+import type { ReceiptVoucher } from '@/payload-types'
 
 export function ReceiptVoucherForm({
   defaultDate,
   dictionary,
+  voucher,
 }: {
   defaultDate: string
   dictionary: Dictionary
+  voucher?: ReceiptVoucher
 }) {
   const router = useRouter()
   const idempotencyKey = useRef(crypto.randomUUID())
-  const [amount, setAmount] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
+  const [amount, setAmount] = useState(voucher ? minorToDecimal(voucher.amountMinor) : '')
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
+    voucher?.paymentMethod || 'cash',
+  )
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
   const previewAmountMinor = decimalToMinor(amount)
-  const amountWords = previewAmountMinor && previewAmountMinor > 0
-    ? amountMinorToWords(previewAmountMinor)
-    : null
+  const amountWords =
+    previewAmountMinor && previewAmountMinor > 0 ? amountMinorToWords(previewAmountMinor) : null
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -49,11 +56,10 @@ export function ReceiptVoucherForm({
 
     const base = {
       amountMinor,
-      idempotencyKey: idempotencyKey.current,
-      issuedAt: String(form.get('issuedAt') || ''),
       notes: String(form.get('notes') || '').trim() || undefined,
       purpose: String(form.get('purpose') || ''),
       receivedFrom: String(form.get('receivedFrom') || ''),
+      voucherDate: String(form.get('voucherDate') || ''),
     }
     const input =
       paymentMethod === 'bank_transfer'
@@ -82,12 +88,18 @@ export function ReceiptVoucherForm({
             : { ...base, paymentMethod }
 
     startTransition(async () => {
-      const result = await finalizeReceiptVoucherAction(input)
+      const result = voucher
+        ? await updateReceiptVoucherDraftAction(voucher.id, input)
+        : await createReceiptVoucherDraftAction({
+            ...input,
+            idempotencyKey: idempotencyKey.current,
+          })
       if (!result.ok) {
         setError(result.error)
         return
       }
       router.push(`/receipt-vouchers/${result.data!.id}`)
+      router.refresh()
     })
   }
 
@@ -95,12 +107,24 @@ export function ReceiptVoucherForm({
     <form onSubmit={submit} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1.5">
-          <Label htmlFor="issuedAt">{dictionary.issueDate}</Label>
-          <Input id="issuedAt" name="issuedAt" type="date" defaultValue={defaultDate} required />
+          <Label htmlFor="voucherDate">{dictionary.voucherDate}</Label>
+          <Input
+            id="voucherDate"
+            name="voucherDate"
+            type="date"
+            defaultValue={defaultDate}
+            required
+          />
         </div>
         <div className="space-y-1.5 sm:col-span-1 lg:col-span-2">
           <Label htmlFor="receivedFrom">{dictionary.receivedFrom}</Label>
-          <Input id="receivedFrom" name="receivedFrom" maxLength={200} required />
+          <Input
+            id="receivedFrom"
+            name="receivedFrom"
+            defaultValue={voucher?.receivedFrom}
+            maxLength={200}
+            required
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="amount">{dictionary.amountSar}</Label>
@@ -121,8 +145,12 @@ export function ReceiptVoucherForm({
       {amountWords && (
         <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs">
           <p className="font-medium">{dictionary.amountInWords}</p>
-          <p className="mt-1" dir="ltr">{amountWords.english}</p>
-          <p className="mt-1 text-right" dir="rtl">{amountWords.arabic}</p>
+          <p className="mt-1" dir="ltr">
+            {amountWords.english}
+          </p>
+          <p className="mt-1 text-right" dir="rtl">
+            {amountWords.arabic}
+          </p>
         </div>
       )}
 
@@ -149,20 +177,37 @@ export function ReceiptVoucherForm({
           <div className="grid gap-4 sm:col-span-2 sm:grid-cols-3">
             <div className="space-y-1.5">
               <Label htmlFor="bankName">{dictionary.bankName}</Label>
-              <Input id="bankName" name="bankName" maxLength={200} required />
+              <Input
+                id="bankName"
+                name="bankName"
+                defaultValue={voucher?.paymentDetails?.bankName || ''}
+                maxLength={200}
+                required
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="transactionReference">{dictionary.transactionReference}</Label>
               <Input
                 id="transactionReference"
                 name="transactionReference"
+                defaultValue={voucher?.paymentDetails?.transactionReference || ''}
                 maxLength={200}
                 required
               />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="transferDate">{dictionary.transferDate}</Label>
-              <Input id="transferDate" name="transferDate" type="date" required />
+              <Input
+                id="transferDate"
+                name="transferDate"
+                type="date"
+                defaultValue={
+                  voucher?.paymentDetails?.transferDate
+                    ? toSaudiDateInput(voucher.paymentDetails.transferDate)
+                    : undefined
+                }
+                required
+              />
             </div>
           </div>
         )}
@@ -171,15 +216,37 @@ export function ReceiptVoucherForm({
           <div className="grid gap-4 sm:col-span-2 sm:grid-cols-3">
             <div className="space-y-1.5">
               <Label htmlFor="chequeNumber">{dictionary.chequeNumber}</Label>
-              <Input id="chequeNumber" name="chequeNumber" maxLength={200} required />
+              <Input
+                id="chequeNumber"
+                name="chequeNumber"
+                defaultValue={voucher?.paymentDetails?.chequeNumber || ''}
+                maxLength={200}
+                required
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="bankName">{dictionary.bankName}</Label>
-              <Input id="bankName" name="bankName" maxLength={200} required />
+              <Input
+                id="bankName"
+                name="bankName"
+                defaultValue={voucher?.paymentDetails?.bankName || ''}
+                maxLength={200}
+                required
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="chequeDate">{dictionary.chequeDate}</Label>
-              <Input id="chequeDate" name="chequeDate" type="date" required />
+              <Input
+                id="chequeDate"
+                name="chequeDate"
+                type="date"
+                defaultValue={
+                  voucher?.paymentDetails?.chequeDate
+                    ? toSaudiDateInput(voucher.paymentDetails.chequeDate)
+                    : undefined
+                }
+                required
+              />
             </div>
           </div>
         )}
@@ -188,11 +255,22 @@ export function ReceiptVoucherForm({
           <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="otherDescription">{dictionary.paymentDescription}</Label>
-              <Input id="otherDescription" name="otherDescription" maxLength={500} required />
+              <Input
+                id="otherDescription"
+                name="otherDescription"
+                defaultValue={voucher?.paymentDetails?.otherDescription || ''}
+                maxLength={500}
+                required
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="otherReference">{dictionary.referenceNumberOptional}</Label>
-              <Input id="otherReference" name="otherReference" maxLength={200} />
+              <Input
+                id="otherReference"
+                name="otherReference"
+                defaultValue={voucher?.paymentDetails?.otherReference || ''}
+                maxLength={200}
+              />
             </div>
           </div>
         )}
@@ -200,17 +278,40 @@ export function ReceiptVoucherForm({
 
       <div className="space-y-1.5">
         <Label htmlFor="purpose">{dictionary.paymentPurpose}</Label>
-        <Textarea id="purpose" name="purpose" maxLength={2000} rows={2} required />
+        <Textarea
+          id="purpose"
+          name="purpose"
+          defaultValue={voucher?.purpose}
+          maxLength={2000}
+          rows={2}
+          required
+        />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="notes">{dictionary.notesOptional}</Label>
-        <Textarea id="notes" name="notes" maxLength={2000} rows={2} />
+        <Textarea
+          id="notes"
+          name="notes"
+          defaultValue={voucher?.notes || ''}
+          maxLength={2000}
+          rows={2}
+        />
       </div>
 
-      {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
+      {error && (
+        <p className="text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      )}
       <div className="flex justify-end">
         <Button type="submit" disabled={pending}>
-          {pending ? dictionary.finalizingVoucher : dictionary.createReceiptVoucher}
+          {pending
+            ? voucher
+              ? dictionary.updatingDraft
+              : dictionary.savingDraft
+            : voucher
+              ? dictionary.updateDraft
+              : dictionary.saveDraft}
         </Button>
       </div>
     </form>

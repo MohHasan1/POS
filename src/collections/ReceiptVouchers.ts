@@ -6,7 +6,7 @@ const authenticated = ({ req }: { req: { user: unknown } }) => Boolean(req.user)
 export const ReceiptVouchers: CollectionConfig = {
   slug: 'receipt-vouchers',
   admin: {
-    defaultColumns: ['voucherNumber', 'issuedAt', 'receivedFrom', 'amountMinor', 'status'],
+    defaultColumns: ['voucherNumber', 'voucherDate', 'receivedFrom', 'amountMinor', 'status'],
     useAsTitle: 'voucherNumber',
   },
   access: {
@@ -19,7 +19,8 @@ export const ReceiptVouchers: CollectionConfig = {
     { name: 'id', type: 'text', required: true, defaultValue: () => randomUUID() },
     { name: 'voucherNumber', type: 'text', required: true, unique: true, index: true },
     { name: 'idempotencyKey', type: 'text', required: true, unique: true, index: true },
-    { name: 'issuedAt', type: 'date', required: true, index: true },
+    { name: 'voucherDate', type: 'date', required: true, index: true },
+    { name: 'issuedAt', type: 'date', index: true },
     { name: 'receivedFrom', type: 'text', required: true },
     { name: 'amountMinor', type: 'number', required: true, min: 1 },
     { name: 'amountWordsEnglish', type: 'textarea', required: true },
@@ -81,11 +82,12 @@ export const ReceiptVouchers: CollectionConfig = {
       name: 'status',
       type: 'select',
       required: true,
-      defaultValue: 'active',
+      defaultValue: 'draft',
       index: true,
       options: [
-        { label: 'Active', value: 'active' },
-        { label: 'Void', value: 'void' },
+        { label: 'Draft', value: 'draft' },
+        { label: 'Issued', value: 'issued' },
+        { label: 'Voided', value: 'voided' },
       ],
     },
     { name: 'voidReason', type: 'textarea' },

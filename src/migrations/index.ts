@@ -2,6 +2,7 @@ import * as migration_20261017_194746_initial from './20261017_194746_initial'
 import * as migration_20261017_215421_business_information from './20261017_215421_business_information'
 import * as migration_20261018_135207_business_contacts_and_logo from './20261018_135207_business_contacts_and_logo'
 import * as migration_20261018_140414_receipt_vouchers from './20261018_140414_receipt_vouchers'
+import * as migration_20261018_143226_receipt_voucher_status_workflow from './20261018_143226_receipt_voucher_status_workflow'
 
 export const migrations = [
   {
@@ -23,5 +24,10 @@ export const migrations = [
     up: migration_20261018_140414_receipt_vouchers.up,
     down: migration_20261018_140414_receipt_vouchers.down,
     name: '20261018_140414_receipt_vouchers',
+  },
+  {
+    up: migration_20261018_143226_receipt_voucher_status_workflow.up,
+    down: migration_20261018_143226_receipt_voucher_status_workflow.down,
+    name: '20261018_143226_receipt_voucher_status_workflow',
   },
 ]

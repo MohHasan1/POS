@@ -224,7 +224,8 @@ export interface ReceiptVoucher {
   id: string;
   voucherNumber: string;
   idempotencyKey: string;
-  issuedAt: string;
+  voucherDate: string;
+  issuedAt?: string | null;
   receivedFrom: string;
   amountMinor: number;
   amountWordsEnglish: string;
@@ -260,7 +261,7 @@ export interface ReceiptVoucher {
       height?: number | null;
     };
   };
-  status: 'active' | 'void';
+  status: 'draft' | 'issued' | 'voided';
   voidReason?: string | null;
   voidedAt?: string | null;
   updatedAt: string;
@@ -466,6 +467,7 @@ export interface ReceiptVouchersSelect<T extends boolean = true> {
   id?: T;
   voucherNumber?: T;
   idempotencyKey?: T;
+  voucherDate?: T;
   issuedAt?: T;
   receivedFrom?: T;
   amountMinor?: T;

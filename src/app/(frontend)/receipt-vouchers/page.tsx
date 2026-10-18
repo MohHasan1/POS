@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 import { ReceiptVoucherForm } from '@/components/receipt-vouchers/ReceiptVoucherForm'
+import { ReceiptVoucherStatusBadge } from '@/components/receipt-vouchers/ReceiptVoucherStatusBadge'
 import { buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -39,34 +40,77 @@ export default async function ReceiptVouchersPage({
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">{dictionary.receiptVouchers}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{dictionary.receiptVouchersDescription}</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {dictionary.receiptVouchersDescription}
+        </p>
       </header>
 
-      <section className="rounded-lg border bg-background p-4 sm:p-5" aria-labelledby="create-voucher-heading">
+      <section
+        className="rounded-lg border bg-background p-4 sm:p-5"
+        aria-labelledby="create-voucher-heading"
+      >
         <div className="mb-4">
-          <h2 id="create-voucher-heading" className="font-semibold">{dictionary.createReceiptVoucher}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{dictionary.createReceiptVoucherDescription}</p>
+          <h2 id="create-voucher-heading" className="font-semibold">
+            {dictionary.createReceiptVoucher}
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {dictionary.createReceiptVoucherDescription}
+          </p>
         </div>
         <ReceiptVoucherForm dictionary={dictionary} defaultDate={todayInSaudiArabia()} />
       </section>
 
-      <section className="rounded-lg border bg-background" aria-labelledby="voucher-history-heading">
+      <section
+        className="rounded-lg border bg-background"
+        aria-labelledby="voucher-history-heading"
+      >
         <div className="border-b p-4">
-          <h2 id="voucher-history-heading" className="font-semibold">{dictionary.receiptVoucherHistory}</h2>
-          <form className="mt-3 grid gap-3 sm:grid-cols-[minmax(220px,1fr)_160px_160px_auto]" role="search">
+          <h2 id="voucher-history-heading" className="font-semibold">
+            {dictionary.receiptVoucherHistory}
+          </h2>
+          <form
+            className="mt-3 grid gap-3 sm:grid-cols-[minmax(220px,1fr)_160px_160px_auto]"
+            role="search"
+          >
             <div className="relative">
-              <Search className="pointer-events-none absolute left-2.5 top-2 size-4 text-muted-foreground" aria-hidden="true" />
-              <Input className="pl-8" defaultValue={q} name="q" placeholder={dictionary.voucherNumber} />
+              <Search
+                className="pointer-events-none absolute left-2.5 top-2 size-4 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <Input
+                className="pl-8"
+                defaultValue={q}
+                name="q"
+                placeholder={dictionary.voucherNumber}
+              />
             </div>
             <div className="space-y-1">
-              <Label className="sr-only" htmlFor="voucher-from">{dictionary.fromDate}</Label>
-              <Input id="voucher-from" name="from" type="date" defaultValue={from} aria-label={dictionary.fromDate} />
+              <Label className="sr-only" htmlFor="voucher-from">
+                {dictionary.fromDate}
+              </Label>
+              <Input
+                id="voucher-from"
+                name="from"
+                type="date"
+                defaultValue={from}
+                aria-label={dictionary.fromDate}
+              />
             </div>
             <div className="space-y-1">
-              <Label className="sr-only" htmlFor="voucher-to">{dictionary.toDate}</Label>
-              <Input id="voucher-to" name="to" type="date" defaultValue={to} aria-label={dictionary.toDate} />
+              <Label className="sr-only" htmlFor="voucher-to">
+                {dictionary.toDate}
+              </Label>
+              <Input
+                id="voucher-to"
+                name="to"
+                type="date"
+                defaultValue={to}
+                aria-label={dictionary.toDate}
+              />
             </div>
-            <button className={buttonVariants({ variant: 'outline' })} type="submit">{dictionary.search}</button>
+            <button className={buttonVariants({ variant: 'outline' })} type="submit">
+              {dictionary.search}
+            </button>
           </form>
         </div>
         <Table>
@@ -85,22 +129,41 @@ export default async function ReceiptVouchersPage({
             {vouchers.map((voucher) => (
               <TableRow key={voucher.id}>
                 <TableCell className="font-medium">{voucher.voucherNumber}</TableCell>
-                <TableCell>{formatSaudiDate(voucher.issuedAt, dateLocale)}</TableCell>
+                <TableCell>{formatSaudiDate(voucher.voucherDate, dateLocale)}</TableCell>
                 <TableCell>{voucher.receivedFrom}</TableCell>
                 <TableCell>{dictionary[`payment_${voucher.paymentMethod}`]}</TableCell>
                 <TableCell>
-                  <span className={voucher.status === 'void' ? 'text-destructive' : ''}>
-                    {voucher.status === 'void' ? dictionary.voidStatus : dictionary.active}
-                  </span>
+                  <ReceiptVoucherStatusBadge dictionary={dictionary} status={voucher.status} />
                 </TableCell>
-                <TableCell className="text-right tabular-nums">{formatSAR(voucher.amountMinor, dateLocale)}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatSAR(voucher.amountMinor, dateLocale)}
+                </TableCell>
                 <TableCell className="text-right">
-                  <Link href={`/receipt-vouchers/${voucher.id}`} className={cn(buttonVariants({ size: 'sm', variant: 'outline' }))}>{dictionary.view}</Link>
+                  <div className="flex justify-end gap-2">
+                    {voucher.status === 'draft' && (
+                      <Link
+                        href={`/receipt-vouchers/${voucher.id}?edit=1`}
+                        className={cn(buttonVariants({ size: 'sm', variant: 'outline' }))}
+                      >
+                        {dictionary.edit}
+                      </Link>
+                    )}
+                    <Link
+                      href={`/receipt-vouchers/${voucher.id}`}
+                      className={cn(buttonVariants({ size: 'sm', variant: 'outline' }))}
+                    >
+                      {dictionary.view}
+                    </Link>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
             {vouchers.length === 0 && (
-              <TableRow><TableCell colSpan={7} className="h-24 text-center text-muted-foreground">{dictionary.noReceiptVouchers}</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                  {dictionary.noReceiptVouchers}
+                </TableCell>
+              </TableRow>
             )}
           </TableBody>
         </Table>

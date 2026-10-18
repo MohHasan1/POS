@@ -7,14 +7,14 @@ import {
   nextReceiptVoucherNumber,
   saudiDateToISOString,
 } from '@/lib/receipt-voucher'
-import { finalizeReceiptVoucherSchema } from '@/lib/receipt-voucher-validation'
+import { createReceiptVoucherSchema } from '@/lib/receipt-voucher-validation'
 
 const baseInput = {
   amountMinor: 123_450,
   idempotencyKey: randomUUID(),
-  issuedAt: '2026-10-18',
   purpose: 'Payment on account',
   receivedFrom: 'Sample Customer',
+  voucherDate: '2026-10-18',
 }
 
 describe('receipt voucher helpers', () => {
@@ -26,14 +26,32 @@ describe('receipt voucher helpers', () => {
   })
 
   it('writes SAR and halalas accurately in English and Arabic', () => {
-    assert.deepEqual(amountMinorToWords(123_450), {
-      english: 'One Thousand Two Hundred Thirty Four Riyals And Fifty Halalas Only',
-      arabic: 'فقط ألف ومائتان وأربعة وثلاثون ريالًا وخمسون هللةً لا غير',
-    })
-    assert.deepEqual(amountMinorToWords(75), {
-      english: 'Zero Riyals And Seventy Five Halalas Only',
-      arabic: 'فقط صفر ريال وخمس وسبعون هللةً لا غير',
-    })
+    const cases = [
+      [1, 'Zero Riyals And One Halala Only', 'فقط صفر ريال وهللة واحدة لا غير'],
+      [2, 'Zero Riyals And Two Halalas Only', 'فقط صفر ريال وهللتان لا غير'],
+      [75, 'Zero Riyals And Seventy Five Halalas Only', 'فقط صفر ريال وخمس وسبعون هللةً لا غير'],
+      [100, 'One Riyal Only', 'فقط ريال واحد لا غير'],
+      [200, 'Two Riyals Only', 'فقط ريالان لا غير'],
+      [1_150, 'Eleven Riyals And Fifty Halalas Only', 'فقط أحد عشر ريالًا وخمسون هللةً لا غير'],
+      [
+        123_450,
+        'One Thousand Two Hundred Thirty Four Riyals And Fifty Halalas Only',
+        'فقط ألف ومائتان وأربعة وثلاثون ريالًا وخمسون هللةً لا غير',
+      ],
+      [200_000, 'Two Thousand Riyals Only', 'فقط ألفا ريال لا غير'],
+      [100_000_000, 'One Million Riyals Only', 'فقط مليون ريال لا غير'],
+      [
+        99_999_999_999,
+        'Nine Hundred Ninety Nine Million Nine Hundred Ninety Nine Thousand Nine Hundred Ninety Nine Riyals And Ninety Nine Halalas Only',
+        'فقط تسعمائة وتسعة وتسعون مليونًا وتسعمائة وتسعة وتسعون ألفًا وتسعمائة وتسعة وتسعون ريالًا وتسع وتسعون هللةً لا غير',
+      ],
+    ] as const
+
+    for (const [amountMinor, english, arabic] of cases) {
+      assert.deepEqual(amountMinorToWords(amountMinor), { arabic, english })
+    }
+    assert.throws(() => amountMinorToWords(0), /positive whole number/)
+    assert.throws(() => amountMinorToWords(1.5), /positive whole number/)
   })
 
   it('stores valid Saudi dates without silently normalizing impossible dates', () => {
@@ -68,24 +86,26 @@ describe('receipt voucher payment validation', () => {
       },
     ]
 
-    for (const input of inputs) assert.equal(finalizeReceiptVoucherSchema.safeParse(input).success, true)
+    for (const input of inputs)
+      assert.equal(createReceiptVoucherSchema.safeParse(input).success, true)
   })
 
   it('rejects missing conditional fields and unsupported Card payments', () => {
     assert.equal(
-      finalizeReceiptVoucherSchema.safeParse({ ...baseInput, paymentMethod: 'bank_transfer' }).success,
+      createReceiptVoucherSchema.safeParse({ ...baseInput, paymentMethod: 'bank_transfer' })
+        .success,
       false,
     )
     assert.equal(
-      finalizeReceiptVoucherSchema.safeParse({ ...baseInput, paymentMethod: 'cheque' }).success,
+      createReceiptVoucherSchema.safeParse({ ...baseInput, paymentMethod: 'cheque' }).success,
       false,
     )
     assert.equal(
-      finalizeReceiptVoucherSchema.safeParse({ ...baseInput, paymentMethod: 'other' }).success,
+      createReceiptVoucherSchema.safeParse({ ...baseInput, paymentMethod: 'other' }).success,
       false,
     )
     assert.equal(
-      finalizeReceiptVoucherSchema.safeParse({ ...baseInput, paymentMethod: 'card' }).success,
+      createReceiptVoucherSchema.safeParse({ ...baseInput, paymentMethod: 'card' }).success,
       false,
     )
   })

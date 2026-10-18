@@ -72,3 +72,14 @@ export function todayInSaudiArabia(): string {
   const value = Object.fromEntries(parts.map((part) => [part.type, part.value]))
   return `${value.year}-${value.month}-${value.day}`
 }
+
+export function toSaudiDateInput(value: string | Date): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    day: '2-digit',
+    month: '2-digit',
+    timeZone: 'Asia/Riyadh',
+    year: 'numeric',
+  }).formatToParts(new Date(value))
+  const date = Object.fromEntries(parts.map((part) => [part.type, part.value]))
+  return `${date.year}-${date.month}-${date.day}`
+}

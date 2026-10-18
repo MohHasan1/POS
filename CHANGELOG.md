@@ -34,6 +34,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Replace Receipt Voucher Active/Voided states with an enforced Draft → Issued → Voided lifecycle, draft editing, explicit issuance confirmation, audit timestamps, and print watermarks.
+- Expand SAR amount-in-words coverage across singular, dual, halala, thousand, million, and maximum supported values in English and Arabic.
+- Refined Receipt Voucher printing into a compact bilingual accounting layout with improved A4 spacing, void treatment, and aligned signatures.
+- Use saved voucher and invoice numbers as exact browser print titles without the QuickPOS suffix for cleaner PDF filename suggestions.
 - Made business/media and receipt-voucher migrations safely reconcile databases previously schema-pushed by Payload development mode.
 - Enabled Next.js standalone output and explicit Windows libSQL runtime tracing for offline packaging.
 - Extended Windows upgrade backups and restore guidance to preserve uploaded business media alongside SQLite data.
