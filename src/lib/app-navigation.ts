@@ -1,4 +1,4 @@
-import { Boxes, Building2, FileText, Home, Settings, ShoppingCart } from 'lucide-react'
+import { Boxes, Building2, FileText, Home, ReceiptText, Settings, ShoppingCart } from 'lucide-react'
 
 export const appNavigation = [
   {
@@ -31,6 +31,14 @@ export const appNavigation = [
     homeLabelKey: 'invoiceHistory',
     homeDescriptionKey: 'homeInvoicesDescription',
     icon: FileText,
+    primary: false,
+  },
+  {
+    href: '/receipt-vouchers',
+    labelKey: 'receiptVouchers',
+    homeLabelKey: 'receiptVouchers',
+    homeDescriptionKey: 'homeReceiptVouchersDescription',
+    icon: ReceiptText,
     primary: false,
   },
   {

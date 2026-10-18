@@ -16,6 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - QuickPOS icons for the application header, App Router favicon, PWA manifest, Windows installer, and installed shortcuts.
 - Separate Business Information page backed by the existing shop settings Global.
 - Optional commercial registration, logo, telephone, mobile, and email fields on Business Information, with persistent Payload media storage and preview.
+- Immutable Receipt Vouchers with dedicated numbering, four validated payment methods, idempotent finalization, search, date filtering, and controlled voiding.
+- Bilingual Arabic/English A4 receipt voucher printing with amount-in-words, historical business branding snapshots, and blank manual signature areas.
 - Persistent English/Bangla language and Light/Dark/System appearance controls in Application Settings.
 - Shop display names and recent-invoice shortcuts on the redesigned Home page.
 - Saudi retail POS application shell with English and Bangla UI switching.
@@ -32,6 +34,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Made business/media and receipt-voucher migrations safely reconcile databases previously schema-pushed by Payload development mode.
 - Enabled Next.js standalone output and explicit Windows libSQL runtime tracing for offline packaging.
 - Extended Windows upgrade backups and restore guidance to preserve uploaded business media alongside SQLite data.
 - Normalized persistent SQLite file URLs for native Windows paths and exposed packaged-runtime logs when CI smoke tests fail.

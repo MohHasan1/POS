@@ -1,7 +1,7 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-sqlite'
 
 export async function up({ db }: MigrateUpArgs): Promise<void> {
-  await db.run(sql`CREATE TABLE \`media\` (
+  await db.run(sql`CREATE TABLE IF NOT EXISTS \`media\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`alt\` text NOT NULL,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
@@ -15,22 +15,46 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
   	\`height\` numeric
   );
   `)
-  await db.run(sql`CREATE INDEX \`media_updated_at_idx\` ON \`media\` (\`updated_at\`);`)
-  await db.run(sql`CREATE INDEX \`media_created_at_idx\` ON \`media\` (\`created_at\`);`)
-  await db.run(sql`CREATE UNIQUE INDEX \`media_filename_idx\` ON \`media\` (\`filename\`);`)
-  await db.run(
-    sql`ALTER TABLE \`payload_locked_documents_rels\` ADD \`media_id\` integer REFERENCES media(id);`,
+  await db.run(sql`CREATE INDEX IF NOT EXISTS \`media_updated_at_idx\` ON \`media\` (\`updated_at\`);`)
+  await db.run(sql`CREATE INDEX IF NOT EXISTS \`media_created_at_idx\` ON \`media\` (\`created_at\`);`)
+  await db.run(sql`CREATE UNIQUE INDEX IF NOT EXISTS \`media_filename_idx\` ON \`media\` (\`filename\`);`)
+
+  const lockResult = await db.run(sql`PRAGMA table_info('payload_locked_documents_rels');`)
+  const lockColumns = new Set(
+    lockResult.rows.map((row) => String((row as unknown as { name: unknown }).name)),
   )
+  if (!lockColumns.has('media_id')) {
+    await db.run(
+      sql`ALTER TABLE \`payload_locked_documents_rels\` ADD \`media_id\` integer REFERENCES media(id);`,
+    )
+  }
   await db.run(
-    sql`CREATE INDEX \`payload_locked_documents_rels_media_id_idx\` ON \`payload_locked_documents_rels\` (\`media_id\`);`,
+    sql`CREATE INDEX IF NOT EXISTS \`payload_locked_documents_rels_media_id_idx\` ON \`payload_locked_documents_rels\` (\`media_id\`);`,
   )
-  await db.run(sql`ALTER TABLE \`shop_settings\` ADD \`cr_number\` text;`)
-  await db.run(sql`ALTER TABLE \`shop_settings\` ADD \`logo_id\` integer REFERENCES media(id);`)
-  await db.run(sql`ALTER TABLE \`shop_settings\` ADD \`telephone\` text;`)
-  await db.run(sql`ALTER TABLE \`shop_settings\` ADD \`additional_telephone\` text;`)
-  await db.run(sql`ALTER TABLE \`shop_settings\` ADD \`mobile\` text;`)
-  await db.run(sql`ALTER TABLE \`shop_settings\` ADD \`email\` text;`)
-  await db.run(sql`CREATE INDEX \`shop_settings_logo_idx\` ON \`shop_settings\` (\`logo_id\`);`)
+
+  const settingsResult = await db.run(sql`PRAGMA table_info('shop_settings');`)
+  const settingsColumns = new Set(
+    settingsResult.rows.map((row) => String((row as unknown as { name: unknown }).name)),
+  )
+  if (!settingsColumns.has('cr_number')) {
+    await db.run(sql`ALTER TABLE \`shop_settings\` ADD \`cr_number\` text;`)
+  }
+  if (!settingsColumns.has('logo_id')) {
+    await db.run(sql`ALTER TABLE \`shop_settings\` ADD \`logo_id\` integer REFERENCES media(id);`)
+  }
+  if (!settingsColumns.has('telephone')) {
+    await db.run(sql`ALTER TABLE \`shop_settings\` ADD \`telephone\` text;`)
+  }
+  if (!settingsColumns.has('additional_telephone')) {
+    await db.run(sql`ALTER TABLE \`shop_settings\` ADD \`additional_telephone\` text;`)
+  }
+  if (!settingsColumns.has('mobile')) {
+    await db.run(sql`ALTER TABLE \`shop_settings\` ADD \`mobile\` text;`)
+  }
+  if (!settingsColumns.has('email')) {
+    await db.run(sql`ALTER TABLE \`shop_settings\` ADD \`email\` text;`)
+  }
+  await db.run(sql`CREATE INDEX IF NOT EXISTS \`shop_settings_logo_idx\` ON \`shop_settings\` (\`logo_id\`);`)
 }
 
 export async function down({ db }: MigrateDownArgs): Promise<void> {

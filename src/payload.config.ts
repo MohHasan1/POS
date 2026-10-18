@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url'
 import { Invoices } from './collections/Invoices'
 import { Media } from './collections/Media'
 import { Products } from './collections/Products'
+import { ReceiptVouchers } from './collections/ReceiptVouchers'
 import { Users } from './collections/Users'
 import { ShopSettings } from './globals/ShopSettings'
 
@@ -37,7 +38,7 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Products, Invoices, Media],
+  collections: [Users, Products, Invoices, ReceiptVouchers, Media],
   globals: [ShopSettings],
   secret: payloadSecret,
   typescript: {

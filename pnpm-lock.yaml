@@ -71,6 +71,9 @@ importers:
       shadcn:
         specifier: ^4.22.0
         version: 4.22.0(babel-plugin-macros@3.1.0)
+      to-words:
+        specifier: 7.3.0
+        version: 7.3.0
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
@@ -4239,6 +4242,11 @@ packages:
 
   to-space-case@1.0.0:
     resolution: {integrity: sha512-rLdvwXZ39VOn1IxGL3V6ZstoTbwLRckQmn/U8ZDLuWwIXNpuZDhQ3AiRUlhTbOXFVE9C+dR51wM0CBDhk31VcA==}
+
+  to-words@7.3.0:
+    resolution: {integrity: sha512-Mo1c/8y0cvi/ICWH7SAgTPWMkddWZuOSwFgvnB7OQDEzRRDBVNQLBsMzVmXM3op4G5529jYfl8WcttqxMihAFw==}
+    engines: {node: '>=20.0.0'}
+    hasBin: true
 
   toidentifier@1.0.1:
     resolution: {integrity: sha512-o5sSPKEkg/DIQNmH43V0/uerLrpzVedkUh8tGNvaeXpfpuwjKenlSox/2O/BTlZUtEe+JG7s5YhEz608PlAHRA==}
@@ -8789,6 +8797,8 @@ snapshots:
   to-space-case@1.0.0:
     dependencies:
       to-no-case: 1.0.2
+
+  to-words@7.3.0: {}
 
   toidentifier@1.0.1: {}
 

@@ -163,7 +163,8 @@ textarea {
   background: var(--muted-foreground);
 }
 
-.invoice-page {
+.invoice-page,
+.receipt-voucher-page {
   width: 100%;
   max-width: 210mm;
   min-height: 277mm;
@@ -190,11 +191,14 @@ textarea {
   }
 
   .invoice-page,
-  .invoice-page * {
+  .invoice-page *,
+  .receipt-voucher-page,
+  .receipt-voucher-page * {
     visibility: visible;
   }
 
-  .invoice-page {
+  .invoice-page,
+  .receipt-voucher-page {
     position: static;
     width: auto;
     max-width: none;
@@ -222,6 +226,7 @@ textarea {
   .invoice-item-row,
   .invoice-summary,
   .invoice-footer,
+  .voucher-signatures,
   img {
     break-inside: avoid;
     page-break-inside: avoid;

@@ -70,6 +70,7 @@ export interface Config {
     users: User;
     products: Product;
     invoices: Invoice;
+    'receipt-vouchers': ReceiptVoucher;
     media: Media;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
@@ -81,6 +82,7 @@ export interface Config {
     users: UsersSelect<false> | UsersSelect<true>;
     products: ProductsSelect<false> | ProductsSelect<true>;
     invoices: InvoicesSelect<false> | InvoicesSelect<true>;
+    'receipt-vouchers': ReceiptVouchersSelect<false> | ReceiptVouchersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -216,6 +218,56 @@ export interface Invoice {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "receipt-vouchers".
+ */
+export interface ReceiptVoucher {
+  id: string;
+  voucherNumber: string;
+  idempotencyKey: string;
+  issuedAt: string;
+  receivedFrom: string;
+  amountMinor: number;
+  amountWordsEnglish: string;
+  amountWordsArabic: string;
+  paymentMethod: 'cash' | 'bank_transfer' | 'cheque' | 'other';
+  paymentDetails?: {
+    bankName?: string | null;
+    transactionReference?: string | null;
+    transferDate?: string | null;
+    chequeNumber?: string | null;
+    chequeDate?: string | null;
+    otherDescription?: string | null;
+    otherReference?: string | null;
+  };
+  purpose: string;
+  notes?: string | null;
+  business: {
+    displayName?: string | null;
+    sellerNameArabic: string;
+    sellerNameEnglish: string;
+    crNumber?: string | null;
+    businessAddress: string;
+    telephone?: string | null;
+    additionalTelephone?: string | null;
+    mobile?: string | null;
+    email?: string | null;
+    logo?: {
+      mediaId?: number | null;
+      url?: string | null;
+      filename?: string | null;
+      mimeType?: string | null;
+      width?: number | null;
+      height?: number | null;
+    };
+  };
+  status: 'active' | 'void';
+  voidReason?: string | null;
+  voidedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "media".
  */
 export interface Media {
@@ -266,6 +318,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'invoices';
         value: string | Invoice;
+      } | null)
+    | ({
+        relationTo: 'receipt-vouchers';
+        value: string | ReceiptVoucher;
       } | null)
     | ({
         relationTo: 'media';
@@ -399,6 +455,62 @@ export interface InvoicesSelect<T extends boolean = true> {
   vatMinor?: T;
   totalMinor?: T;
   qrPayload?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "receipt-vouchers_select".
+ */
+export interface ReceiptVouchersSelect<T extends boolean = true> {
+  id?: T;
+  voucherNumber?: T;
+  idempotencyKey?: T;
+  issuedAt?: T;
+  receivedFrom?: T;
+  amountMinor?: T;
+  amountWordsEnglish?: T;
+  amountWordsArabic?: T;
+  paymentMethod?: T;
+  paymentDetails?:
+    | T
+    | {
+        bankName?: T;
+        transactionReference?: T;
+        transferDate?: T;
+        chequeNumber?: T;
+        chequeDate?: T;
+        otherDescription?: T;
+        otherReference?: T;
+      };
+  purpose?: T;
+  notes?: T;
+  business?:
+    | T
+    | {
+        displayName?: T;
+        sellerNameArabic?: T;
+        sellerNameEnglish?: T;
+        crNumber?: T;
+        businessAddress?: T;
+        telephone?: T;
+        additionalTelephone?: T;
+        mobile?: T;
+        email?: T;
+        logo?:
+          | T
+          | {
+              mediaId?: T;
+              url?: T;
+              filename?: T;
+              mimeType?: T;
+              width?: T;
+              height?: T;
+            };
+      };
+  status?: T;
+  voidReason?: T;
+  voidedAt?: T;
   updatedAt?: T;
   createdAt?: T;
 }
