@@ -11,6 +11,15 @@ import type { Invoice, Product } from '@/payload-types'
 
 import { areShopSettingsComplete, getShopSettings } from './settings'
 
+export type FinalizeInvoiceOptions = {
+  salesChannel?: Invoice['salesChannel']
+  serviceBoardDetails?: {
+    customerName?: string
+    customerPhone?: string
+    note?: string
+  }
+}
+
 async function findByIdempotencyKey(key: string): Promise<Invoice | null> {
   const payload = await getPayload({ config })
   const result = await payload.find({
@@ -65,6 +74,7 @@ async function resolveItem(item: FinalizeInvoiceInput['items'][number]) {
   })
 
   return {
+    product: product?.id,
     descriptionEnglish,
     descriptionBangla: product?.nameBangla || item.descriptionBangla?.trim() || undefined,
     descriptionArabic,
@@ -72,7 +82,10 @@ async function resolveItem(item: FinalizeInvoiceInput['items'][number]) {
   }
 }
 
-export async function finalizeInvoice(input: FinalizeInvoiceInput): Promise<Invoice> {
+export async function finalizeInvoice(
+  input: FinalizeInvoiceInput,
+  options: FinalizeInvoiceOptions = {},
+): Promise<Invoice> {
   const existing = await findByIdempotencyKey(input.idempotencyKey)
   if (existing) return existing
 
@@ -126,9 +139,11 @@ export async function finalizeInvoice(input: FinalizeInvoiceInput): Promise<Invo
           invoiceNumber,
           idempotencyKey: input.idempotencyKey,
           invoiceType: input.invoiceType,
+          salesChannel: options.salesChannel || 'checkout',
           issuedAt: issuedAt.toISOString(),
           seller,
           buyer,
+          serviceBoardDetails: options.serviceBoardDetails,
           items,
           ...totals,
           qrPayload,

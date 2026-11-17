@@ -37,8 +37,10 @@ export function AppShell({
                 key={href}
                 href={href}
                 className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                  primary
-                    ? 'border border-emerald-700 bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 dark:border-emerald-400 dark:bg-emerald-500 dark:text-emerald-950 dark:hover:bg-emerald-400'
+                  href === '/service-board'
+                    ? 'border border-violet-600 bg-violet-500 text-white shadow-sm hover:bg-violet-600 dark:border-violet-300 dark:bg-violet-400 dark:text-violet-950 dark:hover:bg-violet-300'
+                    : primary
+                      ? 'border border-emerald-700 bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 dark:border-emerald-400 dark:bg-emerald-500 dark:text-emerald-950 dark:hover:bg-emerald-400'
                     : href === '/receipt-vouchers'
                       ? 'bg-amber-100 text-amber-950 hover:bg-amber-200 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-amber-900'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'

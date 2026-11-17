@@ -4,6 +4,7 @@ import * as migration_20261018_135207_business_contacts_and_logo from './2026101
 import * as migration_20261018_140414_receipt_vouchers from './20261018_140414_receipt_vouchers'
 import * as migration_20261018_143226_receipt_voucher_status_workflow from './20261018_143226_receipt_voucher_status_workflow'
 import * as migration_20261018_191417_default_vat_exclusive_products from './20261018_191417_default_vat_exclusive_products'
+import * as migration_20261117_105643_service_board_and_dashboard from './20261117_105643_service_board_and_dashboard'
 
 export const migrations = [
   {
@@ -35,5 +36,10 @@ export const migrations = [
     up: migration_20261018_191417_default_vat_exclusive_products.up,
     down: migration_20261018_191417_default_vat_exclusive_products.down,
     name: '20261018_191417_default_vat_exclusive_products',
+  },
+  {
+    up: migration_20261117_105643_service_board_and_dashboard.up,
+    down: migration_20261117_105643_service_board_and_dashboard.down,
+    name: '20261117_105643_service_board_and_dashboard',
   },
 ]

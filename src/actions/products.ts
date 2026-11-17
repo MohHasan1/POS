@@ -48,6 +48,7 @@ export async function createProductAction(
     })
     revalidatePath('/products')
     revalidatePath('/checkout')
+    revalidatePath('/service-board')
     return { ok: true, data: product }
   } catch (error) {
     return { ok: false, error: messageFrom(error) }
@@ -65,6 +66,7 @@ export async function updateProductAction(
     const product = await updateProduct(id, parsed.data as ProductInput)
     revalidatePath('/products')
     revalidatePath('/checkout')
+    revalidatePath('/service-board')
     return { ok: true, data: product }
   } catch (error) {
     return { ok: false, error: messageFrom(error) }
@@ -76,6 +78,7 @@ export async function setProductActiveAction(id: string, active: boolean): Promi
     await setProductActive(id, active)
     revalidatePath('/products')
     revalidatePath('/checkout')
+    revalidatePath('/service-board')
     return { ok: true }
   } catch (error) {
     return { ok: false, error: messageFrom(error) }

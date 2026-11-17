@@ -95,9 +95,11 @@ export interface Config {
   fallbackLocale: null;
   globals: {
     'shop-settings': ShopSetting;
+    'service-board-settings': ServiceBoardSetting;
   };
   globalsSelect: {
     'shop-settings': ShopSettingsSelect<false> | ShopSettingsSelect<true>;
+    'service-board-settings': ServiceBoardSettingsSelect<false> | ServiceBoardSettingsSelect<true>;
   };
   locale: null;
   widgets: {
@@ -182,6 +184,7 @@ export interface Invoice {
   invoiceNumber: string;
   idempotencyKey: string;
   invoiceType: 'simplified' | 'standard';
+  salesChannel: 'checkout' | 'serviceBoard';
   issuedAt: string;
   seller: {
     nameArabic: string;
@@ -195,7 +198,13 @@ export interface Invoice {
     vatNumber?: string | null;
     identification?: string | null;
   };
+  serviceBoardDetails?: {
+    customerName?: string | null;
+    customerPhone?: string | null;
+    note?: string | null;
+  };
   items: {
+    product?: (string | null) | Product;
     descriptionEnglish: string;
     descriptionBangla?: string | null;
     descriptionArabic: string;
@@ -419,6 +428,7 @@ export interface InvoicesSelect<T extends boolean = true> {
   invoiceNumber?: T;
   idempotencyKey?: T;
   invoiceType?: T;
+  salesChannel?: T;
   issuedAt?: T;
   seller?:
     | T
@@ -436,9 +446,17 @@ export interface InvoicesSelect<T extends boolean = true> {
         vatNumber?: T;
         identification?: T;
       };
+  serviceBoardDetails?:
+    | T
+    | {
+        customerName?: T;
+        customerPhone?: T;
+        note?: T;
+      };
   items?:
     | T
     | {
+        product?: T;
         descriptionEnglish?: T;
         descriptionBangla?: T;
         descriptionArabic?: T;
@@ -601,6 +619,21 @@ export interface ShopSetting {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "service-board-settings".
+ */
+export interface ServiceBoardSetting {
+  id: number;
+  columns?:
+    | {
+        product?: (string | null) | Product;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "shop-settings_select".
  */
 export interface ShopSettingsSelect<T extends boolean = true> {
@@ -616,6 +649,21 @@ export interface ShopSettingsSelect<T extends boolean = true> {
   mobile?: T;
   email?: T;
   defaultPriceIncludesVat?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "service-board-settings_select".
+ */
+export interface ServiceBoardSettingsSelect<T extends boolean = true> {
+  columns?:
+    | T
+    | {
+        product?: T;
+        id?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

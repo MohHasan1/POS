@@ -36,8 +36,13 @@ export default async function InvoicePage({ params }: InvoicePageProps) {
   return (
     <div className="space-y-4">
       <div className="no-print flex flex-wrap justify-end gap-2">
-        <Link href="/checkout" className={cn(buttonVariants({ variant: 'outline' }))}>
-          {dictionary.returnToCheckout}
+        <Link
+          href={invoice.salesChannel === 'serviceBoard' ? '/service-board' : '/checkout'}
+          className={cn(buttonVariants({ variant: 'outline' }))}
+        >
+          {invoice.salesChannel === 'serviceBoard'
+            ? dictionary.returnToServiceBoard
+            : dictionary.returnToCheckout}
         </Link>
         <PrintButton documentTitle={invoice.invoiceNumber} label={dictionary.print} />
       </div>

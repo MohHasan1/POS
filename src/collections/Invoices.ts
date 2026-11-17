@@ -28,6 +28,16 @@ export const Invoices: CollectionConfig = {
         { label: 'Standard Tax Invoice', value: 'standard' },
       ],
     },
+    {
+      name: 'salesChannel',
+      type: 'select',
+      defaultValue: 'checkout',
+      required: true,
+      options: [
+        { label: 'Checkout', value: 'checkout' },
+        { label: 'Service Board', value: 'serviceBoard' },
+      ],
+    },
     { name: 'issuedAt', type: 'date', required: true, index: true },
     {
       name: 'seller',
@@ -50,11 +60,21 @@ export const Invoices: CollectionConfig = {
       ],
     },
     {
+      name: 'serviceBoardDetails',
+      type: 'group',
+      fields: [
+        { name: 'customerName', type: 'text', maxLength: 160 },
+        { name: 'customerPhone', type: 'text', maxLength: 40 },
+        { name: 'note', type: 'textarea', maxLength: 500 },
+      ],
+    },
+    {
       name: 'items',
       type: 'array',
       required: true,
       minRows: 1,
       fields: [
+        { name: 'product', type: 'relationship', relationTo: 'products' },
         { name: 'descriptionEnglish', type: 'text', required: true },
         { name: 'descriptionBangla', type: 'text' },
         { name: 'descriptionArabic', type: 'text', required: true },

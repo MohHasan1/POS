@@ -16,6 +16,7 @@ function invoiceFixture(invoiceType: Invoice['invoiceType']): Invoice {
     invoiceNumber: 'INV-20261017-0001',
     idempotencyKey: 'idempotency-key',
     invoiceType,
+    salesChannel: 'checkout',
     issuedAt: '2026-10-17T12:30:00.000Z',
     seller: {
       nameArabic: 'متجر الرياض',

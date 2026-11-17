@@ -14,6 +14,7 @@ import { up as addBusinessContactsAndLogo } from '@/migrations/20261018_135207_b
 import { up as addReceiptVouchers } from '@/migrations/20261018_140414_receipt_vouchers'
 import { up as addReceiptVoucherStatusWorkflow } from '@/migrations/20261018_143226_receipt_voucher_status_workflow'
 import { up as defaultVatExclusiveProducts } from '@/migrations/20261018_191417_default_vat_exclusive_products'
+import { up as addServiceBoardAndDashboard } from '@/migrations/20261117_105643_service_board_and_dashboard'
 
 describe('SQLite migration reconciliation', () => {
   it('safely reconciles a schema that Payload already pushed in development', async () => {
@@ -165,6 +166,53 @@ describe('SQLite migration reconciliation', () => {
         sql`SELECT default_price_includes_vat FROM shop_settings WHERE id = 2;`,
       )
       assert.equal(created.rows[0]?.default_price_includes_vat, 0)
+    } finally {
+      client.close()
+      rmSync(directory, { force: true, recursive: true })
+    }
+  })
+
+  it('adds Service Board metadata without changing legacy invoice data', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'quickpos-service-board-migration-'))
+    const client = createClient({ url: `file:${path.join(directory, 'legacy.db')}` })
+    const database = drizzle(client)
+    const db = database as unknown as MigrateUpArgs['db']
+
+    try {
+      await db.run(sql`CREATE TABLE products (id text PRIMARY KEY NOT NULL);`)
+      await db.run(sql`CREATE TABLE invoices (
+        id text PRIMARY KEY NOT NULL,
+        invoice_number text NOT NULL
+      );`)
+      await db.run(sql`CREATE TABLE invoices_items (
+        _order integer NOT NULL,
+        _parent_id text NOT NULL,
+        id text PRIMARY KEY NOT NULL,
+        description_english text NOT NULL,
+        FOREIGN KEY (_parent_id) REFERENCES invoices(id) ON DELETE cascade
+      );`)
+      await db.run(sql`INSERT INTO invoices (id, invoice_number) VALUES ('legacy', 'INV-LEGACY');`)
+      await db.run(sql`INSERT INTO invoices_items (
+        _order, _parent_id, id, description_english
+      ) VALUES (1, 'legacy', 'legacy-line', 'Legacy service');`)
+
+      await addServiceBoardAndDashboard({ db } as MigrateUpArgs)
+
+      const invoice = await db.run(
+        sql`SELECT invoice_number, sales_channel FROM invoices WHERE id = 'legacy';`,
+      )
+      const item = await db.run(
+        sql`SELECT description_english, product_id FROM invoices_items WHERE id = 'legacy-line';`,
+      )
+      const settingsTable = await db.run(
+        sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'service_board_settings';`,
+      )
+
+      assert.equal(invoice.rows[0]?.invoice_number, 'INV-LEGACY')
+      assert.equal(invoice.rows[0]?.sales_channel, 'checkout')
+      assert.equal(item.rows[0]?.description_english, 'Legacy service')
+      assert.equal(item.rows[0]?.product_id, null)
+      assert.equal(settingsTable.rows.length, 1)
     } finally {
       client.close()
       rmSync(directory, { force: true, recursive: true })

@@ -1,4 +1,13 @@
-import { Boxes, Building2, FileText, Home, ReceiptText, Settings, ShoppingCart } from 'lucide-react'
+import {
+  Boxes,
+  Building2,
+  Columns3,
+  FileText,
+  Home,
+  ReceiptText,
+  Settings,
+  ShoppingCart,
+} from 'lucide-react'
 
 export const appNavigation = [
   {
@@ -15,6 +24,14 @@ export const appNavigation = [
     homeLabelKey: 'startCheckout',
     homeDescriptionKey: 'homeCheckoutDescription',
     icon: ShoppingCart,
+    primary: true,
+  },
+  {
+    href: '/service-board',
+    labelKey: 'serviceBoard',
+    homeLabelKey: 'serviceBoard',
+    homeDescriptionKey: 'homeServiceBoardDescription',
+    icon: Columns3,
     primary: true,
   },
   {

@@ -10,6 +10,7 @@ import { Products } from './collections/Products'
 import { ReceiptVouchers } from './collections/ReceiptVouchers'
 import { Users } from './collections/Users'
 import { ShopSettings } from './globals/ShopSettings'
+import { ServiceBoardSettings } from './globals/ServiceBoardSettings'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -39,7 +40,7 @@ export default buildConfig({
     },
   },
   collections: [Users, Products, Invoices, ReceiptVouchers, Media],
-  globals: [ShopSettings],
+  globals: [ShopSettings, ServiceBoardSettings],
   secret: payloadSecret,
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),

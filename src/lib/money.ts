@@ -24,8 +24,8 @@ export function decimalToMinor(value: string): number | null {
   return Number.isSafeInteger(minor) ? minor : null
 }
 
-export function formatQuantity(quantityMilliunits: number): string {
-  return (quantityMilliunits / 1000).toLocaleString('en-SA', {
+export function formatQuantity(quantityMilliunits: number, locale = 'en-SA'): string {
+  return (quantityMilliunits / 1000).toLocaleString(locale, {
     maximumFractionDigits: 3,
   })
 }
