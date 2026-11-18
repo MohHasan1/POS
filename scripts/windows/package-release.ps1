@@ -1,7 +1,8 @@
 param(
   [string]$OutputDirectory = "dist/windows/release",
   [string]$NodeVersion = "24.22.0",
-  [string]$NodeExecutable = ""
+  [string]$NodeExecutable = "",
+  [string]$VCRuntimeDirectory = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -28,6 +29,47 @@ function Copy-DirectoryContents([string]$Source, [string]$Destination) {
   if ($LASTEXITCODE -ge 8) {
     throw "Failed to copy $Source to $Destination (robocopy exit code $LASTEXITCODE)."
   }
+}
+
+function Find-VisualCppRuntimeDirectory() {
+  $candidates = @()
+
+  if ($VCRuntimeDirectory) {
+    $candidates += [System.IO.Path]::GetFullPath($VCRuntimeDirectory)
+  }
+
+  if ($env:VCToolsRedistDir) {
+    $candidates += Join-Path $env:VCToolsRedistDir "x64\Microsoft.VC143.CRT"
+    $candidates += Join-Path $env:VCToolsRedistDir "onecore\x64\Microsoft.VC143.CRT"
+  }
+
+  $visualStudioRoot = Join-Path $env:ProgramFiles "Microsoft Visual Studio"
+  if (Test-Path $visualStudioRoot -PathType Container) {
+    $redistVersions = @(Get-ChildItem $visualStudioRoot -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+      Get-ChildItem $_.FullName -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+        $redistRoot = Join-Path $_.FullName "VC\Redist\MSVC"
+        if (Test-Path $redistRoot -PathType Container) {
+          Get-ChildItem $redistRoot -Directory -ErrorAction SilentlyContinue
+        }
+      }
+    } | Sort-Object Name -Descending)
+
+    foreach ($version in $redistVersions) {
+      $candidates += Join-Path $version.FullName "x64\Microsoft.VC143.CRT"
+      $candidates += Join-Path $version.FullName "onecore\x64\Microsoft.VC143.CRT"
+    }
+  }
+
+  foreach ($candidate in $candidates | Select-Object -Unique) {
+    if (
+      (Test-Path (Join-Path $candidate "vcruntime140.dll") -PathType Leaf) -and
+      (Test-Path (Join-Path $candidate "msvcp140.dll") -PathType Leaf)
+    ) {
+      return $candidate
+    }
+  }
+
+  throw "Microsoft Visual C++ x64 runtime DLLs were not found on the packaging machine."
 }
 
 if (-not (Test-Path (Join-Path $standaloneDirectory "server.js"))) {
@@ -143,6 +185,39 @@ if ($nativeLibsql.Count -eq 0) {
   throw "The standalone release does not contain the Windows x64 libSQL native module."
 }
 
+# The native libSQL addon is built with the Microsoft C++ toolchain. GitHub's
+# Windows runner already has that runtime installed, but shop PCs may not. Ship
+# the redistributable DLLs app-locally beside both node.exe and the addon so the
+# release remains self-contained and does not require an administrator install.
+$visualCppRuntimeDirectory = Find-VisualCppRuntimeDirectory
+$visualCppRuntimeFiles = @(Get-ChildItem $visualCppRuntimeDirectory -File -Filter "*.dll")
+if ($visualCppRuntimeFiles.Count -eq 0) {
+  throw "No Visual C++ runtime DLLs were found in $visualCppRuntimeDirectory."
+}
+
+$visualCppDestinations = @(
+  @($runtimeDirectory) + @($nativeLibsql | ForEach-Object { $_.DirectoryName })
+) | Select-Object -Unique
+foreach ($destination in $visualCppDestinations) {
+  foreach ($runtimeFile in $visualCppRuntimeFiles) {
+    Copy-Item $runtimeFile.FullName (Join-Path $destination $runtimeFile.Name) -Force
+  }
+}
+
+foreach ($nativeModule in $nativeLibsql) {
+  foreach ($requiredRuntime in @("vcruntime140.dll", "msvcp140.dll")) {
+    $runtimePath = Join-Path $nativeModule.DirectoryName $requiredRuntime
+    if (-not (Test-Path $runtimePath -PathType Leaf)) {
+      throw "The native libSQL runtime dependency is missing: $runtimePath"
+    }
+  }
+}
+
+& $runtimeNodePath -e "require(process.argv[1])" $nativeLibsql[0].FullName
+if ($LASTEXITCODE -ne 0) {
+  throw "The packaged native libSQL module failed to load (exit code $LASTEXITCODE)."
+}
+
 $sensitiveFiles = @(Get-ChildItem $releaseDirectory -Recurse -Force -File | Where-Object {
   $_.Name -match "^\.env($|\.)" -or
   $_.Extension -in @(".db", ".pem") -or
@@ -154,3 +229,4 @@ if ($sensitiveFiles.Count -gt 0) {
 
 Write-Host "QuickPOS Windows release assembled at $releaseDirectory"
 Write-Host "Windows native SQLite module: $($nativeLibsql[0].FullName)"
+Write-Host "App-local Visual C++ runtime: $visualCppRuntimeDirectory"

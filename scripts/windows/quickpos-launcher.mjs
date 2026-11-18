@@ -300,7 +300,7 @@ async function waitForReady(baseURL, timeoutMs, child) {
   const deadline = Date.now() + timeoutMs
 
   while (Date.now() < deadline) {
-    if (child?.exitCode !== null) {
+    if (child && child.exitCode !== null) {
       throw new Error(`The QuickPOS server stopped during startup (exit code ${child.exitCode}).`)
     }
 

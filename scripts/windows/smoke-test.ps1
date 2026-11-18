@@ -21,6 +21,19 @@ $quickPosData = Join-Path $localAppData "QuickPOS"
 $port = Get-Random -Minimum 42000 -Maximum 52000
 $baseUrl = "http://127.0.0.1:$port"
 
+$nativeLibsql = @(Get-ChildItem (Join-Path $releasePath "app") -Recurse -File -Filter "*.node" | Where-Object {
+  $_.FullName -match "libsql" -and $_.FullName -match "win32-x64"
+})
+if ($nativeLibsql.Count -eq 0) {
+  throw "The packaged release does not contain the Windows x64 libSQL native module."
+}
+foreach ($requiredRuntime in @("vcruntime140.dll", "msvcp140.dll")) {
+  $runtimePath = Join-Path $nativeLibsql[0].DirectoryName $requiredRuntime
+  if (-not (Test-Path $runtimePath -PathType Leaf)) {
+    throw "The packaged release is missing the app-local native dependency: $runtimePath"
+  }
+}
+
 New-Item $quickPosData -ItemType Directory -Force | Out-Null
 $utf8WithoutBom = New-Object System.Text.UTF8Encoding($false)
 [System.IO.File]::WriteAllText(
