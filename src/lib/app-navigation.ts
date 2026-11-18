@@ -7,6 +7,7 @@ import {
   ReceiptText,
   Settings,
   ShoppingCart,
+  UsersRound,
 } from 'lucide-react'
 
 export const appNavigation = [
@@ -48,6 +49,14 @@ export const appNavigation = [
     homeLabelKey: 'manageProducts',
     homeDescriptionKey: 'homeProductsDescription',
     icon: Boxes,
+    primary: false,
+  },
+  {
+    href: '/employees',
+    labelKey: 'employees',
+    homeLabelKey: 'manageEmployees',
+    homeDescriptionKey: 'homeEmployeesDescription',
+    icon: UsersRound,
     primary: false,
   },
   {

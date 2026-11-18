@@ -8,6 +8,7 @@ import { finalizeInvoice } from '@/services/invoices'
 
 const optionalText = z.string().trim().max(500).optional()
 const checkoutSchema = z.object({
+  employeeId: z.uuid().nullable().optional(),
   idempotencyKey: z.uuid(),
   invoiceType: z.enum(['sales', 'simplified', 'standard']),
   buyer: z

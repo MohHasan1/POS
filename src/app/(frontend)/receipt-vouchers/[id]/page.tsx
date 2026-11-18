@@ -79,7 +79,7 @@ export default async function ReceiptVoucherPage({
             </h1>
             <Link
               href={`/receipt-vouchers/${voucher.id}`}
-              className={cn(buttonVariants({ size: 'sm', variant: 'outline' }))}
+              className={cn(buttonVariants({ size: 'sm', variant: 'cancel' }))}
             >
               {dictionary.cancel}
             </Link>

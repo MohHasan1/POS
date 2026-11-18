@@ -2,18 +2,24 @@ import type { Metadata } from 'next'
 
 import { CheckoutClient } from '@/components/checkout/CheckoutClient'
 import { getDictionary } from '@/lib/localization'
+import { employeeRelationshipId, getEmployees } from '@/services/employees'
 import { getProducts } from '@/services/products'
 import { areShopSettingsComplete, getShopSettings, marketContextFromSettings } from '@/services/settings'
 
 export const metadata: Metadata = { title: 'Checkout' }
 
 export default async function CheckoutPage() {
-  const [{ dictionary, locale }, products, settings] = await Promise.all([
+  const [{ dictionary, locale }, employees, products, settings] = await Promise.all([
     getDictionary(),
+    getEmployees(),
     getProducts(),
     getShopSettings(),
   ])
   const market = marketContextFromSettings(settings)
+  const configuredDefaultEmployeeId = employeeRelationshipId(settings.defaultEmployee)
+  const defaultEmployeeId = employees.some(({ id }) => id === configuredDefaultEmployeeId)
+    ? configuredDefaultEmployeeId
+    : undefined
 
   return (
     <div className="space-y-5">
@@ -23,8 +29,10 @@ export default async function CheckoutPage() {
       </header>
       <CheckoutClient
         autoTranslateProducts={market.autoTranslateProducts}
+        defaultEmployeeId={defaultEmployeeId}
         defaultPriceIncludesVat={settings.defaultPriceIncludesVat ?? false}
         dictionary={dictionary}
+        employees={employees}
         locale={locale}
         market={market.profile}
         products={products}

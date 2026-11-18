@@ -18,6 +18,7 @@ import { up as defaultVatExclusiveProducts } from '@/migrations/20261018_191417_
 import { up as addServiceBoardAndDashboard } from '@/migrations/20261117_105643_service_board_and_dashboard'
 import { up as addCountryProfiles } from '@/migrations/20261117_123954_country_profiles'
 import { up as makeProductNamesNullable } from '@/migrations/20261117_132500_nullable_product_names'
+import { up as addEmployeeAssignments } from '@/migrations/20261118_123605_employee_assignments'
 
 describe('SQLite migration reconciliation', () => {
   it('safely reconciles a schema that Payload already pushed in development', async () => {
@@ -30,11 +31,60 @@ describe('SQLite migration reconciliation', () => {
     await addReceiptVouchers(args)
     await addCountryProfiles(args)
     await addCountryProfiles(args)
+    await addEmployeeAssignments(args)
+    await addEmployeeAssignments(args)
 
     const { rows } = await db.run(sql`PRAGMA table_info('payload_locked_documents_rels');`)
     const columns = new Set(rows.map((row) => String((row as unknown as { name: unknown }).name)))
     assert.equal(columns.has('media_id'), true)
     assert.equal(columns.has('receipt_vouchers_id'), true)
+    assert.equal(columns.has('employees_id'), true)
+  })
+
+  it('adds optional employee fields without changing legacy invoices', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'quickpos-employee-migration-'))
+    const client = createClient({ url: `file:${path.join(directory, 'legacy.db')}` })
+    const database = drizzle(client)
+    const db = database as unknown as MigrateUpArgs['db']
+    const args = { db } as MigrateUpArgs
+
+    try {
+      await db.run(sql`CREATE TABLE invoices (
+        id text PRIMARY KEY NOT NULL,
+        invoice_number text NOT NULL
+      );`)
+      await db.run(sql`CREATE TABLE payload_locked_documents_rels (
+        id integer PRIMARY KEY NOT NULL
+      );`)
+      await db.run(sql`CREATE TABLE shop_settings (
+        id integer PRIMARY KEY NOT NULL,
+        seller_name_english text NOT NULL
+      );`)
+      await db.run(sql`INSERT INTO invoices (id, invoice_number)
+        VALUES ('legacy-invoice', 'INV-LEGACY');`)
+      await db.run(sql`INSERT INTO shop_settings (id, seller_name_english)
+        VALUES (1, 'Legacy Shop');`)
+
+      await addEmployeeAssignments(args)
+      await addEmployeeAssignments(args)
+
+      const invoice = await db.run(sql`SELECT invoice_number, employee_id,
+        employee_snapshot_name FROM invoices WHERE id = 'legacy-invoice';`)
+      const settings = await db.run(sql`SELECT default_employee_id FROM shop_settings WHERE id = 1;`)
+      const employeeTable = await db.run(sql`SELECT name FROM sqlite_master
+        WHERE type = 'table' AND name = 'employees';`)
+
+      assert.deepEqual(invoice.rows[0], {
+        employee_id: null,
+        employee_snapshot_name: null,
+        invoice_number: 'INV-LEGACY',
+      })
+      assert.equal(settings.rows[0]?.default_employee_id, null)
+      assert.equal(employeeTable.rows.length, 1)
+    } finally {
+      client.close()
+      rmSync(directory, { force: true, recursive: true })
+    }
   })
 
   it('migrates legacy Active and Void vouchers without changing document data', async () => {

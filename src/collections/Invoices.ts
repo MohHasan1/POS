@@ -47,6 +47,12 @@ export const Invoices: CollectionConfig = {
       ],
     },
     { name: 'issuedAt', type: 'date', required: true, index: true },
+    { name: 'employee', type: 'relationship', relationTo: 'employees', index: true },
+    {
+      name: 'employeeSnapshot',
+      type: 'group',
+      fields: [{ name: 'name', type: 'text', maxLength: 160 }],
+    },
     {
       name: 'seller',
       type: 'group',

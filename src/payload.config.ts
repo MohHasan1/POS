@@ -5,6 +5,7 @@ import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 
 import { Invoices } from './collections/Invoices'
+import { Employees } from './collections/Employees'
 import { Media } from './collections/Media'
 import { Products } from './collections/Products'
 import { ReceiptVouchers } from './collections/ReceiptVouchers'
@@ -39,7 +40,7 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Products, Invoices, ReceiptVouchers, Media],
+  collections: [Users, Products, Employees, Invoices, ReceiptVouchers, Media],
   globals: [ShopSettings, ServiceBoardSettings],
   secret: payloadSecret,
   typescript: {

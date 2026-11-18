@@ -1,4 +1,4 @@
-import type { Product } from '@/payload-types'
+import type { Employee, Product } from '@/payload-types'
 
 export const DEFAULT_INVOICE_ADDRESS = 'Riyadh, Saudi Arabia'
 
@@ -14,6 +14,11 @@ export type ProductSummary = Pick<
   | 'sku'
   | 'translations'
   | 'vatCategory'
+>
+
+export type EmployeeSummary = Pick<
+  Employee,
+  'active' | 'employeeCode' | 'id' | 'name' | 'role'
 >
 
 export type BuyerInput = {
@@ -37,6 +42,7 @@ export type CheckoutItemInput = {
 
 export type FinalizeInvoiceInput = {
   buyer?: BuyerInput
+  employeeId?: string | null
   idempotencyKey: string
   invoiceType: 'sales' | 'simplified' | 'standard'
   items: CheckoutItemInput[]

@@ -290,10 +290,14 @@ export function ProductForm({
         </p>
       )}
       <DialogFooter className="mx-0 mb-0 px-0 pb-0">
-        <Button type="button" variant="outline" onClick={onDone}>
+        <Button type="button" variant="cancel" onClick={onDone}>
           {dictionary.cancel}
         </Button>
-        <Button type="submit" disabled={pending || translationPending}>
+        <Button
+          type="submit"
+          variant="success"
+          disabled={pending || translationPending}
+        >
           {pending ? dictionary.saving : dictionary.save}
         </Button>
       </DialogFooter>

@@ -15,6 +15,7 @@ import { calculateInvoiceTotals, calculateLine } from '@/lib/vat'
 import { encodeZatcaQr } from '@/lib/zatca-qr'
 import type { Invoice, Product } from '@/payload-types'
 
+import { getEmployee } from './employees'
 import { areShopSettingsComplete, getShopSettings, marketContextFromSettings } from './settings'
 
 export type FinalizeInvoiceOptions = {
@@ -117,6 +118,11 @@ export async function finalizeInvoice(
     throw new Error('Choose a Saudi simplified or standard tax invoice.')
   }
 
+  const employee = input.employeeId ? await getEmployee(input.employeeId) : null
+  if (input.employeeId && !employee?.active) {
+    throw new Error('The selected employee is missing or inactive.')
+  }
+
   const buyer =
     expectedType === 'standard'
       ? {
@@ -178,6 +184,8 @@ export async function finalizeInvoice(
           secondaryLanguage,
           salesChannel: options.salesChannel || 'checkout',
           issuedAt: issuedAt.toISOString(),
+          employee: employee?.id,
+          employeeSnapshot: employee ? { name: employee.name } : undefined,
           seller,
           buyer,
           serviceBoardDetails: options.serviceBoardDetails,

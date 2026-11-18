@@ -57,13 +57,18 @@ export function IssueReceiptVoucherButton({
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
+              variant="cancel"
               onClick={() => setOpen(false)}
               disabled={pending}
             >
               {dictionary.cancel}
             </Button>
-            <Button type="button" onClick={issue} disabled={pending}>
+            <Button
+              type="button"
+              variant="success"
+              onClick={issue}
+              disabled={pending}
+            >
               {pending ? dictionary.issuingVoucher : dictionary.markAsIssued}
             </Button>
           </DialogFooter>

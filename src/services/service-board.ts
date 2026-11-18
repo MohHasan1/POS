@@ -139,6 +139,7 @@ export function buildServiceBoardView(
       cardsByProduct.get(product.id)!.push({
         customerName: invoice.serviceBoardDetails?.customerName || invoice.buyer?.name || undefined,
         customerPhone: invoice.serviceBoardDetails?.customerPhone || undefined,
+        employeeName: invoice.employeeSnapshot?.name || undefined,
         invoiceId: invoice.id,
         invoiceNumber: invoice.invoiceNumber,
         issuedAt: invoice.issuedAt,

@@ -19,6 +19,7 @@ import {
   moveServiceBoardColumnAction,
   removeServiceBoardColumnAction,
 } from '@/actions/service-board'
+import { EmployeeSelector } from '@/components/employees/EmployeeSelector'
 import { ProductForm } from '@/components/products/ProductForm'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -44,7 +45,7 @@ import type { Dictionary, Locale } from '@/lib/localization'
 import { formatMarketDateTime } from '@/lib/calendar'
 import { localizedName, marketLocale, normalizedTranslations } from '@/lib/market'
 import { decimalToMinor, formatMoney, formatQuantity, minorToDecimal } from '@/lib/money'
-import type { ProductSummary } from '@/lib/pos-types'
+import type { EmployeeSummary, ProductSummary } from '@/lib/pos-types'
 import {
   buildServiceCardAccents,
   type ServiceCardAccent,
@@ -120,6 +121,12 @@ function ServiceCard({
             </dd>
           </div>
         )}
+        {card.employeeName && (
+          <div className="flex justify-between gap-3">
+            <dt className="text-muted-foreground">{dictionary.employee}</dt>
+            <dd className="truncate text-right font-medium">{card.employeeName}</dd>
+          </div>
+        )}
         <div className="flex justify-between gap-3">
           <dt className="text-muted-foreground">{dictionary.total}</dt>
           <dd className="font-semibold tabular-nums">
@@ -132,7 +139,7 @@ function ServiceCard({
         href={`/invoices/${card.invoiceId}`}
         className={cn(
           buttonVariants({ size: 'sm', variant: 'outline' }),
-          'w-full border-amber-500 bg-amber-500 text-amber-950 hover:border-amber-400 hover:bg-amber-400 hover:text-amber-950 dark:border-amber-300 dark:bg-amber-300 dark:text-amber-950 dark:hover:border-amber-200 dark:hover:bg-amber-200 dark:hover:text-amber-950',
+          'w-full border-0 bg-amber-100 text-amber-900 hover:bg-amber-200 hover:text-amber-950 dark:bg-amber-900/40 dark:text-amber-200 dark:hover:bg-amber-900/60 dark:hover:text-amber-100',
         )}
       >
         {dictionary.viewPrintInvoice}
@@ -181,16 +188,20 @@ function CreateServiceDialog({
 export function ServiceBoardClient({
   allProducts,
   autoTranslateProducts,
+  defaultEmployeeId,
   defaultPriceIncludesVat,
   dictionary,
+  employees,
   locale,
   settingsReady,
   view,
 }: {
   allProducts: ProductSummary[]
   autoTranslateProducts: boolean
+  defaultEmployeeId?: string
   defaultPriceIncludesVat: boolean
   dictionary: Dictionary
+  employees: EmployeeSummary[]
   locale: Locale
   settingsReady: boolean
   view: ServiceBoardView
@@ -200,6 +211,7 @@ export function ServiceBoardClient({
   const [createServiceOpen, setCreateServiceOpen] = useState(false)
   const [saleOpen, setSaleOpen] = useState(false)
   const [saleRows, setSaleRows] = useState<SaleRow[]>([])
+  const [employeeId, setEmployeeId] = useState<string | null>(defaultEmployeeId || null)
   const [serviceToAdd, setServiceToAdd] = useState<string | null>(null)
   const [idempotencyKey, setIdempotencyKey] = useState('')
   const [error, setError] = useState('')
@@ -244,6 +256,7 @@ export function ServiceBoardClient({
   }
 
   function openSale(product: ProductSummary) {
+    setEmployeeId(defaultEmployeeId || null)
     setSaleRows([
       {
         price: minorToDecimal(product.priceMinor, view.market),
@@ -301,6 +314,7 @@ export function ServiceBoardClient({
       const result = await createServiceBoardSaleAction({
         customerName: String(formData.get('customerName') || ''),
         customerPhone: String(formData.get('customerPhone') || ''),
+        employeeId,
         idempotencyKey,
         items: items.map((item) => ({
           productId: item.productId,
@@ -434,7 +448,7 @@ export function ServiceBoardClient({
                     </div>
                   </div>
                   <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
-                  <header className="space-y-3 border-b border-violet-300/70 bg-violet-200/90 p-3 dark:border-violet-700/70 dark:bg-violet-800/65">
+                  <header className="space-y-3 border-b border-violet-300/70 bg-violet-200/90 p-3 dark:border-zinc-700/80 dark:bg-zinc-900/90">
                     <div className="flex items-start gap-2">
                       <div className="min-w-0 flex-1">
                         <h2 className="truncate font-semibold">
@@ -490,7 +504,7 @@ export function ServiceBoardClient({
                       </div>
                     </div>
                     <Button
-                      className="w-full bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-300 dark:text-emerald-950 dark:hover:bg-emerald-200"
+                      className="w-full border-0 bg-emerald-500 text-white hover:bg-emerald-600 dark:bg-emerald-200 dark:text-emerald-950 dark:hover:bg-emerald-100"
                       disabled={!settingsReady}
                       onClick={() => openSale(product)}
                     >
@@ -543,7 +557,7 @@ export function ServiceBoardClient({
                 </div>
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant="success"
                   disabled={pending}
                   onClick={() => runColumnAction(() => addServiceBoardColumnAction(product.id))}
                 >
@@ -564,11 +578,12 @@ export function ServiceBoardClient({
             )}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setManageOpen(false)}>
+            <Button type="button" variant="cancel" onClick={() => setManageOpen(false)}>
               {dictionary.cancel}
             </Button>
             <Button
               type="button"
+              variant="success"
               onClick={() => {
                 setManageOpen(false)
                 setCreateServiceOpen(true)
@@ -614,6 +629,13 @@ export function ServiceBoardClient({
                 placeholder={dictionary.serviceNote}
               />
             </div>
+
+            <EmployeeSelector
+              dictionary={dictionary}
+              employees={employees}
+              onValueChange={setEmployeeId}
+              value={employeeId}
+            />
 
             <div className="space-y-2">
               {saleRows.map((row) => {
@@ -695,7 +717,7 @@ export function ServiceBoardClient({
                 </Select>
                 <Button
                   type="button"
-                  className="bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-emerald-950 dark:hover:bg-emerald-400"
+                  variant="success"
                   disabled={!serviceToAdd}
                   onClick={() => addSaleRow(serviceToAdd)}
                 >
@@ -713,12 +735,16 @@ export function ServiceBoardClient({
             <DialogFooter className="mx-0 mb-0 px-0 pb-0">
               <Button
                 type="button"
-                className="bg-red-600 text-white hover:bg-red-700 dark:bg-red-500 dark:text-red-950 dark:hover:bg-red-400"
+                variant="cancel"
                 onClick={() => setSaleOpen(false)}
               >
                 {dictionary.cancel}
               </Button>
-              <Button type="submit" disabled={pending || !settingsReady}>
+              <Button
+                type="submit"
+                variant="success"
+                disabled={pending || !settingsReady}
+              >
                 {pending ? dictionary.creatingSale : dictionary.createSale}
               </Button>
             </DialogFooter>

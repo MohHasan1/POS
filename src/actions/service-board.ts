@@ -25,6 +25,7 @@ const serviceBoardSaleSchema = z
   .object({
     customerName: optionalText(160).optional(),
     customerPhone: optionalText(40).optional(),
+    employeeId: z.uuid().nullable().optional(),
     idempotencyKey: z.uuid(),
     items: z
       .array(
@@ -148,6 +149,7 @@ export async function createServiceBoardSaleAction(
     const hasDetails = Object.values(details).some(Boolean)
     const invoice = await finalizeInvoice(
       {
+        employeeId: parsed.data.employeeId,
         idempotencyKey: parsed.data.idempotencyKey,
         invoiceType: market.profile.taxMode === 'none' ? 'sales' : 'simplified',
         items: parsed.data.items.map((item) => ({

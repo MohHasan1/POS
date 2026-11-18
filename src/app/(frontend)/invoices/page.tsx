@@ -52,6 +52,7 @@ export default async function InvoicesPage({
               <TableHead>{dictionary.invoiceNumber}</TableHead>
               <TableHead>{dictionary.date}</TableHead>
               <TableHead>{dictionary.type}</TableHead>
+              <TableHead>{dictionary.employee}</TableHead>
               <TableHead className="text-right">{dictionary.total}</TableHead>
               <TableHead className="text-right">{dictionary.actions}</TableHead>
             </TableRow>
@@ -64,6 +65,7 @@ export default async function InvoicesPage({
                 <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
                 <TableCell>{formatMarketDateTime(invoice.issuedAt, market, dateLocale)}</TableCell>
                 <TableCell>{invoice.invoiceType === 'sales' ? dictionary.salesInvoice : invoice.invoiceType === 'simplified' ? dictionary.simplifiedInvoice : dictionary.standardInvoice}</TableCell>
+                <TableCell>{invoice.employeeSnapshot?.name || '—'}</TableCell>
                 <TableCell className="text-right tabular-nums">{formatMoney(invoice.totalMinor, market, dateLocale)}</TableCell>
                 <TableCell className="text-right">
                   <Link href={`/invoices/${invoice.id}`} className={cn(buttonVariants({ size: 'sm', variant: 'outline' }))}>{dictionary.open}</Link>
@@ -71,7 +73,7 @@ export default async function InvoicesPage({
               </TableRow>
             })}
             {invoices.length === 0 && (
-              <TableRow><TableCell colSpan={5} className="h-24 text-center text-muted-foreground">{dictionary.noInvoices}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">{dictionary.noInvoices}</TableCell></TableRow>
             )}
           </TableBody>
         </Table>

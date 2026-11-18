@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 
 import { ServiceBoardClient } from '@/components/service-board/ServiceBoardClient'
 import { getDictionary } from '@/lib/localization'
+import { employeeRelationshipId, getEmployees } from '@/services/employees'
 import { getProducts } from '@/services/products'
 import { getServiceBoardView } from '@/services/service-board'
 import { areShopSettingsComplete, getShopSettings, marketContextFromSettings } from '@/services/settings'
@@ -9,13 +10,18 @@ import { areShopSettingsComplete, getShopSettings, marketContextFromSettings } f
 export const metadata: Metadata = { title: 'Service Board' }
 
 export default async function ServiceBoardPage() {
-  const [{ dictionary, locale }, products, settings, view] = await Promise.all([
+  const [{ dictionary, locale }, employees, products, settings, view] = await Promise.all([
     getDictionary(),
+    getEmployees(),
     getProducts(),
     getShopSettings(),
     getServiceBoardView(),
   ])
   const market = marketContextFromSettings(settings)
+  const configuredDefaultEmployeeId = employeeRelationshipId(settings.defaultEmployee)
+  const defaultEmployeeId = employees.some(({ id }) => id === configuredDefaultEmployeeId)
+    ? configuredDefaultEmployeeId
+    : undefined
 
   return (
     <div className="space-y-5">
@@ -26,8 +32,10 @@ export default async function ServiceBoardPage() {
       <ServiceBoardClient
         allProducts={products}
         autoTranslateProducts={market.autoTranslateProducts}
+        defaultEmployeeId={defaultEmployeeId}
         defaultPriceIncludesVat={settings.defaultPriceIncludesVat ?? false}
         dictionary={dictionary}
+        employees={employees}
         locale={locale}
         settingsReady={areShopSettingsComplete(settings)}
         view={view}

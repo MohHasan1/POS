@@ -4,6 +4,7 @@ import type { MarketProfile, SecondaryLanguage } from './market'
 export type ServiceBoardCard = {
   customerName?: string
   customerPhone?: string
+  employeeName?: string
   invoiceId: string
   invoiceNumber: string
   issuedAt: string

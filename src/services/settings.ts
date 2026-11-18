@@ -25,6 +25,7 @@ export type ShopSettingsInput = Pick<
   | 'additionalTelephone'
   | 'crNumber'
   | 'defaultPriceIncludesVat'
+  | 'defaultEmployee'
   | 'displayName'
   | 'email'
   | 'logo'

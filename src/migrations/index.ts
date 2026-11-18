@@ -7,6 +7,7 @@ import * as migration_20261018_191417_default_vat_exclusive_products from './202
 import * as migration_20261117_105643_service_board_and_dashboard from './20261117_105643_service_board_and_dashboard';
 import * as migration_20261117_123954_country_profiles from './20261117_123954_country_profiles';
 import * as migration_20261117_132500_nullable_product_names from './20261117_132500_nullable_product_names';
+import * as migration_20261118_123605_employee_assignments from './20261118_123605_employee_assignments';
 
 export const migrations = [
   {
@@ -47,11 +48,16 @@ export const migrations = [
   {
     up: migration_20261117_123954_country_profiles.up,
     down: migration_20261117_123954_country_profiles.down,
-    name: '20261117_123954_country_profiles'
+    name: '20261117_123954_country_profiles',
   },
   {
     up: migration_20261117_132500_nullable_product_names.up,
     down: migration_20261117_132500_nullable_product_names.down,
     name: '20261117_132500_nullable_product_names',
+  },
+  {
+    up: migration_20261118_123605_employee_assignments.up,
+    down: migration_20261118_123605_employee_assignments.down,
+    name: '20261118_123605_employee_assignments'
   },
 ];

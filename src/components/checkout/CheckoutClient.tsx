@@ -16,6 +16,7 @@ import { type SubmitEvent, useCallback, useEffect, useRef, useState, useTransiti
 
 import { finalizeInvoiceAction } from '@/actions/checkout'
 import { createProductAction } from '@/actions/products'
+import { EmployeeSelector } from '@/components/employees/EmployeeSelector'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -41,7 +42,12 @@ import { Textarea } from '@/components/ui/textarea'
 import type { Dictionary, Locale } from '@/lib/localization'
 import { localizedName, marketLocale, normalizedTranslations, type MarketProfile, type SecondaryLanguage } from '@/lib/market'
 import { decimalToMinor, formatMoney, minorToDecimal } from '@/lib/money'
-import { DEFAULT_INVOICE_ADDRESS, type BuyerInput, type ProductSummary } from '@/lib/pos-types'
+import {
+  DEFAULT_INVOICE_ADDRESS,
+  type BuyerInput,
+  type EmployeeSummary,
+  type ProductSummary,
+} from '@/lib/pos-types'
 import { calculateInvoiceTotals, calculateLine } from '@/lib/vat'
 import {
   ProductTranslationError,
@@ -368,10 +374,14 @@ function CustomItemDialog({
               </p>
             )}
             <DialogFooter className="mx-0 mb-0 px-0 pb-0">
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              <Button type="button" variant="cancel" onClick={() => setOpen(false)}>
                 {dictionary.cancel}
               </Button>
-              <Button type="submit" disabled={pending || translationPending}>
+              <Button
+                type="submit"
+                variant="success"
+                disabled={pending || translationPending}
+              >
                 {pending ? dictionary.saving : dictionary.addCustomProduct}
               </Button>
             </DialogFooter>
@@ -384,8 +394,10 @@ function CustomItemDialog({
 
 export function CheckoutClient({
   autoTranslateProducts,
+  defaultEmployeeId,
   defaultPriceIncludesVat,
   dictionary,
+  employees,
   locale,
   market,
   products,
@@ -393,8 +405,10 @@ export function CheckoutClient({
   settingsReady,
 }: {
   autoTranslateProducts: boolean
+  defaultEmployeeId?: string
   defaultPriceIncludesVat: boolean
   dictionary: Dictionary
+  employees: EmployeeSummary[]
   locale: Locale
   market: MarketProfile
   products: ProductSummary[]
@@ -408,6 +422,7 @@ export function CheckoutClient({
     market.taxMode === 'none' ? 'sales' : 'simplified',
   )
   const [buyer, setBuyer] = useState<BuyerInput>({ address: DEFAULT_INVOICE_ADDRESS })
+  const [employeeId, setEmployeeId] = useState<string | null>(defaultEmployeeId || null)
   const [priceInputs, setPriceInputs] = useState<Record<string, string>>({})
   const [quantityInputs, setQuantityInputs] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
@@ -594,6 +609,7 @@ export function CheckoutClient({
     setError('')
     startTransition(async () => {
       const result = await finalizeInvoiceAction({
+        employeeId,
         idempotencyKey,
         invoiceType,
         buyer: invoiceType === 'standard' ? buyer : undefined,
@@ -940,6 +956,13 @@ export function CheckoutClient({
               />
             </div>
           )}
+
+          <EmployeeSelector
+            dictionary={dictionary}
+            employees={employees}
+            onValueChange={setEmployeeId}
+            value={employeeId}
+          />
 
           {!settingsReady && (
             <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-sm text-amber-900">

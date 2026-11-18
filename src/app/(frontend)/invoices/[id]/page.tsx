@@ -49,6 +49,14 @@ export default async function InvoicePage({ params }: InvoicePageProps) {
         </Link>
         <PrintButton documentTitle={invoice.invoiceNumber} label={dictionary.print} />
       </div>
+      {invoice.employeeSnapshot?.name && (
+        <section className="no-print rounded-lg border bg-card px-4 py-3 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {dictionary.employeeInvoiceAssignment}
+          </p>
+          <p className="mt-1 font-semibold">{invoice.employeeSnapshot.name}</p>
+        </section>
+      )}
       {invoice.invoiceType === 'sales' ? (
         <SalesInvoiceTemplate invoice={invoice} />
       ) : invoice.invoiceType === 'simplified' ? (

@@ -29,6 +29,12 @@ export const ShopSettings: GlobalConfig = {
     },
     { name: 'autoTranslateProducts', type: 'checkbox', defaultValue: true },
     {
+      name: 'defaultEmployee',
+      type: 'relationship',
+      relationTo: 'employees',
+      admin: { description: 'Optional employee preselected for new sales.' },
+    },
+    {
       name: 'displayName',
       type: 'text',
       admin: {

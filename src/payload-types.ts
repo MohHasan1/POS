@@ -69,6 +69,7 @@ export interface Config {
   collections: {
     users: User;
     products: Product;
+    employees: Employee;
     invoices: Invoice;
     'receipt-vouchers': ReceiptVoucher;
     media: Media;
@@ -81,6 +82,7 @@ export interface Config {
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     products: ProductsSelect<false> | ProductsSelect<true>;
+    employees: EmployeesSelect<false> | EmployeesSelect<true>;
     invoices: InvoicesSelect<false> | InvoicesSelect<true>;
     'receipt-vouchers': ReceiptVouchersSelect<false> | ReceiptVouchersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
@@ -184,6 +186,23 @@ export interface Product {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "employees".
+ */
+export interface Employee {
+  id: string;
+  name: string;
+  employeeCode?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  role?: string | null;
+  address?: string | null;
+  notes?: string | null;
+  active: boolean;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "invoices".
  */
 export interface Invoice {
@@ -200,6 +219,10 @@ export interface Invoice {
   secondaryLanguage?: string | null;
   salesChannel: 'checkout' | 'serviceBoard';
   issuedAt: string;
+  employee?: (string | null) | Employee;
+  employeeSnapshot?: {
+    name?: string | null;
+  };
   seller: {
     nameArabic?: string | null;
     nameBangla?: string | null;
@@ -371,6 +394,10 @@ export interface PayloadLockedDocument {
         value: string | Product;
       } | null)
     | ({
+        relationTo: 'employees';
+        value: string | Employee;
+      } | null)
+    | ({
         relationTo: 'invoices';
         value: string | Invoice;
       } | null)
@@ -473,6 +500,23 @@ export interface ProductsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "employees_select".
+ */
+export interface EmployeesSelect<T extends boolean = true> {
+  id?: T;
+  name?: T;
+  employeeCode?: T;
+  phone?: T;
+  email?: T;
+  role?: T;
+  address?: T;
+  notes?: T;
+  active?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "invoices_select".
  */
 export interface InvoicesSelect<T extends boolean = true> {
@@ -489,6 +533,12 @@ export interface InvoicesSelect<T extends boolean = true> {
   secondaryLanguage?: T;
   salesChannel?: T;
   issuedAt?: T;
+  employee?: T;
+  employeeSnapshot?:
+    | T
+    | {
+        name?: T;
+      };
   seller?:
     | T
     | {
@@ -690,6 +740,10 @@ export interface ShopSetting {
   secondaryLanguage?: ('ar' | 'bn' | 'none') | null;
   autoTranslateProducts?: boolean | null;
   /**
+   * Optional employee preselected for new sales.
+   */
+  defaultEmployee?: (string | null) | Employee;
+  /**
    * The shop name shown in the POS interface. Legal invoice names are stored separately.
    */
   displayName?: string | null;
@@ -744,6 +798,7 @@ export interface ShopSettingsSelect<T extends boolean = true> {
   countryCode?: T;
   secondaryLanguage?: T;
   autoTranslateProducts?: T;
+  defaultEmployee?: T;
   displayName?: T;
   sellerNameArabic?: T;
   sellerNameBangla?: T;

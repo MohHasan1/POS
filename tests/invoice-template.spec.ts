@@ -16,6 +16,7 @@ function invoiceFixture(invoiceType: Invoice['invoiceType']): Invoice {
     invoiceNumber: 'INV-20261017-0001',
     idempotencyKey: 'idempotency-key',
     invoiceType,
+    employeeSnapshot: { name: 'Internal Employee Name' },
     salesChannel: 'checkout',
     issuedAt: '2026-10-17T12:30:00.000Z',
     seller: {
@@ -96,6 +97,7 @@ describe('invoice templates', () => {
       assert.match(html, new RegExp(value))
     }
     assert.match(html, /dir="rtl"/)
+    assert.doesNotMatch(html, /Internal Employee Name/)
   })
 
   it('renders buyer details, VAT-exclusive pricing and tax treatment on a standard invoice', () => {
@@ -121,5 +123,6 @@ describe('invoice templates', () => {
       assert.match(html, new RegExp(value))
     }
     assert.doesNotMatch(html, /ZATCA Phase 1 invoice QR code/)
+    assert.doesNotMatch(html, /Internal Employee Name/)
   })
 })
