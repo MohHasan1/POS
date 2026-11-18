@@ -13,7 +13,7 @@ export const productCsvHeaders = [
 
 export type ProductCsvRow = {
   active: boolean
-  nameArabic: string
+  nameArabic?: null | string
   nameBangla?: null | string
   nameEnglish: string
   priceIncludesVat: boolean
@@ -37,7 +37,7 @@ export function serializeProductsCsv(products: readonly ProductCsvRow[]): string
   const rows = products.map((product) =>
     [
       product.nameEnglish,
-      product.nameArabic,
+      product.nameArabic || '',
       product.nameBangla || '',
       product.sku || '',
       minorToDecimal(product.priceMinor),
@@ -195,7 +195,7 @@ export function parseProductsCsv(csv: string, maxRows = 2_500): ProductCsvRow[] 
 
     return {
       active: parseBoolean(value('active'), 'active', rowNumber),
-      nameArabic: requiredText(value('nameArabic'), 'nameArabic', rowNumber),
+      nameArabic: optionalText(value('nameArabic'), 'nameArabic', rowNumber),
       nameBangla: optionalText(value('nameBangla'), 'nameBangla', rowNumber),
       nameEnglish: requiredText(value('nameEnglish'), 'nameEnglish', rowNumber),
       priceIncludesVat: parseBoolean(

@@ -11,6 +11,7 @@ export type ProductInput = Pick<
   | 'priceIncludesVat'
   | 'priceMinor'
   | 'sku'
+  | 'translations'
   | 'vatCategory'
 >
 

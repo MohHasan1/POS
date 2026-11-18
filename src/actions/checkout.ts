@@ -9,7 +9,7 @@ import { finalizeInvoice } from '@/services/invoices'
 const optionalText = z.string().trim().max(500).optional()
 const checkoutSchema = z.object({
   idempotencyKey: z.uuid(),
-  invoiceType: z.enum(['simplified', 'standard']),
+  invoiceType: z.enum(['sales', 'simplified', 'standard']),
   buyer: z
     .object({
       name: optionalText,
@@ -29,6 +29,14 @@ const checkoutSchema = z.object({
         quantityMilliunits: z.number().int().min(1).max(100_000_000),
         vatCategory: z.enum(['standard', 'zero', 'exempt']).optional(),
         priceIncludesVat: z.boolean().optional(),
+        translations: z
+          .array(
+            z.object({
+              language: z.string().trim().min(2).max(16),
+              name: z.string().trim().min(1).max(160),
+            }),
+          )
+          .optional(),
       }),
     )
     .min(1, 'Add at least one item.'),

@@ -14,7 +14,8 @@ export type BusinessLogoSnapshot = {
 
 export type BusinessInformationSnapshot = {
   businessAddress: string
-  sellerNameArabic: string
+  sellerNameArabic?: string
+  sellerNameBangla?: string
   sellerNameEnglish: string
   additionalTelephone?: string
   crNumber?: string
@@ -23,6 +24,7 @@ export type BusinessInformationSnapshot = {
   logo?: BusinessLogoSnapshot
   mobile?: string
   telephone?: string
+  registrations?: Array<{ type: string; value: string }>
 }
 
 function optionalValue(value: null | string | undefined): string | undefined {
@@ -55,8 +57,16 @@ export function createBusinessInformationSnapshot(
 
   return {
     businessAddress: settings.businessAddress,
-    sellerNameArabic: settings.sellerNameArabic,
+    ...(optionalValue(settings.sellerNameArabic) && {
+      sellerNameArabic: optionalValue(settings.sellerNameArabic),
+    }),
+    ...(optionalValue(settings.sellerNameBangla) && {
+      sellerNameBangla: optionalValue(settings.sellerNameBangla),
+    }),
     sellerNameEnglish: settings.sellerNameEnglish,
+    ...(settings.registrations?.length && {
+      registrations: settings.registrations.map(({ type, value }) => ({ type, value })),
+    }),
     ...(additionalTelephone && { additionalTelephone }),
     ...(crNumber && { crNumber }),
     ...(displayName && { displayName }),

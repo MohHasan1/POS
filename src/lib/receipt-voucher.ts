@@ -1,6 +1,10 @@
 import { toCurrency as toArabicCurrency } from 'to-words/ar-SA'
 import { toCurrency as toEnglishCurrency } from 'to-words/en-SA'
+import { toCurrency as toBanglaCurrency } from 'to-words/bn-IN'
+import { toCurrency } from 'to-words'
 
+import { dateInputToISOString, todayDateInput, toMarketDateInput } from '@/lib/calendar'
+import { DEFAULT_MARKET, type MarketProfile } from '@/lib/market'
 import { minorToDecimal } from '@/lib/money'
 
 export const RECEIPT_VOUCHER_NUMBER_PREFIX = 'RV-'
@@ -23,15 +27,34 @@ export function nextReceiptVoucherNumber(previous?: null | string): string {
   return `${RECEIPT_VOUCHER_NUMBER_PREFIX}${String(sequence).padStart(RECEIPT_VOUCHER_NUMBER_DIGITS, '0')}`
 }
 
-export function amountMinorToWords(amountMinor: number): {
-  arabic: string
+export function amountMinorToWords(amountMinor: number, profile: MarketProfile = DEFAULT_MARKET): {
+  arabic?: string
+  bangla?: string
   english: string
 } {
   if (!Number.isSafeInteger(amountMinor) || amountMinor <= 0) {
     throw new Error('Receipt voucher amount must be a positive whole number of halalas.')
   }
 
-  const amount = minorToDecimal(amountMinor)
+  const amount = minorToDecimal(amountMinor, profile)
+  if (profile.countryCode === 'BD') {
+    const currencyOptions = {
+      name: 'Taka',
+      plural: 'Taka',
+      singular: 'Taka',
+      symbol: '৳',
+      fractionalUnit: {
+        name: 'Poisha',
+        plural: 'Poisha',
+        singular: 'Poisha',
+        symbol: '',
+      },
+    }
+    return {
+      bangla: toBanglaCurrency(amount),
+      english: toCurrency(amount, { localeCode: 'en-IN', currencyOptions }),
+    }
+  }
   return {
     arabic: toArabicCurrency(amount),
     english: toEnglishCurrency(amount),
@@ -39,47 +62,17 @@ export function amountMinorToWords(amountMinor: number): {
 }
 
 export function saudiDateToISOString(value: string): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
-  if (!match) {
-    throw new Error('Date must use YYYY-MM-DD format.')
-  }
-
-  const result = new Date(`${value}T00:00:00+03:00`)
-  if (Number.isNaN(result.getTime())) {
-    throw new Error('Invalid date.')
-  }
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    day: '2-digit',
-    month: '2-digit',
-    timeZone: 'Asia/Riyadh',
-    year: 'numeric',
-  }).formatToParts(result)
-  const normalized = Object.fromEntries(parts.map((part) => [part.type, part.value]))
-  if (`${normalized.year}-${normalized.month}-${normalized.day}` !== value) {
-    throw new Error('Invalid date.')
-  }
-
-  return result.toISOString()
+  return dateInputToISOString(value, DEFAULT_MARKET)
 }
 
 export function todayInSaudiArabia(): string {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    day: '2-digit',
-    month: '2-digit',
-    timeZone: 'Asia/Riyadh',
-    year: 'numeric',
-  }).formatToParts(new Date())
-  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]))
-  return `${value.year}-${value.month}-${value.day}`
+  return todayDateInput(DEFAULT_MARKET)
 }
 
 export function toSaudiDateInput(value: string | Date): string {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    day: '2-digit',
-    month: '2-digit',
-    timeZone: 'Asia/Riyadh',
-    year: 'numeric',
-  }).formatToParts(new Date(value))
-  const date = Object.fromEntries(parts.map((part) => [part.type, part.value]))
-  return `${date.year}-${date.month}-${date.day}`
+  return toMarketDateInput(value, DEFAULT_MARKET)
 }
+
+export const marketDateToISOString = dateInputToISOString
+export const todayInMarket = todayDateInput
+export const toMarketDateInputValue = toMarketDateInput

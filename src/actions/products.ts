@@ -20,7 +20,15 @@ const optionalText = z
 const productSchema = z.object({
   nameEnglish: z.string().trim().min(1, 'English name is required.').max(160),
   nameBangla: optionalText,
-  nameArabic: z.string().trim().min(1, 'Arabic name is required.').max(160),
+  nameArabic: optionalText,
+  translations: z
+    .array(
+      z.object({
+        language: z.string().trim().min(2).max(16),
+        name: z.string().trim().min(1).max(160),
+      }),
+    )
+    .default([]),
   sku: optionalText,
   priceMinor: z.number().int().min(0).max(100_000_000),
   vatCategory: z.enum(['standard', 'zero', 'exempt']),
@@ -42,9 +50,12 @@ export async function createProductAction(
 
   try {
     const settings = await getShopSettings()
+    if (!settings.countryCode) throw new Error('Choose a country before creating products.')
     const product = await createProduct({
       ...(parsed.data as ProductInput),
-      priceIncludesVat: settings.defaultPriceIncludesVat ?? false,
+      priceIncludesVat:
+        settings.countryCode === 'SA' ? (settings.defaultPriceIncludesVat ?? false) : false,
+      vatCategory: settings.countryCode === 'SA' ? parsed.data.vatCategory : 'exempt',
     })
     revalidatePath('/products')
     revalidatePath('/checkout')

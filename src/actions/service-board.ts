@@ -5,6 +5,7 @@ import { z } from 'zod'
 
 import { createProductAction, type ActionResult, type ProductActionInput } from './products'
 import { finalizeInvoice } from '@/services/invoices'
+import { getMarketContext } from '@/services/settings'
 import {
   addServiceBoardColumn,
   getServiceBoardColumnProducts,
@@ -130,7 +131,10 @@ export async function createServiceBoardSaleAction(
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
 
   try {
-    const visibleProducts = await getServiceBoardColumnProducts()
+    const [visibleProducts, market] = await Promise.all([
+      getServiceBoardColumnProducts(),
+      getMarketContext(),
+    ])
     const visibleIds = new Set(visibleProducts.map((product) => product.id))
     if (parsed.data.items.some((item) => !visibleIds.has(item.productId))) {
       throw new Error('One or more selected services are no longer available on Service Board.')
@@ -145,7 +149,7 @@ export async function createServiceBoardSaleAction(
     const invoice = await finalizeInvoice(
       {
         idempotencyKey: parsed.data.idempotencyKey,
-        invoiceType: 'simplified',
+        invoiceType: market.profile.taxMode === 'none' ? 'sales' : 'simplified',
         items: parsed.data.items.map((item) => ({
           productId: item.productId,
           quantityMilliunits: item.quantityMilliunits,

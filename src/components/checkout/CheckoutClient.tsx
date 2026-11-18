@@ -39,7 +39,8 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
 import type { Dictionary, Locale } from '@/lib/localization'
-import { decimalToMinor, formatSAR, minorToDecimal } from '@/lib/money'
+import { localizedName, marketLocale, normalizedTranslations, type MarketProfile, type SecondaryLanguage } from '@/lib/market'
+import { decimalToMinor, formatMoney, minorToDecimal } from '@/lib/money'
 import { DEFAULT_INVOICE_ADDRESS, type BuyerInput, type ProductSummary } from '@/lib/pos-types'
 import { calculateInvoiceTotals, calculateLine } from '@/lib/vat'
 import {
@@ -58,21 +59,36 @@ type CartItem = {
   quantityMilliunits: number
   vatCategory: ProductSummary['vatCategory']
   priceIncludesVat: boolean
+  translations?: Array<{ language: string; name: string }>
 }
 
-function itemName(item: CartItem, locale: Locale) {
-  return locale === 'bn' && item.descriptionBangla
-    ? item.descriptionBangla
-    : item.descriptionEnglish
+function itemName(item: CartItem) {
+  return item.descriptionEnglish
+}
+
+function itemSecondaryName(item: CartItem, language: SecondaryLanguage) {
+  return localizedName(
+    normalizedTranslations(item.translations, {
+      ar: item.descriptionArabic,
+      bn: item.descriptionBangla,
+    }),
+    language,
+  )
 }
 
 function CustomItemDialog({
   defaultPriceIncludesVat,
   dictionary,
+  market,
+  secondaryLanguage,
+  autoTranslateProducts,
   onAdd,
 }: {
   defaultPriceIncludesVat: boolean
   dictionary: Dictionary
+  market: MarketProfile
+  secondaryLanguage: SecondaryLanguage
+  autoTranslateProducts: boolean
   onAdd: (item: CartItem) => void
 }) {
   const router = useRouter()
@@ -106,10 +122,8 @@ function CustomItemDialog({
       return null
     }
 
-    if (
-      !shouldAutoTranslateProductName(translatedArabic) &&
-      !shouldAutoTranslateProductName(translatedBangla)
-    ) {
+    const targetValue = secondaryLanguage === 'ar' ? translatedArabic : translatedBangla
+    if (secondaryLanguage === 'none' || !shouldAutoTranslateProductName(targetValue)) {
       return { translatedArabic, translatedBangla }
     }
 
@@ -117,7 +131,7 @@ function CustomItemDialog({
     setTranslationPending(true)
 
     try {
-      if (shouldAutoTranslateProductName(translatedArabic)) {
+      if (secondaryLanguage === 'ar' && shouldAutoTranslateProductName(translatedArabic)) {
         setTranslationMessage(dictionary.translatingArabic)
         try {
           translatedArabic = await translateEnglishProductName(nameEnglish, 'ar', (loaded) => {
@@ -125,12 +139,12 @@ function CustomItemDialog({
           })
           setNameArabic(translatedArabic)
         } catch (translationError) {
-          setError(translationErrorMessage(translationError))
-          return null
+          if (requireBangla) setError(translationErrorMessage(translationError))
+          return { translatedArabic, translatedBangla }
         }
       }
 
-      if (shouldAutoTranslateProductName(translatedBangla)) {
+      if (secondaryLanguage === 'bn' && shouldAutoTranslateProductName(translatedBangla)) {
         setTranslationMessage(dictionary.translatingBangla)
         try {
           translatedBangla = await translateEnglishProductName(nameEnglish, 'bn', (loaded) => {
@@ -140,7 +154,7 @@ function CustomItemDialog({
         } catch (translationError) {
           if (requireBangla) {
             setError(translationErrorMessage(translationError))
-            return null
+            return { translatedArabic, translatedBangla }
           }
           translatedBangla = ''
         }
@@ -163,24 +177,30 @@ function CustomItemDialog({
     const formData = new FormData(event.currentTarget)
     setError('')
 
-    const priceMinor = decimalToMinor(String(formData.get('price') || ''))
+    const priceMinor = decimalToMinor(String(formData.get('price') || ''), market)
     const quantity = Number(formData.get('quantity'))
     if (priceMinor === null || !Number.isFinite(quantity) || quantity <= 0) {
       setError('Enter a valid price and quantity.')
       return
     }
 
-    const translatedNames = await translateMissingNames(false)
+    const translatedNames = autoTranslateProducts
+      ? await translateMissingNames(false)
+      : { translatedArabic: nameArabic.trim(), translatedBangla: nameBangla.trim() }
     if (!translatedNames) return
 
     const base = {
       descriptionEnglish: nameEnglish.trim(),
       descriptionBangla: translatedNames.translatedBangla || undefined,
-      descriptionArabic: translatedNames.translatedArabic,
+      descriptionArabic: translatedNames.translatedArabic || nameEnglish.trim(),
+      translations: [
+        ...(translatedNames.translatedArabic ? [{ language: 'ar', name: translatedNames.translatedArabic }] : []),
+        ...(translatedNames.translatedBangla ? [{ language: 'bn', name: translatedNames.translatedBangla }] : []),
+      ],
       unitPriceMinor: priceMinor,
       quantityMilliunits: Math.round(quantity * 1000),
-      vatCategory: String(formData.get('vatCategory')) as ProductSummary['vatCategory'],
-      priceIncludesVat: includesVat,
+      vatCategory: market.taxMode === 'none' ? 'exempt' as const : String(formData.get('vatCategory')) as ProductSummary['vatCategory'],
+      priceIncludesVat: market.taxMode === 'none' ? false : includesVat,
     }
 
     startTransition(async () => {
@@ -189,6 +209,7 @@ function CustomItemDialog({
           nameEnglish: base.descriptionEnglish,
           nameBangla: base.descriptionBangla || '',
           nameArabic: base.descriptionArabic,
+          translations: base.translations,
           sku: String(formData.get('sku') || ''),
           priceMinor: base.unitPriceMinor,
           vatCategory: base.vatCategory,
@@ -244,7 +265,7 @@ function CustomItemDialog({
                       </span>
                     </span>
                   </Label>
-                  <Button
+                  {secondaryLanguage !== 'none' && <Button
                     type="button"
                     size="xs"
                     variant="outline"
@@ -253,7 +274,7 @@ function CustomItemDialog({
                   >
                     <Languages aria-hidden="true" />
                     {dictionary.autoTranslate}
-                  </Button>
+                  </Button>}
                 </div>
                 <Input
                   id="custom-name-en"
@@ -267,7 +288,7 @@ function CustomItemDialog({
               <div className="space-y-1.5">
                 <Label htmlFor="custom-price">
                   <span>
-                    {dictionary.price} (SAR){' '}
+                    {dictionary.price} ({market.currencyCode}){' '}
                     <span className="text-destructive" aria-hidden="true">
                       *
                     </span>
@@ -275,7 +296,7 @@ function CustomItemDialog({
                 </Label>
                 <Input id="custom-price" name="price" inputMode="decimal" required />
               </div>
-              <div className="space-y-1.5">
+              {secondaryLanguage === 'ar' && <div className="space-y-1.5">
                 <Label htmlFor="custom-name-ar">{dictionary.nameArabic}</Label>
                 <Input
                   id="custom-name-ar"
@@ -285,8 +306,8 @@ function CustomItemDialog({
                   onChange={(event) => setNameArabic(event.target.value)}
                   value={nameArabic}
                 />
-              </div>
-              <div className="space-y-1.5">
+              </div>}
+              {secondaryLanguage === 'bn' && <div className="space-y-1.5">
                 <Label htmlFor="custom-name-bn">{dictionary.nameBangla}</Label>
                 <Input
                   id="custom-name-bn"
@@ -295,7 +316,7 @@ function CustomItemDialog({
                   onChange={(event) => setNameBangla(event.target.value)}
                   value={nameBangla}
                 />
-              </div>
+              </div>}
               <div className="space-y-1.5">
                 <Label htmlFor="custom-sku">{dictionary.sku}</Label>
                 <Input id="custom-sku" name="sku" />
@@ -312,7 +333,7 @@ function CustomItemDialog({
                   required
                 />
               </div>
-              <div className="space-y-1.5 sm:col-span-2">
+              {market.taxMode === 'saudiVat' && <div className="space-y-1.5 sm:col-span-2">
                 <Label htmlFor="custom-vat">{dictionary.vatCategory}</Label>
                 <Select name="vatCategory" defaultValue="standard">
                   <SelectTrigger id="custom-vat" className="w-full bg-background">
@@ -324,13 +345,13 @@ function CustomItemDialog({
                     <SelectItem value="exempt">{dictionary.exempt}</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </div>}
             </div>
             <label className="flex items-center gap-2 text-sm">
               <Checkbox checked={saveToCatalog} onCheckedChange={setSaveToCatalog} />
               {dictionary.saveToCatalog}
             </label>
-            {!saveToCatalog && (
+            {!saveToCatalog && market.taxMode === 'saudiVat' && (
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox checked={includesVat} onCheckedChange={setIncludesVat} />
                 {dictionary.priceIncludesVat}
@@ -362,22 +383,30 @@ function CustomItemDialog({
 }
 
 export function CheckoutClient({
+  autoTranslateProducts,
   defaultPriceIncludesVat,
   dictionary,
   locale,
+  market,
   products,
+  secondaryLanguage,
   settingsReady,
 }: {
+  autoTranslateProducts: boolean
   defaultPriceIncludesVat: boolean
   dictionary: Dictionary
   locale: Locale
+  market: MarketProfile
   products: ProductSummary[]
+  secondaryLanguage: SecondaryLanguage
   settingsReady: boolean
 }) {
   const router = useRouter()
   const [search, setSearch] = useState('')
   const [cart, setCart] = useState<CartItem[]>([])
-  const [invoiceType, setInvoiceType] = useState<'simplified' | 'standard'>('simplified')
+  const [invoiceType, setInvoiceType] = useState<'sales' | 'simplified' | 'standard'>(
+    market.taxMode === 'none' ? 'sales' : 'simplified',
+  )
   const [buyer, setBuyer] = useState<BuyerInput>({ address: DEFAULT_INVOICE_ADDRESS })
   const [priceInputs, setPriceInputs] = useState<Record<string, string>>({})
   const [quantityInputs, setQuantityInputs] = useState<Record<string, string>>({})
@@ -411,6 +440,7 @@ export function CheckoutClient({
     maximumFractionDigits: 3,
   }).format(cartQuantityMilliunits / 1000)
   const uniqueProductCount = cart.length
+  const moneyLocale = marketLocale(market, locale)
 
   const activityId = cartActivity?.id
   const activityItemKey = cartActivity?.itemKey
@@ -505,11 +535,15 @@ export function CheckoutClient({
           productId: product.id,
           descriptionEnglish: product.nameEnglish,
           descriptionBangla: product.nameBangla || undefined,
-          descriptionArabic: product.nameArabic,
+          descriptionArabic: product.nameArabic || product.nameEnglish,
+          translations: normalizedTranslations(product.translations, {
+            ar: product.nameArabic,
+            bn: product.nameBangla,
+          }),
           unitPriceMinor: product.priceMinor,
           quantityMilliunits: 1000,
-          vatCategory: product.vatCategory,
-          priceIncludesVat: product.priceIncludesVat,
+          vatCategory: market.taxMode === 'none' ? 'exempt' : product.vatCategory,
+          priceIncludesVat: market.taxMode === 'none' ? false : product.priceIncludesVat,
         },
       ]
     })
@@ -572,6 +606,7 @@ export function CheckoutClient({
           quantityMilliunits: item.quantityMilliunits,
           vatCategory: item.productId ? undefined : item.vatCategory,
           priceIncludesVat: item.productId ? undefined : item.priceIncludesVat,
+          translations: item.productId ? undefined : item.translations,
         })),
       })
       if (!result.ok || !result.data) {
@@ -601,8 +636,11 @@ export function CheckoutClient({
               />
             </div>
             <CustomItemDialog
+              autoTranslateProducts={autoTranslateProducts}
               defaultPriceIncludesVat={defaultPriceIncludesVat}
               dictionary={dictionary}
+              market={market}
+              secondaryLanguage={secondaryLanguage}
               onAdd={addCustom}
             />
           </div>
@@ -624,11 +662,11 @@ export function CheckoutClient({
                   className="truncate text-right text-base font-medium text-muted-foreground"
                   dir="rtl"
                 >
-                  {product.nameArabic}
+                  {localizedName(normalizedTranslations(product.translations, { ar: product.nameArabic, bn: product.nameBangla }), secondaryLanguage)}
                 </span>
               </span>
               <span className="shrink-0 font-semibold tabular-nums">
-                {formatSAR(product.priceMinor)}
+                {formatMoney(product.priceMinor, market, moneyLocale)}
               </span>
             </button>
           ))}
@@ -657,7 +695,7 @@ export function CheckoutClient({
             {dictionary.uniqueProducts}: {uniqueProductCount}
           </Badge>
         </div>
-        <div className="border-b bg-card p-2">
+        {market.taxMode === 'saudiVat' ? <div className="border-b bg-card p-2">
           <div
             className="grid grid-cols-2 rounded-md bg-muted p-1"
             role="radiogroup"
@@ -680,7 +718,7 @@ export function CheckoutClient({
               </button>
             ))}
           </div>
-        </div>
+        </div> : <div className="border-b bg-card p-3 text-sm font-medium">{dictionary.salesInvoice}</div>}
         {cartScrollState.hasOverflow && (
           <div className="flex items-center justify-between gap-2 border-b bg-muted/40 px-3 py-2">
             <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
@@ -738,9 +776,9 @@ export function CheckoutClient({
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="grid min-w-0 flex-1 grid-cols-2 items-start gap-3">
-                    <p className="text-sm font-bold">{itemName(item, locale)}</p>
-                    <p className="text-right text-sm text-muted-foreground" dir="rtl">
-                      {item.descriptionArabic}
+                    <p className="text-sm font-bold">{itemName(item)}</p>
+                    <p className="text-right text-sm text-muted-foreground" dir={secondaryLanguage === 'ar' ? 'rtl' : undefined}>
+                      {itemSecondaryName(item, secondaryLanguage)}
                     </p>
                   </div>
                   <Button
@@ -756,25 +794,25 @@ export function CheckoutClient({
                 <div className="grid grid-cols-[1fr_auto] items-end gap-3">
                   <div>
                     <Label className="text-xs" htmlFor={`price-${item.key}`}>
-                      {dictionary.price} (SAR)
+                      {dictionary.price} ({market.currencyCode})
                     </Label>
                     <Input
                       id={`price-${item.key}`}
                       className="mt-1"
                       inputMode="decimal"
-                      value={priceInputs[item.key] ?? minorToDecimal(item.unitPriceMinor)}
+                      value={priceInputs[item.key] ?? minorToDecimal(item.unitPriceMinor, market)}
                       onChange={(event) => {
                         const value = event.target.value
                         setPriceInputs((current) => ({ ...current, [item.key]: value }))
                         const parseable = /^\d+\.$/.test(value.trim()) ? `${value.trim()}0` : value
-                        const minor = decimalToMinor(parseable)
+                        const minor = decimalToMinor(parseable, market)
                         if (minor !== null) updateItem(item.key, { unitPriceMinor: minor })
                       }}
                       onBlur={(event) => {
                         const parseable = /^\d+\.$/.test(event.target.value.trim())
                           ? `${event.target.value.trim()}0`
                           : event.target.value
-                        const minor = decimalToMinor(parseable)
+                        const minor = decimalToMinor(parseable, market)
                         if (minor !== null) updateItem(item.key, { unitPriceMinor: minor })
                         setPriceInputs((current) => {
                           const next = { ...current }
@@ -827,26 +865,26 @@ export function CheckoutClient({
                     </Button>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2 rounded-md bg-muted/40 p-2 text-xs tabular-nums">
+                {market.taxMode === 'saudiVat' ? <div className="grid grid-cols-3 gap-2 rounded-md bg-muted/40 p-2 text-xs tabular-nums">
                   <span>
                     <span className="block text-muted-foreground">
                       {dictionary.priceExcludingVat}
                     </span>
-                    <span className="font-medium text-foreground">{formatSAR(line.netMinor)}</span>
+                    <span className="font-medium text-foreground">{formatMoney(line.netMinor, market, moneyLocale)}</span>
                   </span>
                   <span className="text-center">
                     <span className="block text-muted-foreground">{dictionary.vat}</span>
-                    <span className="font-medium text-foreground">{formatSAR(line.vatMinor)}</span>
+                    <span className="font-medium text-foreground">{formatMoney(line.vatMinor, market, moneyLocale)}</span>
                   </span>
                   <span className="text-right">
                     <span className="block text-muted-foreground">
                       {dictionary.priceIncludingVat}
                     </span>
                     <span className="font-semibold text-foreground">
-                      {formatSAR(line.totalMinor)}
+                      {formatMoney(line.totalMinor, market, moneyLocale)}
                     </span>
                   </span>
-                </div>
+                </div> : <div className="flex justify-between rounded-md bg-muted/40 p-2 text-xs tabular-nums"><span>{dictionary.total}</span><strong>{formatMoney(line.totalMinor, market, moneyLocale)}</strong></div>}
               </div>
             )
           })}
@@ -857,18 +895,18 @@ export function CheckoutClient({
 
         <div className="shrink-0 space-y-3 border-t-2 bg-muted/50 p-3">
           <div className="space-y-1 text-sm tabular-nums">
-            <div className="flex justify-between">
+            {market.taxMode === 'saudiVat' && <div className="flex justify-between">
               <span className="text-muted-foreground">{dictionary.subtotal}</span>
-              <span>{formatSAR(totals.subtotalMinor)}</span>
-            </div>
-            <div className="flex justify-between">
+              <span>{formatMoney(totals.subtotalMinor, market, moneyLocale)}</span>
+            </div>}
+            {market.taxMode === 'saudiVat' && <div className="flex justify-between">
               <span className="text-muted-foreground">{dictionary.vat}</span>
-              <span>{formatSAR(totals.vatMinor)}</span>
-            </div>
+              <span>{formatMoney(totals.vatMinor, market, moneyLocale)}</span>
+            </div>}
             <Separator />
             <div className="flex justify-between text-base font-semibold">
               <span>{dictionary.total}</span>
-              <span>{formatSAR(totals.totalMinor)}</span>
+              <span>{formatMoney(totals.totalMinor, market, moneyLocale)}</span>
             </div>
           </div>
 

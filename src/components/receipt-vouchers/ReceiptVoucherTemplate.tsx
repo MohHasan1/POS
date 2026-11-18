@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 
-import { formatSAR } from '@/lib/money'
-import { formatSaudiDate } from '@/lib/saudi-time'
+import { formatMarketDate } from '@/lib/calendar'
+import { getDocumentMarket } from '@/lib/market'
+import { formatMoney } from '@/lib/money'
 import type { ReceiptVoucher } from '@/payload-types'
 
 function paymentMethodLabel(method: ReceiptVoucher['paymentMethod']) {
@@ -168,6 +169,7 @@ function BusinessHeader({ business }: { business: ReceiptVoucher['business'] }) 
 
 function PaymentDetails({ voucher }: { voucher: ReceiptVoucher }) {
   const details = voucher.paymentDetails
+  const market = getDocumentMarket(voucher)
 
   return (
     <section className="voucher-section-avoid border-b border-neutral-200 py-4">
@@ -187,7 +189,7 @@ function PaymentDetails({ voucher }: { voucher: ReceiptVoucher }) {
               {details?.transactionReference}
             </CompactDetail>
             <CompactDetail english="Transfer date" arabic="تاريخ التحويل">
-              {details?.transferDate ? formatSaudiDate(details.transferDate, 'en-SA') : ''}
+              {details?.transferDate ? formatMarketDate(details.transferDate, market, 'en-SA') : ''}
             </CompactDetail>
           </>
         )}
@@ -200,7 +202,7 @@ function PaymentDetails({ voucher }: { voucher: ReceiptVoucher }) {
               {details?.bankName}
             </CompactDetail>
             <CompactDetail english="Cheque date" arabic="تاريخ الشيك">
-              {details?.chequeDate ? formatSaudiDate(details.chequeDate, 'en-SA') : ''}
+              {details?.chequeDate ? formatMarketDate(details.chequeDate, market, 'en-SA') : ''}
             </CompactDetail>
           </>
         )}
@@ -246,6 +248,7 @@ function SignatureSection() {
 }
 
 export function ReceiptVoucherTemplate({ voucher }: { voucher: ReceiptVoucher }) {
+  const market = getDocumentMarket(voucher)
   return (
     <article className="receipt-voucher-page relative flex flex-col border border-neutral-200 p-7 shadow-sm sm:p-9">
       {voucher.status !== 'issued' && (
@@ -278,7 +281,7 @@ export function ReceiptVoucherTemplate({ voucher }: { voucher: ReceiptVoucher })
         </SummaryField>
         <SummaryField english="Voucher date" arabic="تاريخ السند">
           <span className="font-medium tabular-nums" dir="ltr">
-            {formatSaudiDate(voucher.voucherDate, 'en-SA')}
+            {formatMarketDate(voucher.voucherDate, market, 'en-SA')}
           </span>
         </SummaryField>
       </dl>
@@ -301,7 +304,7 @@ export function ReceiptVoucherTemplate({ voucher }: { voucher: ReceiptVoucher })
         </SummaryField>
         <SummaryField english="Amount" arabic="المبلغ" highlight>
           <strong className="text-xl font-semibold tabular-nums" dir="ltr">
-            {formatSAR(voucher.amountMinor)}
+            {formatMoney(voucher.amountMinor, market, 'en-SA', true)}
           </strong>
         </SummaryField>
       </dl>

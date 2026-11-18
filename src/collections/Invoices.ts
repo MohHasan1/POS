@@ -24,10 +24,18 @@ export const Invoices: CollectionConfig = {
       type: 'select',
       required: true,
       options: [
+        { label: 'Sales Invoice', value: 'sales' },
         { label: 'Simplified Tax Invoice', value: 'simplified' },
         { label: 'Standard Tax Invoice', value: 'standard' },
       ],
     },
+    { name: 'countryCode', type: 'text', defaultValue: 'SA' },
+    { name: 'currencyCode', type: 'text', defaultValue: 'SAR' },
+    { name: 'currencyMinorUnitDigits', type: 'number', defaultValue: 2 },
+    { name: 'timeZone', type: 'text', defaultValue: 'Asia/Riyadh' },
+    { name: 'taxMode', type: 'text', defaultValue: 'saudiVat' },
+    { name: 'documentLanguage', type: 'text', defaultValue: 'ar' },
+    { name: 'secondaryLanguage', type: 'text', defaultValue: 'ar' },
     {
       name: 'salesChannel',
       type: 'select',
@@ -43,10 +51,19 @@ export const Invoices: CollectionConfig = {
       name: 'seller',
       type: 'group',
       fields: [
-        { name: 'nameArabic', type: 'text', required: true },
+        { name: 'nameArabic', type: 'text' },
+        { name: 'nameBangla', type: 'text' },
         { name: 'nameEnglish', type: 'text', required: true },
-        { name: 'vatNumber', type: 'text', required: true },
+        { name: 'vatNumber', type: 'text' },
         { name: 'address', type: 'textarea', required: true },
+        {
+          name: 'registrations',
+          type: 'array',
+          fields: [
+            { name: 'type', type: 'text', required: true },
+            { name: 'value', type: 'text', required: true },
+          ],
+        },
       ],
     },
     {
@@ -77,7 +94,15 @@ export const Invoices: CollectionConfig = {
         { name: 'product', type: 'relationship', relationTo: 'products' },
         { name: 'descriptionEnglish', type: 'text', required: true },
         { name: 'descriptionBangla', type: 'text' },
-        { name: 'descriptionArabic', type: 'text', required: true },
+        { name: 'descriptionArabic', type: 'text' },
+        {
+          name: 'translations',
+          type: 'array',
+          fields: [
+            { name: 'language', type: 'text', required: true },
+            { name: 'name', type: 'text', required: true },
+          ],
+        },
         { name: 'quantityMilliunits', type: 'number', required: true, min: 1 },
         { name: 'unitPriceMinor', type: 'number', required: true, min: 0 },
         { name: 'priceIncludesVat', type: 'checkbox', required: true },
@@ -100,6 +125,6 @@ export const Invoices: CollectionConfig = {
     { name: 'subtotalMinor', type: 'number', required: true, min: 0 },
     { name: 'vatMinor', type: 'number', required: true, min: 0 },
     { name: 'totalMinor', type: 'number', required: true, min: 0 },
-    { name: 'qrPayload', type: 'textarea', required: true },
+    { name: 'qrPayload', type: 'textarea' },
   ],
 }

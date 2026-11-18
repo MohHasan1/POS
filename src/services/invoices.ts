@@ -2,14 +2,20 @@ import config from '@payload-config'
 import { getPayload } from 'payload'
 
 import { nextInvoiceNumber } from '@/lib/invoice-number'
+import { marketDateKey } from '@/lib/calendar'
+import {
+  localizedName,
+  normalizedTranslations,
+  type MarketProfile,
+} from '@/lib/market'
 import { minorToDecimal } from '@/lib/money'
 import { DEFAULT_INVOICE_ADDRESS, type FinalizeInvoiceInput } from '@/lib/pos-types'
-import { saudiDateKey, toSaudiISOString } from '@/lib/saudi-time'
+import { toSaudiISOString } from '@/lib/saudi-time'
 import { calculateInvoiceTotals, calculateLine } from '@/lib/vat'
 import { encodeZatcaQr } from '@/lib/zatca-qr'
 import type { Invoice, Product } from '@/payload-types'
 
-import { areShopSettingsComplete, getShopSettings } from './settings'
+import { areShopSettingsComplete, getShopSettings, marketContextFromSettings } from './settings'
 
 export type FinalizeInvoiceOptions = {
   salesChannel?: Invoice['salesChannel']
@@ -30,16 +36,16 @@ async function findByIdempotencyKey(key: string): Promise<Invoice | null> {
   return result.docs[0] || null
 }
 
-async function allocateInvoiceNumber(issuedAt: Date): Promise<string> {
+async function allocateInvoiceNumber(issuedAt: Date, profile: MarketProfile): Promise<string> {
   const payload = await getPayload({ config })
-  const prefix = `INV-${saudiDateKey(issuedAt)}-`
+  const prefix = `INV-${marketDateKey(issuedAt, profile)}-`
   const result = await payload.find({
     collection: 'invoices',
     limit: 1,
     sort: '-invoiceNumber',
     where: { invoiceNumber: { like: prefix } },
   })
-  return nextInvoiceNumber(issuedAt, result.docs[0]?.invoiceNumber)
+  return nextInvoiceNumber(issuedAt, result.docs[0]?.invoiceNumber, profile)
 }
 
 function isUniqueConstraintError(error: unknown): boolean {
@@ -47,7 +53,10 @@ function isUniqueConstraintError(error: unknown): boolean {
   return /duplicate|unique|constraint/i.test(message)
 }
 
-async function resolveItem(item: FinalizeInvoiceInput['items'][number]) {
+async function resolveItem(
+  item: FinalizeInvoiceInput['items'][number],
+  profile: MarketProfile,
+) {
   let product: Product | null = null
   if (item.productId) {
     const payload = await getPayload({ config })
@@ -55,13 +64,17 @@ async function resolveItem(item: FinalizeInvoiceInput['items'][number]) {
   }
 
   const descriptionEnglish = product?.nameEnglish || item.descriptionEnglish?.trim()
-  const descriptionArabic = product?.nameArabic || item.descriptionArabic?.trim()
-  if (!descriptionEnglish || !descriptionArabic) {
-    throw new Error('Every invoice item requires English and Arabic descriptions.')
-  }
+  if (!descriptionEnglish) throw new Error('Every invoice item requires an English description.')
+  const translations = normalizedTranslations(product?.translations || item.translations, {
+    ar: product?.nameArabic || item.descriptionArabic,
+    bn: product?.nameBangla || item.descriptionBangla,
+  })
+  const descriptionArabic = localizedName(translations, 'ar') || descriptionEnglish
+  const descriptionBangla = localizedName(translations, 'bn')
 
-  const vatCategory = product?.vatCategory || item.vatCategory
-  const priceIncludesVat = product?.priceIncludesVat ?? item.priceIncludesVat
+  const vatCategory = profile.taxMode === 'none' ? 'exempt' : product?.vatCategory || item.vatCategory
+  const priceIncludesVat =
+    profile.taxMode === 'none' ? false : product?.priceIncludesVat ?? item.priceIncludesVat
   if (!vatCategory || priceIncludesVat === undefined) {
     throw new Error('Every invoice item requires a VAT category and pricing mode.')
   }
@@ -76,8 +89,9 @@ async function resolveItem(item: FinalizeInvoiceInput['items'][number]) {
   return {
     product: product?.id,
     descriptionEnglish,
-    descriptionBangla: product?.nameBangla || item.descriptionBangla?.trim() || undefined,
+    descriptionBangla,
     descriptionArabic,
+    translations,
     ...calculated,
   }
 }
@@ -93,16 +107,25 @@ export async function finalizeInvoice(
   if (!areShopSettingsComplete(settings)) {
     throw new Error('Complete the business information before finalizing an invoice.')
   }
+  const market = marketContextFromSettings(settings)
+  const { profile, secondaryLanguage } = market
+  const expectedType = profile.taxMode === 'none' ? 'sales' : input.invoiceType
+  if (profile.taxMode === 'none' && input.invoiceType !== 'sales') {
+    throw new Error('Bangladesh uses the Sales Invoice type.')
+  }
+  if (profile.taxMode === 'saudiVat' && input.invoiceType === 'sales') {
+    throw new Error('Choose a Saudi simplified or standard tax invoice.')
+  }
 
   const buyer =
-    input.invoiceType === 'standard'
+    expectedType === 'standard'
       ? {
           ...input.buyer,
           address: input.buyer?.address?.trim() || DEFAULT_INVOICE_ADDRESS,
         }
       : undefined
 
-  if (input.invoiceType === 'standard') {
+  if (expectedType === 'standard') {
     if (!buyer?.name?.trim()) {
       throw new Error('Standard invoices require the buyer name.')
     }
@@ -113,32 +136,46 @@ export async function finalizeInvoice(
 
   const issuedAt = new Date()
   issuedAt.setMilliseconds(0)
-  const items = await Promise.all(input.items.map(resolveItem))
+  const items = await Promise.all(
+    input.items.map((item) => resolveItem(item, profile)),
+  )
   const totals = calculateInvoiceTotals(items)
   const seller = {
-    nameArabic: settings.sellerNameArabic,
+    nameArabic: settings.sellerNameArabic || undefined,
+    nameBangla: settings.sellerNameBangla || undefined,
     nameEnglish: settings.sellerNameEnglish,
-    vatNumber: settings.vatNumber,
+    vatNumber: settings.vatNumber || undefined,
     address: settings.businessAddress,
+    registrations: (settings.registrations || []).map(({ type, value }) => ({ type, value })),
   }
-  const qrPayload = encodeZatcaQr({
-    sellerName: seller.nameArabic,
-    vatNumber: seller.vatNumber,
-    timestamp: toSaudiISOString(issuedAt),
-    total: minorToDecimal(totals.totalMinor),
-    vatTotal: minorToDecimal(totals.vatMinor),
-  })
+  const qrPayload =
+    profile.taxMode === 'saudiVat'
+      ? encodeZatcaQr({
+          sellerName: seller.nameArabic!,
+          vatNumber: seller.vatNumber!,
+          timestamp: toSaudiISOString(issuedAt),
+          total: minorToDecimal(totals.totalMinor, profile),
+          vatTotal: minorToDecimal(totals.vatMinor, profile),
+        })
+      : undefined
 
   const payload = await getPayload({ config })
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const invoiceNumber = await allocateInvoiceNumber(issuedAt)
+    const invoiceNumber = await allocateInvoiceNumber(issuedAt, profile)
     try {
       return await payload.create({
         collection: 'invoices',
         data: {
           invoiceNumber,
           idempotencyKey: input.idempotencyKey,
-          invoiceType: input.invoiceType,
+          invoiceType: expectedType,
+          countryCode: profile.countryCode,
+          currencyCode: profile.currencyCode,
+          currencyMinorUnitDigits: profile.minorUnitDigits,
+          timeZone: profile.timeZone,
+          taxMode: profile.taxMode,
+          documentLanguage: profile.documentLanguage,
+          secondaryLanguage,
           salesChannel: options.salesChannel || 'checkout',
           issuedAt: issuedAt.toISOString(),
           seller,

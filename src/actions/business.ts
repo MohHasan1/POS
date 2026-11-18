@@ -6,7 +6,7 @@ import { z } from 'zod'
 
 import type { ActionResult } from './products'
 import { BUSINESS_LOGO_MAX_BYTES, isBusinessLogoMimeType } from '@/lib/business-information'
-import { createBusinessLogo, updateShopSettings } from '@/services/settings'
+import { createBusinessLogo, isCountryLocked, updateShopSettings } from '@/services/settings'
 
 const optionalText = (maximum: number) =>
   z
@@ -15,15 +15,18 @@ const optionalText = (maximum: number) =>
     .max(maximum)
     .transform((value) => value || null)
 
-const businessInformationSchema = z.object({
+const businessInformationSchema = z
+  .object({
+  countryCode: z.enum(['SA', 'BD']),
   displayName: z.string().trim().min(1, 'Shop display name is required.').max(120),
-  sellerNameArabic: z.string().trim().min(1, 'Arabic seller name is required.').max(160),
+  sellerNameArabic: optionalText(160),
+  sellerNameBangla: optionalText(160),
   sellerNameEnglish: z.string().trim().min(1, 'English seller name is required.').max(160),
   crNumber: optionalText(50),
-  vatNumber: z
-    .string()
-    .trim()
-    .regex(/^3\d{13}3$/, 'Enter a valid 15-digit Saudi VAT number beginning and ending with 3.'),
+  vatNumber: optionalText(50),
+  tradeLicenseNumber: optionalText(50),
+  tinNumber: optionalText(50),
+  binNumber: optionalText(50),
   businessAddress: z.string().trim().min(1, 'Business address is required.').max(500),
   telephone: optionalText(40),
   additionalTelephone: optionalText(40),
@@ -31,17 +34,34 @@ const businessInformationSchema = z.object({
   email: z
     .union([z.literal(''), z.string().trim().email('Enter a valid email address.').max(254)])
     .transform((value) => value || null),
-})
+  })
+  .superRefine((data, context) => {
+    if (data.countryCode !== 'SA') return
+    if (!data.sellerNameArabic) {
+      context.addIssue({ code: 'custom', message: 'Arabic seller name is required.' })
+    }
+    if (!data.vatNumber || !/^3\d{13}3$/.test(data.vatNumber)) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Enter a valid 15-digit Saudi VAT number beginning and ending with 3.',
+      })
+    }
+  })
 
 export type BusinessInformationActionInput = z.input<typeof businessInformationSchema>
 
 export async function updateBusinessInformationAction(formData: FormData): Promise<ActionResult> {
   const parsed = businessInformationSchema.safeParse({
+    countryCode: String(formData.get('countryCode') || ''),
     displayName: String(formData.get('displayName') || ''),
     sellerNameEnglish: String(formData.get('sellerNameEnglish') || ''),
     sellerNameArabic: String(formData.get('sellerNameArabic') || ''),
+    sellerNameBangla: String(formData.get('sellerNameBangla') || ''),
     crNumber: String(formData.get('crNumber') || ''),
     vatNumber: String(formData.get('vatNumber') || ''),
+    tradeLicenseNumber: String(formData.get('tradeLicenseNumber') || ''),
+    tinNumber: String(formData.get('tinNumber') || ''),
+    binNumber: String(formData.get('binNumber') || ''),
     businessAddress: String(formData.get('businessAddress') || ''),
     telephone: String(formData.get('telephone') || ''),
     additionalTelephone: String(formData.get('additionalTelephone') || ''),
@@ -51,6 +71,10 @@ export async function updateBusinessInformationAction(formData: FormData): Promi
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
 
   try {
+    const currentCountry = String(formData.get('currentCountryCode') || '')
+    if (currentCountry && currentCountry !== parsed.data.countryCode && (await isCountryLocked())) {
+      return { ok: false, error: 'Country cannot be changed after a financial record exists.' }
+    }
     const logoEntry = formData.get('logo')
     let logo: number | null | undefined
 
@@ -79,8 +103,33 @@ export async function updateBusinessInformationAction(formData: FormData): Promi
       logo = null
     }
 
+    const registrations = [
+      parsed.data.countryCode === 'SA' && parsed.data.crNumber
+        ? { type: 'cr', value: parsed.data.crNumber }
+        : null,
+      parsed.data.countryCode === 'SA' && parsed.data.vatNumber
+        ? { type: 'vat', value: parsed.data.vatNumber }
+        : null,
+      parsed.data.countryCode === 'BD' && parsed.data.tradeLicenseNumber
+        ? { type: 'tradeLicense', value: parsed.data.tradeLicenseNumber }
+        : null,
+      parsed.data.countryCode === 'BD' && parsed.data.tinNumber
+        ? { type: 'tin', value: parsed.data.tinNumber }
+        : null,
+      parsed.data.countryCode === 'BD' && parsed.data.binNumber
+        ? { type: 'bin', value: parsed.data.binNumber }
+        : null,
+    ].filter((entry): entry is { type: string; value: string } => Boolean(entry))
+
     await updateShopSettings({
       ...parsed.data,
+      registrations,
+      secondaryLanguage:
+        currentCountry === parsed.data.countryCode
+          ? undefined
+          : parsed.data.countryCode === 'BD'
+            ? 'bn'
+            : 'ar',
       ...(logo !== undefined ? { logo } : {}),
     })
     revalidatePath('/', 'layout')

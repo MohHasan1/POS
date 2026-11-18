@@ -2,8 +2,10 @@ import config from '@payload-config'
 import { getPayload } from 'payload'
 
 import type { SalesDashboard, SalesPeriodMetric, TopServiceMetric } from '@/lib/service-board-types'
-import { getSaudiPeriodBounds } from '@/lib/saudi-time'
+import { getPeriodBounds } from '@/lib/calendar'
+import { DEFAULT_MARKET, type MarketProfile, type SecondaryLanguage } from '@/lib/market'
 import type { Invoice } from '@/payload-types'
+import { getShopSettings, marketContextFromSettings } from './settings'
 
 function periodMetric(invoices: Invoice[]): SalesPeriodMetric {
   const totalMinor = invoices.reduce((total, invoice) => total + invoice.totalMinor, 0)
@@ -19,8 +21,13 @@ function inRange(invoice: Invoice, start: Date, end: Date): boolean {
   return issuedAt >= start.getTime() && issuedAt < end.getTime()
 }
 
-export function buildSalesDashboard(invoices: Invoice[], now = new Date()): SalesDashboard {
-  const bounds = getSaudiPeriodBounds(now)
+export function buildSalesDashboard(
+  invoices: Invoice[],
+  now = new Date(),
+  market: MarketProfile = DEFAULT_MARKET,
+  secondaryLanguage: SecondaryLanguage = market.defaultSecondaryLanguage,
+): SalesDashboard {
+  const bounds = getPeriodBounds(market, now)
   const today = invoices.filter((invoice) =>
     inRange(invoice, bounds.todayStart, bounds.nextDayStart),
   )
@@ -36,7 +43,7 @@ export function buildSalesDashboard(invoices: Invoice[], now = new Date()): Sale
     for (const item of invoice.items) {
       const key = `${item.descriptionEnglish}\u0000${item.descriptionArabic}`
       const current = topServices.get(key) || {
-        nameArabic: item.descriptionArabic,
+        nameArabic: item.descriptionArabic || undefined,
         nameBangla: item.descriptionBangla || undefined,
         nameEnglish: item.descriptionEnglish,
         quantityMilliunits: 0,
@@ -61,6 +68,8 @@ export function buildSalesDashboard(invoices: Invoice[], now = new Date()): Sale
       )
       .slice(0, 5),
     year: periodMetric(year),
+    market,
+    secondaryLanguage,
   }
 }
 
@@ -87,5 +96,7 @@ async function getAllInvoices(): Promise<Invoice[]> {
 }
 
 export async function getSalesDashboard(now = new Date()): Promise<SalesDashboard> {
-  return buildSalesDashboard(await getAllInvoices(), now)
+  const [invoices, settings] = await Promise.all([getAllInvoices(), getShopSettings()])
+  const market = marketContextFromSettings(settings)
+  return buildSalesDashboard(invoices, now, market.profile, market.secondaryLanguage)
 }

@@ -4,7 +4,7 @@ import { ServiceBoardClient } from '@/components/service-board/ServiceBoardClien
 import { getDictionary } from '@/lib/localization'
 import { getProducts } from '@/services/products'
 import { getServiceBoardView } from '@/services/service-board'
-import { areShopSettingsComplete, getShopSettings } from '@/services/settings'
+import { areShopSettingsComplete, getShopSettings, marketContextFromSettings } from '@/services/settings'
 
 export const metadata: Metadata = { title: 'Service Board' }
 
@@ -15,6 +15,7 @@ export default async function ServiceBoardPage() {
     getShopSettings(),
     getServiceBoardView(),
   ])
+  const market = marketContextFromSettings(settings)
 
   return (
     <div className="space-y-5">
@@ -24,6 +25,7 @@ export default async function ServiceBoardPage() {
       </header>
       <ServiceBoardClient
         allProducts={products}
+        autoTranslateProducts={market.autoTranslateProducts}
         defaultPriceIncludesVat={settings.defaultPriceIncludesVat ?? false}
         dictionary={dictionary}
         locale={locale}

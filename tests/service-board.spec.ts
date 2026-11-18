@@ -5,6 +5,10 @@ import { after, before, describe, it } from 'node:test'
 import { getPayload } from 'payload'
 
 import type { ProductSummary } from '@/lib/pos-types'
+import {
+  buildServiceCardAccents,
+  SERVICE_CARD_COLOR_CAPACITY,
+} from '@/lib/service-board-colors'
 import type { Invoice } from '@/payload-types'
 import { finalizeInvoice } from '@/services/invoices'
 import { buildSalesDashboard } from '@/services/sales-reporting'
@@ -84,6 +88,31 @@ function itemFixture(
   }
 }
 
+describe('Service Board card colors', () => {
+  it('assigns 150 distinct invoices unique colors and keeps repeated invoices matched', () => {
+    const invoiceIds = Array.from({ length: 150 }, (_, index) => `invoice-${index}`)
+    const accents = buildServiceCardAccents([...invoiceIds, 'invoice-42'])
+
+    assert.equal(accents.size, 150)
+    assert.equal(new Set([...accents.values()].map(({ slot }) => slot)).size, 150)
+    assert.equal(new Set([...accents.values()].map(({ light }) => light)).size, 150)
+    assert.equal(new Set([...accents.values()].map(({ dark }) => dark)).size, 150)
+    assert.deepEqual(accents.get('invoice-42'), buildServiceCardAccents(invoiceIds).get('invoice-42'))
+  })
+
+  it('supports every unique color slot and rejects only when capacity is exceeded', () => {
+    const atCapacity = Array.from(
+      { length: SERVICE_CARD_COLOR_CAPACITY },
+      (_, index) => `capacity-invoice-${index}`,
+    )
+    assert.equal(buildServiceCardAccents(atCapacity).size, SERVICE_CARD_COLOR_CAPACITY)
+    assert.throws(
+      () => buildServiceCardAccents([...atCapacity, 'one-too-many']),
+      /supports up to 256 distinct invoice colors/,
+    )
+  })
+})
+
 describe('Service Board view model', () => {
   it('groups checkout and board lines, links visits, and falls back to exact legacy names', () => {
     const haircut = productFixture({ nameEnglish: 'Haircut', nameArabic: 'قص شعر' })
@@ -112,10 +141,37 @@ describe('Service Board view model', () => {
     assert.equal(view.columns[0].cards.length, 1)
     assert.equal(view.columns[1].cards.length, 2)
     assert.equal(view.columns[0].cards[0].customerName, 'Amina')
+    assert.deepEqual(view.columns[0].summary, {
+      todayQuantityMilliunits: 2_000,
+      todayRevenueMinor: 2_300,
+    })
+    assert.deepEqual(view.columns[1].summary, {
+      todayQuantityMilliunits: 2_000,
+      todayRevenueMinor: 2_300,
+    })
     assert.equal(view.summary.allSalesTodayMinor, 6_000)
     assert.equal(view.summary.visibleServiceRevenueMinor, 4_600)
     assert.equal(view.summary.distinctVisits, 2)
     assert.equal(view.summary.mostPopularService?.productId, haircut.id)
+  })
+
+  it('uses overridden line totals and returns zero totals for an empty column', () => {
+    const massage = productFixture({ nameEnglish: 'Massage', priceMinor: 1_000 })
+    const facial = productFixture({ nameEnglish: 'Facial', priceMinor: 2_000 })
+    const overriddenItem = itemFixture(massage, 1_500, 3_600)
+    overriddenItem.unitPriceMinor = 2_400
+    const invoice = invoiceFixture('2026-11-17T12:00:00.000Z', 3_600, [overriddenItem])
+
+    const view = buildServiceBoardView([massage, facial], [invoice])
+
+    assert.deepEqual(view.columns[0].summary, {
+      todayQuantityMilliunits: 1_500,
+      todayRevenueMinor: 3_600,
+    })
+    assert.deepEqual(view.columns[1].summary, {
+      todayQuantityMilliunits: 0,
+      todayRevenueMinor: 0,
+    })
   })
 })
 

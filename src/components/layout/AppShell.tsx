@@ -4,13 +4,16 @@ import type { ReactNode } from 'react'
 
 import { appNavigation } from '@/lib/app-navigation'
 import type { Dictionary } from '@/lib/localization'
+import { SetupGuard } from './SetupGuard'
 
 export function AppShell({
   children,
   dictionary,
+  marketConfigured,
 }: {
   children: ReactNode
   dictionary: Dictionary
+  marketConfigured: boolean
 }) {
   return (
     <div className="min-h-screen bg-muted/30">
@@ -32,7 +35,7 @@ export function AppShell({
             <span className="hidden sm:inline">{dictionary.appName}</span>
           </Link>
           <nav aria-label="Primary" className="ml-auto flex items-center gap-1 overflow-x-auto">
-            {appNavigation.map(({ href, labelKey, icon: Icon, primary }) => (
+            {appNavigation.filter(({ href }) => marketConfigured || href === '/business').map(({ href, labelKey, icon: Icon, primary }) => (
               <Link
                 key={href}
                 href={href}
@@ -53,7 +56,9 @@ export function AppShell({
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-[1600px] p-4 sm:p-6">{children}</main>
+      <main className="mx-auto max-w-[1600px] p-4 sm:p-6">
+        <SetupGuard configured={marketConfigured} dictionary={dictionary}>{children}</SetupGuard>
+      </main>
     </div>
   )
 }

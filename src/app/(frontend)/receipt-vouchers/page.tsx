@@ -16,11 +16,13 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { getDictionary } from '@/lib/localization'
-import { formatSAR } from '@/lib/money'
-import { todayInSaudiArabia } from '@/lib/receipt-voucher'
-import { formatSaudiDate } from '@/lib/saudi-time'
+import { formatMarketDate } from '@/lib/calendar'
+import { getDocumentMarket, marketLocale } from '@/lib/market'
+import { formatMoney } from '@/lib/money'
+import { todayInMarket } from '@/lib/receipt-voucher'
 import { cn } from '@/lib/utils'
 import { getReceiptVouchers } from '@/services/receipt-vouchers'
+import { getShopSettings, marketContextFromSettings } from '@/services/settings'
 
 export const metadata: Metadata = { title: 'Receipt Vouchers' }
 
@@ -30,11 +32,13 @@ export default async function ReceiptVouchersPage({
   searchParams: Promise<{ from?: string; q?: string; to?: string }>
 }) {
   const { from = '', q = '', to = '' } = await searchParams
-  const [{ dictionary, locale }, vouchers] = await Promise.all([
+  const [{ dictionary, locale }, vouchers, settings] = await Promise.all([
     getDictionary(),
     getReceiptVouchers({ from: from || undefined, search: q, to: to || undefined }),
+    getShopSettings(),
   ])
-  const dateLocale = locale === 'bn' ? 'bn-BD' : 'en-SA'
+  const market = marketContextFromSettings(settings)
+  const dateLocale = marketLocale(market.profile, locale)
 
   return (
     <div className="space-y-6">
@@ -57,7 +61,7 @@ export default async function ReceiptVouchersPage({
             {dictionary.createReceiptVoucherDescription}
           </p>
         </div>
-        <ReceiptVoucherForm dictionary={dictionary} defaultDate={todayInSaudiArabia()} />
+        <ReceiptVoucherForm dictionary={dictionary} defaultDate={todayInMarket(market.profile)} market={market.profile} />
       </section>
 
       <section
@@ -121,22 +125,23 @@ export default async function ReceiptVouchersPage({
               <TableHead>{dictionary.receivedFrom}</TableHead>
               <TableHead>{dictionary.paymentMethod}</TableHead>
               <TableHead>{dictionary.status}</TableHead>
-              <TableHead className="text-right">{dictionary.amountSar}</TableHead>
+              <TableHead className="text-right">{dictionary.amount} ({market.profile.currencyCode})</TableHead>
               <TableHead className="text-right">{dictionary.actions}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {vouchers.map((voucher) => (
-              <TableRow key={voucher.id}>
+            {vouchers.map((voucher) => {
+              const documentMarket = getDocumentMarket(voucher)
+              return <TableRow key={voucher.id}>
                 <TableCell className="font-medium">{voucher.voucherNumber}</TableCell>
-                <TableCell>{formatSaudiDate(voucher.voucherDate, dateLocale)}</TableCell>
+                <TableCell>{formatMarketDate(voucher.voucherDate, documentMarket, dateLocale)}</TableCell>
                 <TableCell>{voucher.receivedFrom}</TableCell>
                 <TableCell>{dictionary[`payment_${voucher.paymentMethod}`]}</TableCell>
                 <TableCell>
                   <ReceiptVoucherStatusBadge dictionary={dictionary} status={voucher.status} />
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {formatSAR(voucher.amountMinor, dateLocale)}
+                  {formatMoney(voucher.amountMinor, documentMarket, dateLocale)}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
@@ -157,7 +162,7 @@ export default async function ReceiptVouchersPage({
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+            })}
             {vouchers.length === 0 && (
               <TableRow>
                 <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">

@@ -3,8 +3,10 @@ import { getPayload } from 'payload'
 
 import type { ProductSummary } from '@/lib/pos-types'
 import type { ServiceBoardCard, ServiceBoardView } from '@/lib/service-board-types'
-import { getSaudiPeriodBounds } from '@/lib/saudi-time'
+import { getPeriodBounds } from '@/lib/calendar'
+import { DEFAULT_MARKET, normalizedTranslations, type MarketProfile, type SecondaryLanguage } from '@/lib/market'
 import type { Invoice, Product, ServiceBoardSetting } from '@/payload-types'
+import { getShopSettings, marketContextFromSettings } from './settings'
 
 function relationshipId(value: string | Product | null | undefined): string | undefined {
   if (!value) return undefined
@@ -22,6 +24,10 @@ function toProductSummary(product: Product): ProductSummary {
     nameArabic: product.nameArabic,
     nameBangla: product.nameBangla,
     nameEnglish: product.nameEnglish,
+    translations: normalizedTranslations(product.translations, {
+      ar: product.nameArabic,
+      bn: product.nameBangla,
+    }),
     priceIncludesVat: product.priceIncludesVat,
     priceMinor: product.priceMinor,
     sku: product.sku,
@@ -107,13 +113,15 @@ function findMatchingProduct(
   return products.find(
     (product) =>
       product.nameEnglish === item.descriptionEnglish &&
-      product.nameArabic === item.descriptionArabic,
+      (!product.nameArabic || product.nameArabic === item.descriptionArabic),
   )
 }
 
 export function buildServiceBoardView(
   products: ProductSummary[],
   invoices: Invoice[],
+  market: MarketProfile = DEFAULT_MARKET,
+  secondaryLanguage: SecondaryLanguage = market.defaultSecondaryLanguage,
 ): ServiceBoardView {
   const productsById = new Map(products.map((product) => [product.id, product]))
   const cardsByProduct = new Map<string, ServiceBoardCard[]>(
@@ -165,16 +173,25 @@ export function buildServiceBoardView(
     })[0]
 
   return {
-    columns: products.map((product) => ({
-      cards: cardsByProduct.get(product.id)!,
-      product,
-    })),
+    columns: products.map((product) => {
+      const metric = popularity.get(product.id)
+      return {
+        cards: cardsByProduct.get(product.id)!,
+        product,
+        summary: {
+          todayQuantityMilliunits: metric?.quantityMilliunits || 0,
+          todayRevenueMinor: metric?.revenueMinor || 0,
+        },
+      }
+    }),
+    market,
+    secondaryLanguage,
     summary: {
       allSalesTodayMinor: invoices.reduce((total, invoice) => total + invoice.totalMinor, 0),
       distinctVisits: visits.size,
       mostPopularService: popularProduct
         ? {
-            nameArabic: popularProduct.nameArabic,
+            nameArabic: popularProduct.nameArabic || undefined,
             nameBangla: popularProduct.nameBangla || undefined,
             nameEnglish: popularProduct.nameEnglish,
             productId: popularProduct.id,
@@ -188,7 +205,9 @@ export function buildServiceBoardView(
 
 export async function getServiceBoardView(now = new Date()): Promise<ServiceBoardView> {
   const payload = await getPayload({ config })
-  const { nextDayStart, todayStart } = getSaudiPeriodBounds(now)
+  const settings = await getShopSettings()
+  const market = marketContextFromSettings(settings)
+  const { nextDayStart, todayStart } = getPeriodBounds(market.profile, now)
   const [products, result] = await Promise.all([
     getServiceBoardColumnProducts(),
     payload.find({
@@ -205,5 +224,5 @@ export async function getServiceBoardView(now = new Date()): Promise<ServiceBoar
     }),
   ])
 
-  return buildServiceBoardView(products, result.docs)
+  return buildServiceBoardView(products, result.docs, market.profile, market.secondaryLanguage)
 }

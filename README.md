@@ -1,6 +1,6 @@
 # QuickPOS
 
-A compact Saudi Arabia retail POS PWA built with Next.js, Payload CMS, Tailwind CSS, and shadcn/ui.
+A compact multi-country retail and service POS PWA built with Next.js, Payload CMS, Tailwind CSS, and shadcn/ui. Saudi Arabia and Bangladesh profiles are included.
 
 ## Local setup
 
@@ -14,6 +14,42 @@ A compact Saudi Arabia retail POS PWA built with Next.js, Payload CMS, Tailwind 
 SQLite is the default local database. The cashier UI is intentionally a trusted-device MVP without its own login gate.
 
 Payload automatically synchronizes the SQLite schema during `pnpm dev`. Before serving a production build against SQLite, run `pnpm migrate` once, followed by `pnpm build` and `pnpm start`.
+
+## Testing the Bangladesh profile locally
+
+An installation's country is locked after its first invoice or receipt voucher, including drafts. To test Bangladesh without changing or deleting an existing Saudi installation, use a separate SQLite database and media directory.
+
+Stop the current development server, then prepare the test database:
+
+```bash
+DATABASE_URL=file:./bd-test.db \
+QUICKPOS_MEDIA_DIR=./bd-test-media \
+pnpm migrate
+```
+
+Start QuickPOS with the same test environment:
+
+```bash
+DATABASE_URL=file:./bd-test.db \
+QUICKPOS_MEDIA_DIR=./bd-test-media \
+pnpm dev
+```
+
+Open `http://localhost:3000`. Create the initial Payload administrator at `/admin` if prompted, then select **Bangladesh** during first-run business setup.
+
+Verify the following behavior:
+
+- Business name and address are required; Trade License, TIN, and BIN are optional.
+- Currency is shown as `৳` or BDT and dates use `Asia/Dhaka`.
+- VAT settings are hidden.
+- English is the primary product name and Bangla is the optional secondary name.
+- Checkout and Service Board create tax-free **Sales Invoices** without ZATCA QR codes.
+- Receipt vouchers use English and Bangla with Taka and Poisha amount wording.
+- Dashboard totals include sales from both Checkout and Service Board.
+
+To return to the existing Saudi installation, stop the test server and run `pnpm dev` normally. The default `.env` will use the original `pos.db`; `bd-test.db` remains an isolated test database.
+
+See [Testing the Bangladesh profile](docs/testing-bangladesh.md) for the complete verification checklist.
 
 ## Production database
 

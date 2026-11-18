@@ -1,7 +1,12 @@
-import { saudiDateKey } from './saudi-time'
+import { marketDateKey } from './calendar'
+import { DEFAULT_MARKET, type MarketProfile } from './market'
 
-export function nextInvoiceNumber(date: Date, previous?: string): string {
-  const prefix = `INV-${saudiDateKey(date)}-`
+export function nextInvoiceNumber(
+  date: Date,
+  previous?: string,
+  profile: MarketProfile = DEFAULT_MARKET,
+): string {
+  const prefix = `INV-${marketDateKey(date, profile)}-`
   const previousSequence = previous?.startsWith(prefix)
     ? Number(previous.slice(prefix.length))
     : 0

@@ -5,6 +5,7 @@ import { AppShell } from '@/components/layout/AppShell'
 import { PwaRegistration } from '@/components/layout/PwaRegistration'
 import { ThemeProvider } from '@/components/layout/ThemeProvider'
 import { getDictionary } from '@/lib/localization'
+import { getShopSettings, marketContextFromSettings } from '@/services/settings'
 
 import './styles.css'
 
@@ -13,12 +14,16 @@ export const metadata: Metadata = {
     default: 'QuickPOS',
     template: '%s | QuickPOS',
   },
-  description: 'A lightweight Saudi Arabia retail point of sale application.',
+  description: 'A lightweight multi-country retail and service point of sale application.',
   applicationName: 'QuickPOS',
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const { dictionary, locale } = await getDictionary()
+  const [{ dictionary, locale }, settings] = await Promise.all([
+    getDictionary(),
+    getShopSettings(),
+  ])
+  const market = marketContextFromSettings(settings)
 
   return (
     <html lang={locale} suppressHydrationWarning>
@@ -30,7 +35,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           disableTransitionOnChange
           storageKey="counter-pos-theme"
         >
-          <AppShell dictionary={dictionary}>{children}</AppShell>
+          <AppShell dictionary={dictionary} marketConfigured={market.configured}>{children}</AppShell>
           <PwaRegistration />
         </ThemeProvider>
       </body>

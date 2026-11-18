@@ -4,9 +4,10 @@ import { getPayload, type Where } from 'payload'
 import { createBusinessInformationSnapshot } from '@/lib/business-information'
 import {
   amountMinorToWords,
+  marketDateToISOString,
   nextReceiptVoucherNumber,
-  saudiDateToISOString,
 } from '@/lib/receipt-voucher'
+import type { MarketProfile } from '@/lib/market'
 import {
   createReceiptVoucherSchema,
   receiptVoucherDetailsSchema,
@@ -15,7 +16,7 @@ import {
 } from '@/lib/receipt-voucher-validation'
 import type { ReceiptVoucher } from '@/payload-types'
 
-import { getShopSettings } from './settings'
+import { getShopSettings, marketContextFromSettings } from './settings'
 
 async function findByIdempotencyKey(key: string): Promise<ReceiptVoucher | null> {
   const payload = await getPayload({ config })
@@ -42,7 +43,7 @@ function isUniqueConstraintError(error: unknown): boolean {
   return /duplicate|unique|constraint/i.test(message)
 }
 
-function paymentDetails(input: ReceiptVoucherDetailsInput) {
+function paymentDetails(input: ReceiptVoucherDetailsInput, profile: MarketProfile) {
   const emptyDetails = {
     bankName: null,
     chequeDate: null,
@@ -61,13 +62,13 @@ function paymentDetails(input: ReceiptVoucherDetailsInput) {
         ...emptyDetails,
         bankName: input.bankName,
         transactionReference: input.transactionReference,
-        transferDate: saudiDateToISOString(input.transferDate),
+        transferDate: marketDateToISOString(input.transferDate, profile),
       }
     case 'cheque':
       return {
         ...emptyDetails,
         bankName: input.bankName,
-        chequeDate: saudiDateToISOString(input.chequeDate),
+        chequeDate: marketDateToISOString(input.chequeDate, profile),
         chequeNumber: input.chequeNumber,
       }
     case 'other':
@@ -81,8 +82,9 @@ function paymentDetails(input: ReceiptVoucherDetailsInput) {
 
 async function editableVoucherData(input: ReceiptVoucherDetailsInput) {
   const settings = await getShopSettings()
+  const market = marketContextFromSettings(settings)
   if (
-    !settings.sellerNameArabic?.trim() ||
+    !market.configured ||
     !settings.sellerNameEnglish?.trim() ||
     !settings.businessAddress?.trim()
   ) {
@@ -90,10 +92,18 @@ async function editableVoucherData(input: ReceiptVoucherDetailsInput) {
   }
 
   const snapshot = createBusinessInformationSnapshot(settings)
-  const amountWords = amountMinorToWords(input.amountMinor)
+  const amountWords = amountMinorToWords(input.amountMinor, market.profile)
   return {
+    countryCode: market.profile.countryCode,
+    currencyCode: market.profile.currencyCode,
+    currencyMinorUnitDigits: market.profile.minorUnitDigits,
+    timeZone: market.profile.timeZone,
+    taxMode: market.profile.taxMode,
+    documentLanguage: market.profile.documentLanguage,
+    secondaryLanguage: market.secondaryLanguage,
     amountMinor: input.amountMinor,
-    amountWordsArabic: amountWords.arabic,
+    amountWordsArabic: amountWords.arabic || null,
+    amountWordsBangla: amountWords.bangla || null,
     amountWordsEnglish: amountWords.english,
     business: {
       ...snapshot,
@@ -109,11 +119,11 @@ async function editableVoucherData(input: ReceiptVoucherDetailsInput) {
         : undefined,
     },
     notes: input.notes || null,
-    paymentDetails: paymentDetails(input),
+    paymentDetails: paymentDetails(input, market.profile),
     paymentMethod: input.paymentMethod,
     purpose: input.purpose,
     receivedFrom: input.receivedFrom,
-    voucherDate: saudiDateToISOString(input.voucherDate),
+    voucherDate: marketDateToISOString(input.voucherDate, market.profile),
   }
 }
 
@@ -182,6 +192,8 @@ export async function getReceiptVouchers(
   filters: ReceiptVoucherFilters = {},
   limit = 100,
 ): Promise<ReceiptVoucher[]> {
+  const settings = await getShopSettings()
+  const market = marketContextFromSettings(settings)
   const clauses: Where[] = []
   const search = filters.search?.trim()
   if (search) {
@@ -191,14 +203,16 @@ export async function getReceiptVouchers(
   }
   try {
     if (filters.from) {
-      clauses.push({ voucherDate: { greater_than_equal: saudiDateToISOString(filters.from) } })
+      clauses.push({
+        voucherDate: { greater_than_equal: marketDateToISOString(filters.from, market.profile) },
+      })
     }
   } catch {
     // Ignore malformed URL filters rather than failing the page.
   }
   try {
     if (filters.to) {
-      const nextDay = new Date(saudiDateToISOString(filters.to))
+      const nextDay = new Date(marketDateToISOString(filters.to, market.profile))
       nextDay.setUTCDate(nextDay.getUTCDate() + 1)
       clauses.push({ voucherDate: { less_than: nextDay.toISOString() } })
     }

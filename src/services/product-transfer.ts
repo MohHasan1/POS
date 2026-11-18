@@ -2,6 +2,7 @@ import config from '@payload-config'
 import { getPayload } from 'payload'
 
 import type { ProductCsvRow } from '@/lib/product-csv'
+import { normalizedTranslations } from '@/lib/market'
 
 export type ProductImportResult = {
   created: number
@@ -26,20 +27,27 @@ export async function importProducts(rows: readonly ProductCsvRow[]): Promise<Pr
 
   try {
     for (const row of rows) {
+      const data = {
+        ...row,
+        translations: normalizedTranslations(undefined, {
+          ar: row.nameArabic,
+          bn: row.nameBangla,
+        }),
+      }
       const existingProduct = row.sku ? productsBySku.get(row.sku) : undefined
 
       if (existingProduct) {
         await payload.update({
           collection: 'products',
           id: existingProduct.id,
-          data: row,
+          data,
           req,
         })
         updated += 1
       } else {
         await payload.create({
           collection: 'products',
-          data: row,
+          data,
           req,
         })
         created += 1

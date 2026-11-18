@@ -25,17 +25,24 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { Dictionary } from '@/lib/localization'
-import { formatSAR } from '@/lib/money'
+import { localizedName, normalizedTranslations, type MarketProfile, type SecondaryLanguage } from '@/lib/market'
+import { formatMoney } from '@/lib/money'
 import type { ProductSummary } from '@/lib/pos-types'
 
 export function ProductsManager({
   defaultPriceIncludesVat,
   dictionary,
   products,
+  market,
+  secondaryLanguage,
+  autoTranslateProducts,
 }: {
   defaultPriceIncludesVat: boolean
   dictionary: Dictionary
   products: ProductSummary[]
+  market: MarketProfile
+  secondaryLanguage: SecondaryLanguage
+  autoTranslateProducts: boolean
 }) {
   const router = useRouter()
   const [search, setSearch] = useState('')
@@ -95,10 +102,10 @@ export function ProductsManager({
         <TableHeader>
           <TableRow>
             <TableHead>{dictionary.nameEnglish}</TableHead>
-            <TableHead>{dictionary.nameArabic}</TableHead>
+            {secondaryLanguage !== 'none' && <TableHead>{dictionary.secondaryProductLanguage}</TableHead>}
             <TableHead>{dictionary.sku}</TableHead>
             <TableHead>{dictionary.price}</TableHead>
-            <TableHead>{dictionary.vatCategory}</TableHead>
+            {market.taxMode === 'saudiVat' && <TableHead>{dictionary.vatCategory}</TableHead>}
             <TableHead>{dictionary.status}</TableHead>
             <TableHead className="text-right">{dictionary.actions}</TableHead>
           </TableRow>
@@ -108,20 +115,19 @@ export function ProductsManager({
             <TableRow key={product.id}>
               <TableCell>
                 <span className="font-medium">{product.nameEnglish}</span>
-                {product.nameBangla && (
-                  <span className="block text-xs text-muted-foreground">{product.nameBangla}</span>
-                )}
               </TableCell>
-              <TableCell dir="rtl">{product.nameArabic}</TableCell>
+              {secondaryLanguage !== 'none' && <TableCell dir={secondaryLanguage === 'ar' ? 'rtl' : undefined}>
+                {localizedName(normalizedTranslations(product.translations, { ar: product.nameArabic, bn: product.nameBangla }), secondaryLanguage) || '—'}
+              </TableCell>}
               <TableCell>{product.sku || '—'}</TableCell>
-              <TableCell>{formatSAR(product.priceMinor)}</TableCell>
-              <TableCell>
+              <TableCell>{formatMoney(product.priceMinor, market)}</TableCell>
+              {market.taxMode === 'saudiVat' && <TableCell>
                 {product.vatCategory === 'standard'
                   ? '15%'
                   : product.vatCategory === 'zero'
                     ? '0%'
                     : dictionary.exempt}
-              </TableCell>
+              </TableCell>}
               <TableCell>
                 <Badge variant={product.active ? 'secondary' : 'outline'}>
                   {product.active ? dictionary.active : dictionary.inactive}
@@ -165,6 +171,9 @@ export function ProductsManager({
             key={editing?.id || 'new'}
             defaultPriceIncludesVat={defaultPriceIncludesVat}
             dictionary={dictionary}
+            market={market}
+            secondaryLanguage={secondaryLanguage}
+            autoTranslateProducts={autoTranslateProducts}
             product={editing}
             onDone={() => setDialogOpen(false)}
           />

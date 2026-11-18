@@ -163,10 +163,17 @@ export interface Product {
   id: string;
   nameEnglish: string;
   nameBangla?: string | null;
-  nameArabic: string;
+  nameArabic?: string | null;
+  translations?:
+    | {
+        language: string;
+        name: string;
+        id?: string | null;
+      }[]
+    | null;
   sku?: string | null;
   /**
-   * Selling price in halalas.
+   * Selling price in the configured currency minor unit.
    */
   priceMinor: number;
   vatCategory: 'standard' | 'zero' | 'exempt';
@@ -183,14 +190,29 @@ export interface Invoice {
   id: string;
   invoiceNumber: string;
   idempotencyKey: string;
-  invoiceType: 'simplified' | 'standard';
+  invoiceType: 'sales' | 'simplified' | 'standard';
+  countryCode?: string | null;
+  currencyCode?: string | null;
+  currencyMinorUnitDigits?: number | null;
+  timeZone?: string | null;
+  taxMode?: string | null;
+  documentLanguage?: string | null;
+  secondaryLanguage?: string | null;
   salesChannel: 'checkout' | 'serviceBoard';
   issuedAt: string;
   seller: {
-    nameArabic: string;
+    nameArabic?: string | null;
+    nameBangla?: string | null;
     nameEnglish: string;
-    vatNumber: string;
+    vatNumber?: string | null;
     address: string;
+    registrations?:
+      | {
+          type: string;
+          value: string;
+          id?: string | null;
+        }[]
+      | null;
   };
   buyer?: {
     name?: string | null;
@@ -207,7 +229,14 @@ export interface Invoice {
     product?: (string | null) | Product;
     descriptionEnglish: string;
     descriptionBangla?: string | null;
-    descriptionArabic: string;
+    descriptionArabic?: string | null;
+    translations?:
+      | {
+          language: string;
+          name: string;
+          id?: string | null;
+        }[]
+      | null;
     quantityMilliunits: number;
     unitPriceMinor: number;
     priceIncludesVat: boolean;
@@ -221,7 +250,7 @@ export interface Invoice {
   subtotalMinor: number;
   vatMinor: number;
   totalMinor: number;
-  qrPayload: string;
+  qrPayload?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -233,12 +262,20 @@ export interface ReceiptVoucher {
   id: string;
   voucherNumber: string;
   idempotencyKey: string;
+  countryCode?: string | null;
+  currencyCode?: string | null;
+  currencyMinorUnitDigits?: number | null;
+  timeZone?: string | null;
+  taxMode?: string | null;
+  documentLanguage?: string | null;
+  secondaryLanguage?: string | null;
   voucherDate: string;
   issuedAt?: string | null;
   receivedFrom: string;
   amountMinor: number;
   amountWordsEnglish: string;
-  amountWordsArabic: string;
+  amountWordsArabic?: string | null;
+  amountWordsBangla?: string | null;
   paymentMethod: 'cash' | 'bank_transfer' | 'cheque' | 'other';
   paymentDetails?: {
     bankName?: string | null;
@@ -253,7 +290,8 @@ export interface ReceiptVoucher {
   notes?: string | null;
   business: {
     displayName?: string | null;
-    sellerNameArabic: string;
+    sellerNameArabic?: string | null;
+    sellerNameBangla?: string | null;
     sellerNameEnglish: string;
     crNumber?: string | null;
     businessAddress: string;
@@ -261,6 +299,13 @@ export interface ReceiptVoucher {
     additionalTelephone?: string | null;
     mobile?: string | null;
     email?: string | null;
+    registrations?:
+      | {
+          type: string;
+          value: string;
+          id?: string | null;
+        }[]
+      | null;
     logo?: {
       mediaId?: number | null;
       url?: string | null;
@@ -411,6 +456,13 @@ export interface ProductsSelect<T extends boolean = true> {
   nameEnglish?: T;
   nameBangla?: T;
   nameArabic?: T;
+  translations?:
+    | T
+    | {
+        language?: T;
+        name?: T;
+        id?: T;
+      };
   sku?: T;
   priceMinor?: T;
   vatCategory?: T;
@@ -428,15 +480,30 @@ export interface InvoicesSelect<T extends boolean = true> {
   invoiceNumber?: T;
   idempotencyKey?: T;
   invoiceType?: T;
+  countryCode?: T;
+  currencyCode?: T;
+  currencyMinorUnitDigits?: T;
+  timeZone?: T;
+  taxMode?: T;
+  documentLanguage?: T;
+  secondaryLanguage?: T;
   salesChannel?: T;
   issuedAt?: T;
   seller?:
     | T
     | {
         nameArabic?: T;
+        nameBangla?: T;
         nameEnglish?: T;
         vatNumber?: T;
         address?: T;
+        registrations?:
+          | T
+          | {
+              type?: T;
+              value?: T;
+              id?: T;
+            };
       };
   buyer?:
     | T
@@ -460,6 +527,13 @@ export interface InvoicesSelect<T extends boolean = true> {
         descriptionEnglish?: T;
         descriptionBangla?: T;
         descriptionArabic?: T;
+        translations?:
+          | T
+          | {
+              language?: T;
+              name?: T;
+              id?: T;
+            };
         quantityMilliunits?: T;
         unitPriceMinor?: T;
         priceIncludesVat?: T;
@@ -485,12 +559,20 @@ export interface ReceiptVouchersSelect<T extends boolean = true> {
   id?: T;
   voucherNumber?: T;
   idempotencyKey?: T;
+  countryCode?: T;
+  currencyCode?: T;
+  currencyMinorUnitDigits?: T;
+  timeZone?: T;
+  taxMode?: T;
+  documentLanguage?: T;
+  secondaryLanguage?: T;
   voucherDate?: T;
   issuedAt?: T;
   receivedFrom?: T;
   amountMinor?: T;
   amountWordsEnglish?: T;
   amountWordsArabic?: T;
+  amountWordsBangla?: T;
   paymentMethod?: T;
   paymentDetails?:
     | T
@@ -510,6 +592,7 @@ export interface ReceiptVouchersSelect<T extends boolean = true> {
     | {
         displayName?: T;
         sellerNameArabic?: T;
+        sellerNameBangla?: T;
         sellerNameEnglish?: T;
         crNumber?: T;
         businessAddress?: T;
@@ -517,6 +600,13 @@ export interface ReceiptVouchersSelect<T extends boolean = true> {
         additionalTelephone?: T;
         mobile?: T;
         email?: T;
+        registrations?:
+          | T
+          | {
+              type?: T;
+              value?: T;
+              id?: T;
+            };
         logo?:
           | T
           | {
@@ -596,14 +686,28 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
  */
 export interface ShopSetting {
   id: number;
+  countryCode?: ('SA' | 'BD') | null;
+  secondaryLanguage?: ('ar' | 'bn' | 'none') | null;
+  autoTranslateProducts?: boolean | null;
   /**
    * The shop name shown in the POS interface. Legal invoice names are stored separately.
    */
   displayName?: string | null;
-  sellerNameArabic: string;
+  sellerNameArabic?: string | null;
+  sellerNameBangla?: string | null;
   sellerNameEnglish: string;
   crNumber?: string | null;
-  vatNumber: string;
+  vatNumber?: string | null;
+  tradeLicenseNumber?: string | null;
+  tinNumber?: string | null;
+  binNumber?: string | null;
+  registrations?:
+    | {
+        type: string;
+        value: string;
+        id?: string | null;
+      }[]
+    | null;
   businessAddress: string;
   /**
    * Optional business logo used on non-tax business documents.
@@ -637,11 +741,25 @@ export interface ServiceBoardSetting {
  * via the `definition` "shop-settings_select".
  */
 export interface ShopSettingsSelect<T extends boolean = true> {
+  countryCode?: T;
+  secondaryLanguage?: T;
+  autoTranslateProducts?: T;
   displayName?: T;
   sellerNameArabic?: T;
+  sellerNameBangla?: T;
   sellerNameEnglish?: T;
   crNumber?: T;
   vatNumber?: T;
+  tradeLicenseNumber?: T;
+  tinNumber?: T;
+  binNumber?: T;
+  registrations?:
+    | T
+    | {
+        type?: T;
+        value?: T;
+        id?: T;
+      };
   businessAddress?: T;
   logo?: T;
   telephone?: T;

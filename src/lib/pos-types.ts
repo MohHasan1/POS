@@ -12,6 +12,7 @@ export type ProductSummary = Pick<
   | 'priceIncludesVat'
   | 'priceMinor'
   | 'sku'
+  | 'translations'
   | 'vatCategory'
 >
 
@@ -31,11 +32,12 @@ export type CheckoutItemInput = {
   quantityMilliunits: number
   unitPriceMinor: number
   vatCategory?: Product['vatCategory']
+  translations?: Array<{ language: string; name: string }>
 }
 
 export type FinalizeInvoiceInput = {
   buyer?: BuyerInput
   idempotencyKey: string
-  invoiceType: 'simplified' | 'standard'
+  invoiceType: 'sales' | 'simplified' | 'standard'
   items: CheckoutItemInput[]
 }

@@ -13,8 +13,9 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { getDictionary } from '@/lib/localization'
-import { formatSAR } from '@/lib/money'
-import { formatSaudiDateTime } from '@/lib/saudi-time'
+import { formatMarketDateTime } from '@/lib/calendar'
+import { getDocumentMarket, marketLocale } from '@/lib/market'
+import { formatMoney } from '@/lib/money'
 import { cn } from '@/lib/utils'
 import { getInvoices } from '@/services/invoices'
 
@@ -56,17 +57,19 @@ export default async function InvoicesPage({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {invoices.map((invoice) => (
-              <TableRow key={invoice.id}>
+            {invoices.map((invoice) => {
+              const market = getDocumentMarket(invoice)
+              const dateLocale = marketLocale(market, locale)
+              return <TableRow key={invoice.id}>
                 <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
-                <TableCell>{formatSaudiDateTime(invoice.issuedAt, locale === 'bn' ? 'bn-BD' : 'en-SA')}</TableCell>
-                <TableCell>{invoice.invoiceType === 'simplified' ? dictionary.simplifiedInvoice : dictionary.standardInvoice}</TableCell>
-                <TableCell className="text-right tabular-nums">{formatSAR(invoice.totalMinor, locale === 'bn' ? 'bn-BD' : 'en-SA')}</TableCell>
+                <TableCell>{formatMarketDateTime(invoice.issuedAt, market, dateLocale)}</TableCell>
+                <TableCell>{invoice.invoiceType === 'sales' ? dictionary.salesInvoice : invoice.invoiceType === 'simplified' ? dictionary.simplifiedInvoice : dictionary.standardInvoice}</TableCell>
+                <TableCell className="text-right tabular-nums">{formatMoney(invoice.totalMinor, market, dateLocale)}</TableCell>
                 <TableCell className="text-right">
                   <Link href={`/invoices/${invoice.id}`} className={cn(buttonVariants({ size: 'sm', variant: 'outline' }))}>{dictionary.open}</Link>
                 </TableCell>
               </TableRow>
-            ))}
+            })}
             {invoices.length === 0 && (
               <TableRow><TableCell colSpan={5} className="h-24 text-center text-muted-foreground">{dictionary.noInvoices}</TableCell></TableRow>
             )}

@@ -1,4 +1,5 @@
 import type { ProductSummary } from './pos-types'
+import type { MarketProfile, SecondaryLanguage } from './market'
 
 export type ServiceBoardCard = {
   customerName?: string
@@ -16,13 +17,17 @@ export type ServiceBoardCard = {
 export type ServiceBoardColumn = {
   cards: ServiceBoardCard[]
   product: ProductSummary
+  summary: {
+    todayQuantityMilliunits: number
+    todayRevenueMinor: number
+  }
 }
 
 export type ServiceBoardSummary = {
   allSalesTodayMinor: number
   distinctVisits: number
   mostPopularService?: {
-    nameArabic: string
+    nameArabic?: string
     nameBangla?: string
     nameEnglish: string
     productId: string
@@ -33,6 +38,8 @@ export type ServiceBoardSummary = {
 
 export type ServiceBoardView = {
   columns: ServiceBoardColumn[]
+  market: MarketProfile
+  secondaryLanguage: SecondaryLanguage
   summary: ServiceBoardSummary
 }
 
@@ -43,7 +50,7 @@ export type SalesPeriodMetric = {
 }
 
 export type TopServiceMetric = {
-  nameArabic: string
+  nameArabic?: string
   nameBangla?: string
   nameEnglish: string
   quantityMilliunits: number
@@ -56,4 +63,6 @@ export type SalesDashboard = {
   today: SalesPeriodMetric
   topServices: TopServiceMetric[]
   year: SalesPeriodMetric
+  market: MarketProfile
+  secondaryLanguage: SecondaryLanguage
 }

@@ -1,5 +1,6 @@
-import { formatQuantity, formatSAR } from '@/lib/money'
-import { formatSaudiDateTime } from '@/lib/saudi-time'
+import { formatMarketDateTime } from '@/lib/calendar'
+import { getDocumentMarket, localizedName, normalizedTranslations } from '@/lib/market'
+import { formatMoney, formatQuantity } from '@/lib/money'
 import type { Invoice } from '@/payload-types'
 
 type InvoiceItem = Invoice['items'][number]
@@ -35,6 +36,8 @@ function taxTreatment(category: InvoiceItem['vatCategory']) {
 }
 
 export function InvoiceBody({ invoice, qrDataURL, standard }: InvoiceBodyProps) {
+  const market = getDocumentMarket(invoice)
+  const money = (minor: number) => formatMoney(minor, market, market.locale, true)
   const title = standard
     ? { arabic: 'فاتورة ضريبية', english: 'Tax Invoice' }
     : { arabic: 'فاتورة ضريبية مبسطة', english: 'Simplified Tax Invoice' }
@@ -84,10 +87,10 @@ export function InvoiceBody({ invoice, qrDataURL, standard }: InvoiceBodyProps) 
               <span dir="ltr">Issue date and time</span> / <span dir="rtl">تاريخ ووقت الإصدار</span>
             </dt>
             <dd className="mt-0.5 tabular-nums" dir="ltr">
-              {formatSaudiDateTime(invoice.issuedAt, 'en-SA')} (KSA)
+              {formatMarketDateTime(invoice.issuedAt, market, 'en-SA')} (KSA)
             </dd>
             <dd className="mt-0.5" dir="rtl">
-              {formatSaudiDateTime(invoice.issuedAt, 'ar-SA')} (بتوقيت السعودية)
+              {formatMarketDateTime(invoice.issuedAt, market, 'ar-SA')} (بتوقيت السعودية)
             </dd>
           </div>
         </dl>
@@ -238,7 +241,7 @@ export function InvoiceBody({ invoice, qrDataURL, standard }: InvoiceBodyProps) 
                     {item.descriptionEnglish}
                   </span>
                   <span className="block text-right" dir="rtl">
-                    {item.descriptionArabic}
+                    {localizedName(normalizedTranslations(item.translations, { ar: item.descriptionArabic, bn: item.descriptionBangla }), invoice.secondaryLanguage || 'ar') || item.descriptionEnglish}
                   </span>
                   {treatment && (
                     <span className="mt-1 block text-[9px] text-neutral-600">
@@ -256,7 +259,7 @@ export function InvoiceBody({ invoice, qrDataURL, standard }: InvoiceBodyProps) 
                 </td>
                 <td className="px-1 py-2 text-right align-top tabular-nums" dir="ltr">
                   <span className="block">
-                    {formatSAR(standard ? standardUnitPriceMinor(item) : item.unitPriceMinor)}
+                    {money(standard ? standardUnitPriceMinor(item) : item.unitPriceMinor)}
                   </span>
                   {!standard && (
                     <span className="mt-0.5 block text-[9px] font-normal text-neutral-600">
@@ -267,16 +270,16 @@ export function InvoiceBody({ invoice, qrDataURL, standard }: InvoiceBodyProps) 
                   )}
                 </td>
                 <td className="px-1 py-2 text-right align-top tabular-nums" dir="ltr">
-                  {formatSAR(item.netMinor)}
+                  {money(item.netMinor)}
                 </td>
                 <td className="px-1 py-2 text-right align-top tabular-nums">
                   {vatLabel(item.vatCategory, item.vatRateBps)}
                 </td>
                 <td className="px-1 py-2 text-right align-top tabular-nums" dir="ltr">
-                  {formatSAR(item.vatMinor)}
+                  {money(item.vatMinor)}
                 </td>
                 <td className="px-1 py-2 text-right align-top font-semibold tabular-nums" dir="ltr">
-                  {formatSAR(item.totalMinor)}
+                  {money(item.totalMinor)}
                 </td>
               </tr>
             )
@@ -303,13 +306,13 @@ export function InvoiceBody({ invoice, qrDataURL, standard }: InvoiceBodyProps) 
                 <tr key={rate} className="border-b">
                   <td className="py-1">{rate}</td>
                   <td className="text-right tabular-nums" dir="ltr">
-                    {formatSAR(values.net)}
+                    {money(values.net)}
                   </td>
                   <td className="text-right tabular-nums" dir="ltr">
-                    {formatSAR(values.vat)}
+                    {money(values.vat)}
                   </td>
                   <td className="text-right tabular-nums" dir="ltr">
-                    {formatSAR(values.total)}
+                    {money(values.total)}
                   </td>
                 </tr>
               ))}
@@ -323,7 +326,7 @@ export function InvoiceBody({ invoice, qrDataURL, standard }: InvoiceBodyProps) 
               <span dir="rtl">المجموع الفرعي غير شامل الضريبة</span>
             </dt>
             <dd className="shrink-0 tabular-nums" dir="ltr">
-              {formatSAR(invoice.subtotalMinor)}
+              {money(invoice.subtotalMinor)}
             </dd>
           </div>
           <div className="flex justify-between gap-3">
@@ -331,7 +334,7 @@ export function InvoiceBody({ invoice, qrDataURL, standard }: InvoiceBodyProps) 
               <span dir="ltr">Taxable amount</span> / <span dir="rtl">المبلغ الخاضع للضريبة</span>
             </dt>
             <dd className="shrink-0 tabular-nums" dir="ltr">
-              {formatSAR(invoice.subtotalMinor)}
+              {money(invoice.subtotalMinor)}
             </dd>
           </div>
           <div className="flex justify-between gap-3">
@@ -339,7 +342,7 @@ export function InvoiceBody({ invoice, qrDataURL, standard }: InvoiceBodyProps) 
               <span dir="ltr">VAT</span> / <span dir="rtl">ضريبة القيمة المضافة</span>
             </dt>
             <dd className="shrink-0 tabular-nums" dir="ltr">
-              {formatSAR(invoice.vatMinor)}
+              {money(invoice.vatMinor)}
             </dd>
           </div>
           <div className="flex justify-between gap-3 border-t-2 border-black pt-2 text-base font-bold">
@@ -347,7 +350,7 @@ export function InvoiceBody({ invoice, qrDataURL, standard }: InvoiceBodyProps) 
               <span dir="ltr">Grand total</span> / <span dir="rtl">الإجمالي شامل الضريبة</span>
             </dt>
             <dd className="shrink-0 tabular-nums" dir="ltr">
-              {formatSAR(invoice.totalMinor)}
+              {money(invoice.totalMinor)}
             </dd>
           </div>
           <div className="text-right text-[10px] text-neutral-600">

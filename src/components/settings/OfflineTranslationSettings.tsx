@@ -100,7 +100,14 @@ function TranslationModelStatus({
   )
 }
 
-export function OfflineTranslationSettings({ dictionary }: { dictionary: Dictionary }) {
+export function OfflineTranslationSettings({
+  dictionary,
+  targetLanguage,
+}: {
+  dictionary: Dictionary
+  targetLanguage: TranslationTarget | 'none'
+}) {
+  if (targetLanguage === 'none') return null
   return (
     <section className="space-y-3 rounded-lg border bg-background p-4 sm:p-5">
       <div>
@@ -111,15 +118,9 @@ export function OfflineTranslationSettings({ dictionary }: { dictionary: Diction
       </div>
       <TranslationModelStatus
         dictionary={dictionary}
-        downloadLabel={dictionary.downloadArabicTranslation}
-        languageLabel="العربية"
-        targetLanguage="ar"
-      />
-      <TranslationModelStatus
-        dictionary={dictionary}
-        downloadLabel={dictionary.downloadBanglaTranslation}
-        languageLabel="বাংলা"
-        targetLanguage="bn"
+        downloadLabel={targetLanguage === 'ar' ? dictionary.downloadArabicTranslation : dictionary.downloadBanglaTranslation}
+        languageLabel={targetLanguage === 'ar' ? 'العربية' : 'বাংলা'}
+        targetLanguage={targetLanguage}
       />
     </section>
   )

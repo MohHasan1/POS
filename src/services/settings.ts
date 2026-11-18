@@ -2,6 +2,12 @@ import config from '@payload-config'
 import { getPayload } from 'payload'
 
 import type { ShopSetting } from '@/payload-types'
+import {
+  getMarketProfile,
+  isCountryCode,
+  type MarketProfile,
+  type SecondaryLanguage,
+} from '@/lib/market'
 
 export type BusinessLogoFile = {
   data: Buffer
@@ -13,6 +19,9 @@ export type BusinessLogoFile = {
 export type ShopSettingsInput = Pick<
   ShopSetting,
   | 'businessAddress'
+  | 'autoTranslateProducts'
+  | 'binNumber'
+  | 'countryCode'
   | 'additionalTelephone'
   | 'crNumber'
   | 'defaultPriceIncludesVat'
@@ -20,11 +29,23 @@ export type ShopSettingsInput = Pick<
   | 'email'
   | 'logo'
   | 'mobile'
+  | 'registrations'
+  | 'secondaryLanguage'
   | 'sellerNameArabic'
+  | 'sellerNameBangla'
   | 'sellerNameEnglish'
   | 'telephone'
+  | 'tinNumber'
+  | 'tradeLicenseNumber'
   | 'vatNumber'
 >
+
+export type MarketContext = {
+  autoTranslateProducts: boolean
+  configured: boolean
+  profile: MarketProfile
+  secondaryLanguage: SecondaryLanguage
+}
 
 export async function getShopSettings(): Promise<ShopSetting> {
   const payload = await getPayload({ config })
@@ -45,12 +66,51 @@ export async function createBusinessLogo(file: BusinessLogoFile, alt: string) {
   })
 }
 
+export function marketContextFromSettings(settings: Partial<ShopSetting>): MarketContext {
+  const legacySaudiConfiguration = Boolean(
+    !settings.countryCode &&
+      settings.sellerNameEnglish?.trim() &&
+      settings.sellerNameArabic?.trim() &&
+      settings.businessAddress?.trim() &&
+      settings.vatNumber &&
+      /^3\d{13}3$/.test(settings.vatNumber),
+  )
+  const configured = isCountryCode(settings.countryCode) || legacySaudiConfiguration
+  const profile = getMarketProfile(settings.countryCode)
+  const selected = settings.secondaryLanguage
+  const secondaryLanguage: SecondaryLanguage =
+    selected === 'ar' || selected === 'bn' || selected === 'none'
+      ? selected
+      : profile.defaultSecondaryLanguage
+  return {
+    autoTranslateProducts: settings.autoTranslateProducts !== false,
+    configured,
+    profile,
+    secondaryLanguage,
+  }
+}
+
+export async function getMarketContext(): Promise<MarketContext> {
+  return marketContextFromSettings(await getShopSettings())
+}
+
+export async function isCountryLocked(): Promise<boolean> {
+  const payload = await getPayload({ config })
+  const [invoices, vouchers] = await Promise.all([
+    payload.count({ collection: 'invoices' }),
+    payload.count({ collection: 'receipt-vouchers' }),
+  ])
+  return invoices.totalDocs > 0 || vouchers.totalDocs > 0
+}
+
 export function areShopSettingsComplete(settings: Partial<ShopSetting>): boolean {
+  if (!settings.countryCode) return marketContextFromSettings(settings).configured
+  if (!isCountryCode(settings.countryCode)) return false
+  if (!settings.sellerNameEnglish?.trim() || !settings.businessAddress?.trim()) return false
+  if (settings.countryCode === 'BD') return true
   return Boolean(
     settings.sellerNameArabic?.trim() &&
-    settings.sellerNameEnglish?.trim() &&
-    settings.businessAddress?.trim() &&
-    settings.vatNumber &&
-    /^3\d{13}3$/.test(settings.vatNumber),
+      settings.vatNumber &&
+      /^3\d{13}3$/.test(settings.vatNumber),
   )
 }

@@ -5,9 +5,10 @@ import { buttonVariants } from '@/components/ui/button'
 import { appNavigation } from '@/lib/app-navigation'
 import { getBusinessLogo } from '@/lib/business-information'
 import { getDictionary } from '@/lib/localization'
-import { formatQuantity, formatSAR } from '@/lib/money'
+import { formatMarketDateTime } from '@/lib/calendar'
+import { localizedName, marketLocale, normalizedTranslations } from '@/lib/market'
+import { formatMoney, formatQuantity } from '@/lib/money'
 import type { SalesPeriodMetric } from '@/lib/service-board-types'
-import { formatSaudiDateTime } from '@/lib/saudi-time'
 import { cn } from '@/lib/utils'
 import { getInvoices } from '@/services/invoices'
 import { getSalesDashboard } from '@/services/sales-reporting'
@@ -20,10 +21,10 @@ export default async function HomePage() {
     getInvoices(undefined, 4),
     getSalesDashboard(),
   ])
-  const dateLocale = locale === 'bn' ? 'bn-BD' : 'en-SA'
+  const dateLocale = marketLocale(dashboard.market, locale)
   const currentDate = new Intl.DateTimeFormat(dateLocale, {
     dateStyle: 'full',
-    timeZone: 'Asia/Riyadh',
+    timeZone: dashboard.market.timeZone,
   }).format(new Date())
   const shopName = settings.displayName || settings.sellerNameEnglish || dictionary.defaultShopName
   const businessLogo = getBusinessLogo(settings)
@@ -98,7 +99,7 @@ export default async function HomePage() {
               className={cn(
                 'flex min-h-14 items-center gap-2 rounded-lg border bg-background p-3 text-sm font-medium transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 href === '/receipt-vouchers' &&
-                  'border-amber-200 bg-amber-50 text-amber-950 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100',
+                  'border-transparent bg-amber-100 text-amber-950 hover:bg-amber-200 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-amber-900',
               )}
             >
               <Icon className="size-4 shrink-0" aria-hidden="true" />
@@ -117,7 +118,7 @@ export default async function HomePage() {
             <article key={label} className="rounded-lg border bg-card p-4 shadow-sm">
               <p className="text-xs font-medium text-muted-foreground">{label}</p>
               <p className="mt-2 text-2xl font-semibold tabular-nums">
-                {formatSAR(metric.totalMinor, dateLocale)}
+                {formatMoney(metric.totalMinor, dashboard.market, dateLocale)}
               </p>
               <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 <span>
@@ -129,7 +130,7 @@ export default async function HomePage() {
                 <span>
                   {dictionary.averageSale.replace(
                     '{amount}',
-                    formatSAR(metric.averageMinor, dateLocale),
+                    formatMoney(metric.averageMinor, dashboard.market, dateLocale),
                   )}
                 </span>
               </div>
@@ -153,17 +154,15 @@ export default async function HomePage() {
                   </span>
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-medium">
-                      {locale === 'bn' && service.nameBangla
-                        ? service.nameBangla
-                        : service.nameEnglish}
+                      {service.nameEnglish}
                     </span>
                     <span className="block truncate text-xs text-muted-foreground" dir="rtl">
-                      {service.nameArabic}
+                      {localizedName(normalizedTranslations(undefined, { ar: service.nameArabic, bn: service.nameBangla }), dashboard.secondaryLanguage)}
                     </span>
                   </span>
                   <span className="text-right text-sm tabular-nums">
                     <span className="block font-medium">
-                      {formatSAR(service.revenueMinor, dateLocale)}
+                      {formatMoney(service.revenueMinor, dashboard.market, dateLocale)}
                     </span>
                     <span className="block text-xs text-muted-foreground">
                       ×{formatQuantity(service.quantityMilliunits, dateLocale)}
@@ -206,10 +205,10 @@ export default async function HomePage() {
               >
                 <span className="font-medium">{invoice.invoiceNumber}</span>
                 <span className="text-sm text-muted-foreground">
-                  {formatSaudiDateTime(invoice.issuedAt, dateLocale)}
+                  {formatMarketDateTime(invoice.issuedAt, dashboard.market, dateLocale)}
                 </span>
                 <span className="text-sm font-medium tabular-nums">
-                  {formatSAR(invoice.totalMinor, dateLocale)}
+                  {formatMoney(invoice.totalMinor, dashboard.market, dateLocale)}
                 </span>
               </Link>
             ))}

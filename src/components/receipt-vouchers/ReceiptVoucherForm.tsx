@@ -19,36 +19,39 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import type { Dictionary } from '@/lib/localization'
+import type { MarketProfile } from '@/lib/market'
 import { decimalToMinor, minorToDecimal } from '@/lib/money'
-import { amountMinorToWords, toSaudiDateInput, type PaymentMethod } from '@/lib/receipt-voucher'
+import { amountMinorToWords, toMarketDateInputValue, type PaymentMethod } from '@/lib/receipt-voucher'
 import type { ReceiptVoucher } from '@/payload-types'
 
 export function ReceiptVoucherForm({
   defaultDate,
   dictionary,
   voucher,
+  market,
 }: {
   defaultDate: string
   dictionary: Dictionary
   voucher?: ReceiptVoucher
+  market: MarketProfile
 }) {
   const router = useRouter()
   const idempotencyKey = useRef(crypto.randomUUID())
-  const [amount, setAmount] = useState(voucher ? minorToDecimal(voucher.amountMinor) : '')
+  const [amount, setAmount] = useState(voucher ? minorToDecimal(voucher.amountMinor, market) : '')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
     voucher?.paymentMethod || 'cash',
   )
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
-  const previewAmountMinor = decimalToMinor(amount)
+  const previewAmountMinor = decimalToMinor(amount, market)
   const amountWords =
-    previewAmountMinor && previewAmountMinor > 0 ? amountMinorToWords(previewAmountMinor) : null
+    previewAmountMinor && previewAmountMinor > 0 ? amountMinorToWords(previewAmountMinor, market) : null
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError('')
     const form = new FormData(event.currentTarget)
-    const amountMinor = decimalToMinor(String(form.get('amount') || ''))
+    const amountMinor = decimalToMinor(String(form.get('amount') || ''), market)
     if (!amountMinor || amountMinor <= 0) {
       setError(dictionary.receiptVoucherAmountError)
       return
@@ -127,7 +130,7 @@ export function ReceiptVoucherForm({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="amount">{dictionary.amountSar}</Label>
+          <Label htmlFor="amount">{dictionary.amount} ({market.currencyCode})</Label>
           <Input
             id="amount"
             name="amount"
@@ -148,9 +151,11 @@ export function ReceiptVoucherForm({
           <p className="mt-1" dir="ltr">
             {amountWords.english}
           </p>
-          <p className="mt-1 text-right" dir="rtl">
-            {amountWords.arabic}
-          </p>
+          {(amountWords.arabic || amountWords.bangla) && (
+            <p className="mt-1 text-right" dir={amountWords.arabic ? 'rtl' : 'ltr'}>
+              {amountWords.arabic || amountWords.bangla}
+            </p>
+          )}
         </div>
       )}
 
@@ -203,7 +208,7 @@ export function ReceiptVoucherForm({
                 type="date"
                 defaultValue={
                   voucher?.paymentDetails?.transferDate
-                    ? toSaudiDateInput(voucher.paymentDetails.transferDate)
+                    ? toMarketDateInputValue(voucher.paymentDetails.transferDate, market)
                     : undefined
                 }
                 required
@@ -242,7 +247,7 @@ export function ReceiptVoucherForm({
                 type="date"
                 defaultValue={
                   voucher?.paymentDetails?.chequeDate
-                    ? toSaudiDateInput(voucher.paymentDetails.chequeDate)
+                    ? toMarketDateInputValue(voucher.paymentDetails.chequeDate, market)
                     : undefined
                 }
                 required

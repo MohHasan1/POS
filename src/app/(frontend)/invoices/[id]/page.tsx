@@ -7,6 +7,7 @@ import { cache } from 'react'
 import { PrintButton } from '@/components/invoices/PrintButton'
 import { SimplifiedInvoiceTemplate } from '@/components/invoices/SimplifiedInvoiceTemplate'
 import { StandardInvoiceTemplate } from '@/components/invoices/StandardInvoiceTemplate'
+import { SalesInvoiceTemplate } from '@/components/invoices/SalesInvoiceTemplate'
 import { buttonVariants } from '@/components/ui/button'
 import { getDictionary } from '@/lib/localization'
 import { cn } from '@/lib/utils'
@@ -27,11 +28,13 @@ export default async function InvoicePage({ params }: InvoicePageProps) {
   const [invoice, { dictionary }] = await Promise.all([getPageInvoice(id), getDictionary()])
   if (!invoice) notFound()
 
-  const qrDataURL = await QRCode.toDataURL(invoice.qrPayload, {
-    errorCorrectionLevel: 'M',
-    margin: 1,
-    width: 220,
-  })
+  const qrDataURL = invoice.qrPayload
+    ? await QRCode.toDataURL(invoice.qrPayload, {
+        errorCorrectionLevel: 'M',
+        margin: 1,
+        width: 220,
+      })
+    : undefined
 
   return (
     <div className="space-y-4">
@@ -46,8 +49,10 @@ export default async function InvoicePage({ params }: InvoicePageProps) {
         </Link>
         <PrintButton documentTitle={invoice.invoiceNumber} label={dictionary.print} />
       </div>
-      {invoice.invoiceType === 'simplified' ? (
-        <SimplifiedInvoiceTemplate invoice={invoice} qrDataURL={qrDataURL} />
+      {invoice.invoiceType === 'sales' ? (
+        <SalesInvoiceTemplate invoice={invoice} />
+      ) : invoice.invoiceType === 'simplified' ? (
+        <SimplifiedInvoiceTemplate invoice={invoice} qrDataURL={qrDataURL!} />
       ) : (
         <StandardInvoiceTemplate invoice={invoice} qrDataURL={qrDataURL} />
       )}

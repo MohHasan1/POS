@@ -130,7 +130,7 @@ describe('receipt voucher persistence and lifecycle', () => {
     assert.equal(cash.business.logo?.mediaId, logoId)
     assert.match(cash.business.logo?.url || '', /voucher-logo/)
     assert.equal(cash.amountWordsEnglish.includes('Fifty Halalas'), true)
-    assert.equal(cash.amountWordsArabic.includes('خمسون هللةً'), true)
+    assert.equal(cash.amountWordsArabic!.includes('خمسون هللةً'), true)
   })
 
   it('edits only drafts without changing their voucher number', async () => {

@@ -1,7 +1,22 @@
 import { type MigrateDownArgs, type MigrateUpArgs, sql } from '@payloadcms/db-sqlite'
 
 export async function up({ db }: MigrateUpArgs): Promise<void> {
+  const { rows } = await db.run(sql`PRAGMA table_info('shop_settings');`)
+  const pricePreference = rows.find(
+    (row) => String((row as unknown as { name: unknown }).name) === 'default_price_includes_vat',
+  ) as undefined | { dflt_value?: unknown }
+
+  // Development schema-push may already have applied this default without
+  // recording the migration.
+  if (String(pricePreference?.dflt_value).toLowerCase() === 'false') {
+    await db.run(
+      sql`CREATE INDEX IF NOT EXISTS \`shop_settings_logo_idx\` ON \`shop_settings\` (\`logo_id\`);`,
+    )
+    return
+  }
+
   await db.run(sql`PRAGMA foreign_keys=OFF;`)
+  await db.run(sql`DROP TABLE IF EXISTS \`__new_shop_settings\`;`)
   await db.run(sql`CREATE TABLE \`__new_shop_settings\` (
     \`id\` integer PRIMARY KEY NOT NULL,
     \`display_name\` text,
@@ -27,7 +42,9 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
   await db.run(sql`DROP TABLE \`shop_settings\`;`)
   await db.run(sql`ALTER TABLE \`__new_shop_settings\` RENAME TO \`shop_settings\`;`)
   await db.run(sql`PRAGMA foreign_keys=ON;`)
-  await db.run(sql`CREATE INDEX \`shop_settings_logo_idx\` ON \`shop_settings\` (\`logo_id\`);`)
+  await db.run(
+    sql`CREATE INDEX IF NOT EXISTS \`shop_settings_logo_idx\` ON \`shop_settings\` (\`logo_id\`);`,
+  )
 }
 
 export async function down({ db }: MigrateDownArgs): Promise<void> {

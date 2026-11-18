@@ -60,7 +60,7 @@ describe('invoice finalization', () => {
     assert.equal(count.totalDocs, 1)
     assert.equal(first.seller.nameEnglish, 'Test Shop')
 
-    const qrFields = decodeZatcaQr(first.qrPayload)
+    const qrFields = decodeZatcaQr(first.qrPayload!)
     assert.equal(qrFields.sellerName, first.seller.nameArabic)
     assert.equal(qrFields.vatNumber, first.seller.vatNumber)
     assert.equal(new Date(qrFields.timestamp).getTime(), new Date(first.issuedAt).getTime())

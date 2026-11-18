@@ -1,7 +1,18 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-sqlite'
 
 export async function up({ db }: MigrateUpArgs): Promise<void> {
-  await db.run(sql`CREATE TABLE \`service_board_settings_columns\` (
+  const invoiceColumns = await db.run(sql`PRAGMA table_info('invoices');`)
+  const invoiceColumnNames = new Set(invoiceColumns.rows.map((row) => String(row.name)))
+  const itemColumns = await db.run(sql`PRAGMA table_info('invoices_items');`)
+  const itemColumnNames = new Set(itemColumns.rows.map((row) => String(row.name)))
+
+  await db.run(sql`CREATE TABLE IF NOT EXISTS \`service_board_settings\` (
+	\`id\` integer PRIMARY KEY NOT NULL,
+	\`updated_at\` text,
+	\`created_at\` text
+  );
+  `)
+  await db.run(sql`CREATE TABLE IF NOT EXISTS \`service_board_settings_columns\` (
   	\`_order\` integer NOT NULL,
   	\`_parent_id\` integer NOT NULL,
   	\`id\` text PRIMARY KEY NOT NULL,
@@ -11,30 +22,36 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
   );
   `)
   await db.run(
-    sql`CREATE INDEX \`service_board_settings_columns_order_idx\` ON \`service_board_settings_columns\` (\`_order\`);`,
+    sql`CREATE INDEX IF NOT EXISTS \`service_board_settings_columns_order_idx\` ON \`service_board_settings_columns\` (\`_order\`);`,
   )
   await db.run(
-    sql`CREATE INDEX \`service_board_settings_columns_parent_id_idx\` ON \`service_board_settings_columns\` (\`_parent_id\`);`,
+    sql`CREATE INDEX IF NOT EXISTS \`service_board_settings_columns_parent_id_idx\` ON \`service_board_settings_columns\` (\`_parent_id\`);`,
   )
   await db.run(
-    sql`CREATE INDEX \`service_board_settings_columns_product_idx\` ON \`service_board_settings_columns\` (\`product_id\`);`,
+    sql`CREATE INDEX IF NOT EXISTS \`service_board_settings_columns_product_idx\` ON \`service_board_settings_columns\` (\`product_id\`);`,
   )
-  await db.run(sql`CREATE TABLE \`service_board_settings\` (
-  	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`updated_at\` text,
-  	\`created_at\` text
-  );
-  `)
-  await db.run(sql`ALTER TABLE \`invoices_items\` ADD \`product_id\` text REFERENCES products(id);`)
+  if (!itemColumnNames.has('product_id')) {
+    await db.run(
+      sql`ALTER TABLE \`invoices_items\` ADD \`product_id\` text REFERENCES products(id);`,
+    )
+  }
   await db.run(
-    sql`CREATE INDEX \`invoices_items_product_idx\` ON \`invoices_items\` (\`product_id\`);`,
+    sql`CREATE INDEX IF NOT EXISTS \`invoices_items_product_idx\` ON \`invoices_items\` (\`product_id\`);`,
   )
-  await db.run(
-    sql`ALTER TABLE \`invoices\` ADD \`sales_channel\` text DEFAULT 'checkout' NOT NULL;`,
-  )
-  await db.run(sql`ALTER TABLE \`invoices\` ADD \`service_board_details_customer_name\` text;`)
-  await db.run(sql`ALTER TABLE \`invoices\` ADD \`service_board_details_customer_phone\` text;`)
-  await db.run(sql`ALTER TABLE \`invoices\` ADD \`service_board_details_note\` text;`)
+  if (!invoiceColumnNames.has('sales_channel')) {
+    await db.run(
+      sql`ALTER TABLE \`invoices\` ADD \`sales_channel\` text DEFAULT 'checkout' NOT NULL;`,
+    )
+  }
+  if (!invoiceColumnNames.has('service_board_details_customer_name')) {
+    await db.run(sql`ALTER TABLE \`invoices\` ADD \`service_board_details_customer_name\` text;`)
+  }
+  if (!invoiceColumnNames.has('service_board_details_customer_phone')) {
+    await db.run(sql`ALTER TABLE \`invoices\` ADD \`service_board_details_customer_phone\` text;`)
+  }
+  if (!invoiceColumnNames.has('service_board_details_note')) {
+    await db.run(sql`ALTER TABLE \`invoices\` ADD \`service_board_details_note\` text;`)
+  }
 }
 
 export async function down({ db }: MigrateDownArgs): Promise<void> {

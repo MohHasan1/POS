@@ -19,14 +19,22 @@ export const Products: CollectionConfig = {
     { name: 'id', type: 'text', required: true, defaultValue: () => randomUUID() },
     { name: 'nameEnglish', type: 'text', required: true },
     { name: 'nameBangla', type: 'text' },
-    { name: 'nameArabic', type: 'text', required: true },
+    { name: 'nameArabic', type: 'text' },
+    {
+      name: 'translations',
+      type: 'array',
+      fields: [
+        { name: 'language', type: 'text', required: true, maxLength: 16 },
+        { name: 'name', type: 'text', required: true, maxLength: 160 },
+      ],
+    },
     { name: 'sku', type: 'text', unique: true },
     {
       name: 'priceMinor',
       type: 'number',
       required: true,
       min: 0,
-      admin: { description: 'Selling price in halalas.' },
+      admin: { description: 'Selling price in the configured currency minor unit.' },
     },
     {
       name: 'vatCategory',

@@ -3,7 +3,14 @@
 import { ArrowLeft, ArrowRight, EyeOff, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { type SubmitEvent, useEffect, useMemo, useState, useTransition } from 'react'
+import {
+  type CSSProperties,
+  type SubmitEvent,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from 'react'
 
 import {
   addServiceBoardColumnAction,
@@ -34,10 +41,15 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import type { Dictionary, Locale } from '@/lib/localization'
-import { decimalToMinor, formatQuantity, formatSAR, minorToDecimal } from '@/lib/money'
+import { formatMarketDateTime } from '@/lib/calendar'
+import { localizedName, marketLocale, normalizedTranslations } from '@/lib/market'
+import { decimalToMinor, formatMoney, formatQuantity, minorToDecimal } from '@/lib/money'
 import type { ProductSummary } from '@/lib/pos-types'
+import {
+  buildServiceCardAccents,
+  type ServiceCardAccent,
+} from '@/lib/service-board-colors'
 import type { ServiceBoardCard, ServiceBoardView } from '@/lib/service-board-types'
-import { formatSaudiDateTime } from '@/lib/saudi-time'
 import { cn } from '@/lib/utils'
 
 type SaleRow = {
@@ -46,69 +58,41 @@ type SaleRow = {
   quantity: string
 }
 
-const cardAccents = [
-  'bg-sky-50/70 dark:bg-sky-950/20',
-  'bg-violet-50/70 dark:bg-violet-950/20',
-  'bg-amber-50/70 dark:bg-amber-950/20',
-  'bg-rose-50/70 dark:bg-rose-950/20',
-  'bg-teal-50/70 dark:bg-teal-950/20',
-  'bg-indigo-50/70 dark:bg-indigo-950/20',
-] as const
-
-const serviceColumnAccents = [
-  {
-    header: 'bg-sky-100/80 dark:bg-sky-950/45',
-  },
-  {
-    header: 'bg-violet-100/80 dark:bg-violet-950/45',
-  },
-  {
-    header: 'bg-amber-100/80 dark:bg-amber-950/45',
-  },
-  {
-    header: 'bg-rose-100/80 dark:bg-rose-950/45',
-  },
-  {
-    header: 'bg-teal-100/80 dark:bg-teal-950/45',
-  },
-  {
-    header: 'bg-indigo-100/80 dark:bg-indigo-950/45',
-  },
-  {
-    header: 'bg-orange-100/80 dark:bg-orange-950/45',
-  },
-  {
-    header: 'bg-fuchsia-100/80 dark:bg-fuchsia-950/45',
-  },
-] as const
-
-function localizedProductName(product: ProductSummary, locale: Locale) {
-  return locale === 'bn' && product.nameBangla ? product.nameBangla : product.nameEnglish
+function localizedProductName(product: ProductSummary) {
+  return product.nameEnglish
 }
 
-function cardAccent(invoiceId: string) {
-  let hash = 0
-  for (const character of invoiceId) hash = (hash * 31 + character.charCodeAt(0)) >>> 0
-  return cardAccents[hash % cardAccents.length]
+function secondaryProductName(product: ProductSummary, language: ServiceBoardView['secondaryLanguage']) {
+  return localizedName(
+    normalizedTranslations(product.translations, { ar: product.nameArabic, bn: product.nameBangla }),
+    language,
+  )
 }
 
 function ServiceCard({
+  accent,
   card,
   dictionary,
   locale,
+  view,
 }: {
+  accent: ServiceCardAccent
   card: ServiceBoardCard
   dictionary: Dictionary
   locale: Locale
+  view: Pick<ServiceBoardView, 'market'>
 }) {
-  const dateLocale = locale === 'bn' ? 'bn-BD' : 'en-SA'
+  const dateLocale = marketLocale(view.market, locale)
 
   return (
     <article
-      className={cn(
-        'space-y-3 rounded-lg border p-3 shadow-sm',
-        cardAccent(card.invoiceId),
-      )}
+      className="space-y-3 rounded-lg border bg-[var(--service-card-bg)] p-3 shadow-sm dark:bg-[var(--service-card-bg-dark)]"
+      style={
+        {
+          '--service-card-bg': accent.light,
+          '--service-card-bg-dark': accent.dark,
+        } as CSSProperties
+      }
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
@@ -125,7 +109,7 @@ function ServiceCard({
         <div className="flex justify-between gap-3">
           <dt className="text-muted-foreground">{dictionary.date}</dt>
           <dd className="text-right tabular-nums">
-            {formatSaudiDateTime(card.issuedAt, dateLocale)}
+            {formatMarketDateTime(card.issuedAt, view.market, dateLocale)}
           </dd>
         </div>
         {card.customerPhone && (
@@ -138,7 +122,9 @@ function ServiceCard({
         )}
         <div className="flex justify-between gap-3">
           <dt className="text-muted-foreground">{dictionary.total}</dt>
-          <dd className="font-semibold tabular-nums">{formatSAR(card.totalMinor, dateLocale)}</dd>
+          <dd className="font-semibold tabular-nums">
+            {formatMoney(card.totalMinor, view.market, dateLocale)}
+          </dd>
         </div>
       </dl>
       {card.note && <p className="line-clamp-2 text-xs text-muted-foreground">{card.note}</p>}
@@ -146,7 +132,7 @@ function ServiceCard({
         href={`/invoices/${card.invoiceId}`}
         className={cn(
           buttonVariants({ size: 'sm', variant: 'outline' }),
-          'w-full bg-background/80',
+          'w-full border-amber-500 bg-amber-500 text-amber-950 hover:border-amber-400 hover:bg-amber-400 hover:text-amber-950 dark:border-amber-300 dark:bg-amber-300 dark:text-amber-950 dark:hover:border-amber-200 dark:hover:bg-amber-200 dark:hover:text-amber-950',
         )}
       >
         {dictionary.viewPrintInvoice}
@@ -156,15 +142,19 @@ function ServiceCard({
 }
 
 function CreateServiceDialog({
+  autoTranslateProducts,
   defaultPriceIncludesVat,
   dictionary,
   onOpenChange,
   open,
+  view,
 }: {
+  autoTranslateProducts: boolean
   defaultPriceIncludesVat: boolean
   dictionary: Dictionary
   onOpenChange: (open: boolean) => void
   open: boolean
+  view: ServiceBoardView
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -177,6 +167,9 @@ function CreateServiceDialog({
           createAction={createServiceBoardProductAction}
           defaultPriceIncludesVat={defaultPriceIncludesVat}
           dictionary={dictionary}
+          market={view.market}
+          secondaryLanguage={view.secondaryLanguage}
+          autoTranslateProducts={autoTranslateProducts}
           onDone={() => onOpenChange(false)}
           product={null}
         />
@@ -187,6 +180,7 @@ function CreateServiceDialog({
 
 export function ServiceBoardClient({
   allProducts,
+  autoTranslateProducts,
   defaultPriceIncludesVat,
   dictionary,
   locale,
@@ -194,6 +188,7 @@ export function ServiceBoardClient({
   view,
 }: {
   allProducts: ProductSummary[]
+  autoTranslateProducts: boolean
   defaultPriceIncludesVat: boolean
   dictionary: Dictionary
   locale: Locale
@@ -215,9 +210,16 @@ export function ServiceBoardClient({
     () => new Set(view.columns.map(({ product }) => product.id)),
     [view.columns],
   )
+  const cardAccents = useMemo(
+    () =>
+      buildServiceCardAccents(
+        view.columns.flatMap(({ cards }) => cards.map(({ invoiceId }) => invoiceId)),
+      ),
+    [view.columns],
+  )
   const availableProducts = allProducts.filter((product) => !selectedIds.has(product.id))
   const visibleProducts = view.columns.map(({ product }) => product)
-  const dateLocale = locale === 'bn' ? 'bn-BD' : 'en-SA'
+  const dateLocale = marketLocale(view.market, locale)
   const anyDialogOpen = manageOpen || createServiceOpen || saleOpen
 
   useEffect(() => {
@@ -244,7 +246,7 @@ export function ServiceBoardClient({
   function openSale(product: ProductSummary) {
     setSaleRows([
       {
-        price: minorToDecimal(product.priceMinor),
+        price: minorToDecimal(product.priceMinor, view.market),
         productId: product.id,
         quantity: '1',
       },
@@ -262,7 +264,7 @@ export function ServiceBoardClient({
     if (!product) return
     setSaleRows((rows) => [
       ...rows,
-      { price: minorToDecimal(product.priceMinor), productId, quantity: '1' },
+      { price: minorToDecimal(product.priceMinor, view.market), productId, quantity: '1' },
     ])
     setServiceToAdd(null)
   }
@@ -279,7 +281,7 @@ export function ServiceBoardClient({
     const items = saleRows.map((row) => ({
       productId: row.productId,
       quantityMilliunits: Math.round(Number(row.quantity) * 1000),
-      unitPriceMinor: decimalToMinor(row.price),
+      unitPriceMinor: decimalToMinor(row.price, view.market),
     }))
 
     if (
@@ -324,11 +326,7 @@ export function ServiceBoardClient({
     (product) => product.id === serviceToAdd,
   )
   const popular = view.summary.mostPopularService
-  const popularName = popular
-    ? locale === 'bn' && popular.nameBangla
-      ? popular.nameBangla
-      : popular.nameEnglish
-    : '—'
+  const popularName = popular?.nameEnglish || '—'
 
   return (
     <div className="space-y-4">
@@ -368,10 +366,10 @@ export function ServiceBoardClient({
         aria-label={dictionary.salesDashboard}
       >
         {[
-          [dictionary.allSalesToday, formatSAR(view.summary.allSalesTodayMinor, dateLocale)],
+          [dictionary.allSalesToday, formatMoney(view.summary.allSalesTodayMinor, view.market, dateLocale)],
           [
             dictionary.visibleServiceRevenue,
-            formatSAR(view.summary.visibleServiceRevenueMinor, dateLocale),
+            formatMoney(view.summary.visibleServiceRevenueMinor, view.market, dateLocale),
           ],
           [
             dictionary.visitsToday,
@@ -416,24 +414,40 @@ export function ServiceBoardClient({
                   : `repeat(${view.columns.length}, 14rem)`,
             }}
           >
-            {view.columns.map(({ cards, product }, index) => {
-              const serviceAccent = serviceColumnAccents[index % serviceColumnAccents.length]
+            {view.columns.map(({ cards, product, summary }, index) => {
               return (
-                <section
-                  key={product.id}
-                  className="min-w-0 overflow-hidden rounded-xl border bg-card shadow-sm"
-                >
-                  <header className={cn('space-y-3 border-b p-3', serviceAccent.header)}>
+                <div key={product.id} className="min-w-0 space-y-2">
+                  <div className="rounded-lg bg-violet-50/80 px-3 py-2 shadow-sm dark:bg-indigo-900/55">
+                    <p className="text-[0.6875rem] font-medium text-muted-foreground">
+                      {dictionary.serviceTotalToday}
+                    </p>
+                    <div className="mt-1 flex items-end justify-between gap-2">
+                      <p className="min-w-0 truncate text-base font-semibold tabular-nums">
+                        {formatMoney(summary.todayRevenueMinor, view.market, dateLocale)}
+                      </p>
+                      <p className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                        {dictionary.unitsSold.replace(
+                          '{quantity}',
+                          formatQuantity(summary.todayQuantityMilliunits, dateLocale),
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                  <header className="space-y-3 border-b border-violet-300/70 bg-violet-200/90 p-3 dark:border-violet-700/70 dark:bg-violet-800/65">
                     <div className="flex items-start gap-2">
                       <div className="min-w-0 flex-1">
                         <h2 className="truncate font-semibold">
-                          {localizedProductName(product, locale)}
+                          {localizedProductName(product)}
                         </h2>
-                        <p className="mt-0.5 truncate text-xs text-muted-foreground" dir="rtl">
-                          {product.nameArabic}
+                        <p
+                          className="mt-0.5 truncate text-left text-xs text-muted-foreground"
+                          dir="auto"
+                        >
+                          {secondaryProductName(product, view.secondaryLanguage)}
                         </p>
                         <p className="mt-1 text-sm font-medium tabular-nums">
-                          {formatSAR(product.priceMinor, dateLocale)}
+                          {formatMoney(product.priceMinor, view.market, dateLocale)}
                         </p>
                       </div>
                       <div className="flex gap-1">
@@ -476,7 +490,7 @@ export function ServiceBoardClient({
                       </div>
                     </div>
                     <Button
-                      className="w-full bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-emerald-950 dark:hover:bg-emerald-400"
+                      className="w-full bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-300 dark:text-emerald-950 dark:hover:bg-emerald-200"
                       disabled={!settingsReady}
                       onClick={() => openSale(product)}
                     >
@@ -488,9 +502,11 @@ export function ServiceBoardClient({
                     {cards.map((card, cardIndex) => (
                       <ServiceCard
                         key={`${card.invoiceId}:${card.productId}:${cardIndex}`}
+                        accent={cardAccents.get(card.invoiceId)!}
                         card={card}
                         dictionary={dictionary}
                         locale={locale}
+                        view={view}
                       />
                     ))}
                     {cards.length === 0 && (
@@ -499,7 +515,8 @@ export function ServiceBoardClient({
                       </p>
                     )}
                   </div>
-                </section>
+                  </section>
+                </div>
               )
             })}
           </div>
@@ -519,9 +536,9 @@ export function ServiceBoardClient({
             {availableProducts.map((product) => (
               <div key={product.id} className="flex items-center gap-3 rounded-lg border p-3">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{localizedProductName(product, locale)}</p>
+                  <p className="truncate font-medium">{localizedProductName(product)}</p>
                   <p className="text-xs text-muted-foreground">
-                    {formatSAR(product.priceMinor, dateLocale)}
+                    {formatMoney(product.priceMinor, view.market, dateLocale)}
                   </p>
                 </div>
                 <Button
@@ -565,10 +582,12 @@ export function ServiceBoardClient({
       </Dialog>
 
       <CreateServiceDialog
+        autoTranslateProducts={autoTranslateProducts}
         defaultPriceIncludesVat={defaultPriceIncludesVat}
         dictionary={dictionary}
         open={createServiceOpen}
         onOpenChange={setCreateServiceOpen}
+        view={view}
       />
 
       <Dialog
@@ -605,9 +624,9 @@ export function ServiceBoardClient({
                     className="grid items-end gap-2 rounded-lg border bg-muted/30 p-3 sm:grid-cols-[1fr_140px_110px_auto]"
                   >
                     <div>
-                      <p className="font-medium">{localizedProductName(product, locale)}</p>
+                      <p className="font-medium">{localizedProductName(product)}</p>
                       <p className="text-xs text-muted-foreground" dir="rtl">
-                        {product.nameArabic}
+                        {secondaryProductName(product, view.secondaryLanguage)}
                       </p>
                     </div>
                     <div className="space-y-1">
@@ -662,14 +681,14 @@ export function ServiceBoardClient({
                   <SelectTrigger className="w-full bg-background sm:flex-1">
                     <SelectValue>
                       {selectedAdditionalService
-                        ? localizedProductName(selectedAdditionalService, locale)
+                        ? localizedProductName(selectedAdditionalService)
                         : dictionary.selectService}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent align="start">
                     {remainingSaleProducts.map((product) => (
                       <SelectItem key={product.id} value={product.id}>
-                        {localizedProductName(product, locale)}
+                        {localizedProductName(product)}
                       </SelectItem>
                     ))}
                   </SelectContent>

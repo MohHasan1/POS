@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/select'
 import type { Dictionary } from '@/lib/localization'
 import { decimalToMinor, minorToDecimal } from '@/lib/money'
+import { localizedName, normalizedTranslations, type MarketProfile, type SecondaryLanguage } from '@/lib/market'
 import type { ProductSummary } from '@/lib/pos-types'
 import {
   ProductTranslationError,
@@ -39,6 +40,9 @@ export type ProductFormProps = {
   dictionary: Dictionary
   onDone: () => void
   product: ProductSummary | null
+  market: MarketProfile
+  secondaryLanguage: SecondaryLanguage
+  autoTranslateProducts: boolean
 }
 
 export function ProductForm({
@@ -47,11 +51,18 @@ export function ProductForm({
   dictionary,
   onDone,
   product,
+  market,
+  secondaryLanguage,
+  autoTranslateProducts,
 }: ProductFormProps) {
   const router = useRouter()
   const [nameEnglish, setNameEnglish] = useState(product?.nameEnglish ?? '')
-  const [nameBangla, setNameBangla] = useState(product?.nameBangla ?? '')
-  const [nameArabic, setNameArabic] = useState(product?.nameArabic ?? '')
+  const initialTranslations = normalizedTranslations(product?.translations, {
+    ar: product?.nameArabic,
+    bn: product?.nameBangla,
+  })
+  const [nameBangla, setNameBangla] = useState(localizedName(initialTranslations, 'bn') ?? '')
+  const [nameArabic, setNameArabic] = useState(localizedName(initialTranslations, 'ar') ?? '')
   const [includesVat, setIncludesVat] = useState(
     product?.priceIncludesVat ?? defaultPriceIncludesVat,
   )
@@ -67,7 +78,7 @@ export function ProductForm({
       : dictionary.translationFailed
   }
 
-  async function translateMissingNames(requireBangla: boolean): Promise<{
+  async function translateMissingNames(showFailure: boolean): Promise<{
     translatedArabic: string
     translatedBangla: string
   } | null> {
@@ -79,10 +90,8 @@ export function ProductForm({
       return null
     }
 
-    if (
-      !shouldAutoTranslateProductName(translatedArabic) &&
-      !shouldAutoTranslateProductName(translatedBangla)
-    ) {
+    const targetValue = secondaryLanguage === 'ar' ? translatedArabic : translatedBangla
+    if (secondaryLanguage === 'none' || !shouldAutoTranslateProductName(targetValue)) {
       return { translatedArabic, translatedBangla }
     }
 
@@ -90,7 +99,7 @@ export function ProductForm({
     setTranslationPending(true)
 
     try {
-      if (shouldAutoTranslateProductName(translatedArabic)) {
+      if (secondaryLanguage === 'ar' && shouldAutoTranslateProductName(translatedArabic)) {
         setTranslationMessage(dictionary.translatingArabic)
         try {
           translatedArabic = await translateEnglishProductName(nameEnglish, 'ar', (loaded) => {
@@ -98,12 +107,12 @@ export function ProductForm({
           })
           setNameArabic(translatedArabic)
         } catch (translationError) {
-          setError(translationErrorMessage(translationError))
-          return null
+          if (showFailure) setError(translationErrorMessage(translationError))
+          return { translatedArabic, translatedBangla }
         }
       }
 
-      if (shouldAutoTranslateProductName(translatedBangla)) {
+      if (secondaryLanguage === 'bn' && shouldAutoTranslateProductName(translatedBangla)) {
         setTranslationMessage(dictionary.translatingBangla)
         try {
           translatedBangla = await translateEnglishProductName(nameEnglish, 'bn', (loaded) => {
@@ -111,10 +120,7 @@ export function ProductForm({
           })
           setNameBangla(translatedBangla)
         } catch (translationError) {
-          if (requireBangla) {
-            setError(translationErrorMessage(translationError))
-            return null
-          }
+          if (showFailure) setError(translationErrorMessage(translationError))
           translatedBangla = ''
         }
       }
@@ -136,19 +142,29 @@ export function ProductForm({
     const formData = new FormData(event.currentTarget)
     setError('')
 
-    const priceMinor = decimalToMinor(String(formData.get('price') || ''))
+    const priceMinor = decimalToMinor(String(formData.get('price') || ''), market)
     if (priceMinor === null) {
       setError('Enter a valid price with up to two decimal places.')
       return
     }
 
-    const translatedNames = await translateMissingNames(false)
+    const translatedNames = autoTranslateProducts
+      ? await translateMissingNames(false)
+      : { translatedArabic: nameArabic.trim(), translatedBangla: nameBangla.trim() }
     if (!translatedNames) return
 
     const input = {
       nameEnglish,
       nameBangla: translatedNames.translatedBangla,
       nameArabic: translatedNames.translatedArabic,
+      translations: [
+        ...(translatedNames.translatedArabic
+          ? [{ language: 'ar', name: translatedNames.translatedArabic }]
+          : []),
+        ...(translatedNames.translatedBangla
+          ? [{ language: 'bn', name: translatedNames.translatedBangla }]
+          : []),
+      ],
       sku: String(formData.get('sku') || ''),
       priceMinor,
       vatCategory: String(formData.get('vatCategory')) as ProductSummary['vatCategory'],
@@ -181,7 +197,7 @@ export function ProductForm({
                 </span>
               </span>
             </Label>
-            <Button
+            {secondaryLanguage !== 'none' && <Button
               type="button"
               size="xs"
               variant="outline"
@@ -190,7 +206,7 @@ export function ProductForm({
             >
               <Languages aria-hidden="true" />
               {dictionary.autoTranslate}
-            </Button>
+            </Button>}
           </div>
           <Input
             id="nameEnglish"
@@ -204,7 +220,7 @@ export function ProductForm({
         <div className="space-y-1.5">
           <Label htmlFor="price">
             <span>
-              {dictionary.price} (SAR){' '}
+              {dictionary.price} ({market.currencyCode}){' '}
               <span className="text-destructive" aria-hidden="true">
                 *
               </span>
@@ -214,11 +230,11 @@ export function ProductForm({
             id="price"
             name="price"
             inputMode="decimal"
-            defaultValue={product ? minorToDecimal(product.priceMinor) : ''}
+            defaultValue={product ? minorToDecimal(product.priceMinor, market) : ''}
             required
           />
         </div>
-        <div className="space-y-1.5">
+        {secondaryLanguage === 'ar' && <div className="space-y-1.5">
           <Label htmlFor="nameArabic">{dictionary.nameArabic}</Label>
           <Input
             id="nameArabic"
@@ -228,8 +244,8 @@ export function ProductForm({
             onChange={(event) => setNameArabic(event.target.value)}
             value={nameArabic}
           />
-        </div>
-        <div className="space-y-1.5">
+        </div>}
+        {secondaryLanguage === 'bn' && <div className="space-y-1.5">
           <Label htmlFor="nameBangla">{dictionary.nameBangla}</Label>
           <Input
             id="nameBangla"
@@ -238,11 +254,11 @@ export function ProductForm({
             onChange={(event) => setNameBangla(event.target.value)}
             value={nameBangla}
           />
-        </div>
-        <div className="space-y-1.5">
+        </div>}
+        {market.taxMode === 'saudiVat' && <div className="space-y-1.5">
           <Label htmlFor="sku">{dictionary.sku}</Label>
           <Input id="sku" name="sku" defaultValue={product?.sku || ''} />
-        </div>
+        </div>}
         <div className="space-y-1.5">
           <Label htmlFor="vatCategory">{dictionary.vatCategory}</Label>
           <Select name="vatCategory" defaultValue={product?.vatCategory || 'standard'}>
@@ -257,7 +273,7 @@ export function ProductForm({
           </Select>
         </div>
       </div>
-      {product && (
+      {product && market.taxMode === 'saudiVat' && (
         <label className="flex items-center gap-2 text-sm">
           <Checkbox checked={includesVat} onCheckedChange={setIncludesVat} />
           {dictionary.priceIncludesVat}

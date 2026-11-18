@@ -8,10 +8,12 @@ import { IssueReceiptVoucherButton } from '@/components/receipt-vouchers/IssueRe
 import { ReceiptVoucherForm } from '@/components/receipt-vouchers/ReceiptVoucherForm'
 import { ReceiptVoucherStatusBadge } from '@/components/receipt-vouchers/ReceiptVoucherStatusBadge'
 import { ReceiptVoucherTemplate } from '@/components/receipt-vouchers/ReceiptVoucherTemplate'
+import { BangladeshReceiptVoucherTemplate } from '@/components/receipt-vouchers/BangladeshReceiptVoucherTemplate'
 import { VoidReceiptVoucherForm } from '@/components/receipt-vouchers/VoidReceiptVoucherForm'
 import { buttonVariants } from '@/components/ui/button'
 import { getDictionary } from '@/lib/localization'
-import { toSaudiDateInput } from '@/lib/receipt-voucher'
+import { getDocumentMarket } from '@/lib/market'
+import { toMarketDateInputValue } from '@/lib/receipt-voucher'
 import { cn } from '@/lib/utils'
 import { getReceiptVoucher } from '@/services/receipt-vouchers'
 
@@ -39,6 +41,7 @@ export default async function ReceiptVoucherPage({
     getDictionary(),
   ])
   if (!voucher) notFound()
+  const market = getDocumentMarket(voucher)
   const editing = edit === '1' && voucher.status === 'draft'
 
   return (
@@ -82,13 +85,18 @@ export default async function ReceiptVoucherPage({
             </Link>
           </div>
           <ReceiptVoucherForm
-            defaultDate={toSaudiDateInput(voucher.voucherDate)}
+            defaultDate={toMarketDateInputValue(voucher.voucherDate, market)}
             dictionary={dictionary}
+            market={market}
             voucher={voucher}
           />
         </section>
       ) : (
-        <ReceiptVoucherTemplate voucher={voucher} />
+        market.countryCode === 'BD' ? (
+          <BangladeshReceiptVoucherTemplate voucher={voucher} />
+        ) : (
+          <ReceiptVoucherTemplate voucher={voucher} />
+        )
       )}
     </div>
   )

@@ -9,12 +9,15 @@ import { describe, it } from 'node:test'
 import { drizzle } from 'drizzle-orm/libsql'
 import { getPayload } from 'payload'
 
+import { up as initialSchema } from '@/migrations/20261017_194746_initial'
 import { up as addBusinessInformation } from '@/migrations/20261017_215421_business_information'
 import { up as addBusinessContactsAndLogo } from '@/migrations/20261018_135207_business_contacts_and_logo'
 import { up as addReceiptVouchers } from '@/migrations/20261018_140414_receipt_vouchers'
 import { up as addReceiptVoucherStatusWorkflow } from '@/migrations/20261018_143226_receipt_voucher_status_workflow'
 import { up as defaultVatExclusiveProducts } from '@/migrations/20261018_191417_default_vat_exclusive_products'
 import { up as addServiceBoardAndDashboard } from '@/migrations/20261117_105643_service_board_and_dashboard'
+import { up as addCountryProfiles } from '@/migrations/20261117_123954_country_profiles'
+import { up as makeProductNamesNullable } from '@/migrations/20261117_132500_nullable_product_names'
 
 describe('SQLite migration reconciliation', () => {
   it('safely reconciles a schema that Payload already pushed in development', async () => {
@@ -25,6 +28,8 @@ describe('SQLite migration reconciliation', () => {
     await addBusinessInformation(args)
     await addBusinessContactsAndLogo(args)
     await addReceiptVouchers(args)
+    await addCountryProfiles(args)
+    await addCountryProfiles(args)
 
     const { rows } = await db.run(sql`PRAGMA table_info('payload_locked_documents_rels');`)
     const columns = new Set(rows.map((row) => String((row as unknown as { name: unknown }).name)))
@@ -153,6 +158,7 @@ describe('SQLite migration reconciliation', () => {
           db: transaction as unknown as MigrateUpArgs['db'],
         } as MigrateUpArgs)
       })
+      await defaultVatExclusiveProducts({ db } as MigrateUpArgs)
 
       const existing = await db.run(
         sql`SELECT default_price_includes_vat FROM shop_settings WHERE id = 1;`,
@@ -197,6 +203,7 @@ describe('SQLite migration reconciliation', () => {
       ) VALUES (1, 'legacy', 'legacy-line', 'Legacy service');`)
 
       await addServiceBoardAndDashboard({ db } as MigrateUpArgs)
+      await addServiceBoardAndDashboard({ db } as MigrateUpArgs)
 
       const invoice = await db.run(
         sql`SELECT invoice_number, sales_channel FROM invoices WHERE id = 'legacy';`,
@@ -213,6 +220,121 @@ describe('SQLite migration reconciliation', () => {
       assert.equal(item.rows[0]?.description_english, 'Legacy service')
       assert.equal(item.rows[0]?.product_id, null)
       assert.equal(settingsTable.rows.length, 1)
+    } finally {
+      client.close()
+      rmSync(directory, { force: true, recursive: true })
+    }
+  })
+
+  it('backfills legacy Saudi market snapshots and multilingual names', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'quickpos-country-profile-migration-'))
+    const client = createClient({ url: `file:${path.join(directory, 'legacy.db')}` })
+    const database = drizzle(client)
+    const db = database as unknown as MigrateUpArgs['db']
+    const args = { db } as MigrateUpArgs
+
+    try {
+      await initialSchema(args)
+      await addBusinessInformation(args)
+      await addBusinessContactsAndLogo(args)
+      await addReceiptVouchers(args)
+      await addReceiptVoucherStatusWorkflow(args)
+      await defaultVatExclusiveProducts(args)
+      await addServiceBoardAndDashboard(args)
+
+      await db.run(sql`INSERT INTO shop_settings (
+        id, seller_name_arabic, seller_name_english, cr_number, vat_number,
+        business_address, default_price_includes_vat
+      ) VALUES (1, 'متجر', 'Legacy Shop', 'CR-1', '310000000000003', 'Riyadh', true);`)
+      await db.run(sql`INSERT INTO products (
+        id, name_english, name_arabic, name_bangla, price_minor, vat_category,
+        price_includes_vat, active
+      ) VALUES ('legacy-product', 'Haircut', 'قص شعر', 'চুল কাটা', 10000, 'standard', true, true);`)
+      await db.run(sql`INSERT INTO invoices (
+        id, invoice_number, idempotency_key, invoice_type, sales_channel, issued_at,
+        seller_name_arabic, seller_name_english, seller_vat_number, seller_address,
+        subtotal_minor, vat_minor, total_minor, qr_payload
+      ) VALUES (
+        'legacy-invoice', 'INV-LEGACY', '10000000-0000-4000-8000-000000000010',
+        'simplified', 'checkout', '2026-11-17T12:00:00.000Z', 'متجر', 'Legacy Shop',
+        '310000000000003', 'Riyadh', 8696, 1304, 10000, 'legacy-qr'
+      );`)
+      await db.run(sql`INSERT INTO invoices_items (
+        _order, _parent_id, id, product_id, description_english, description_arabic,
+        description_bangla, quantity_milliunits, unit_price_minor, price_includes_vat,
+        vat_category, vat_rate_bps, net_minor, vat_minor, total_minor
+      ) VALUES (
+        1, 'legacy-invoice', 'legacy-item', 'legacy-product', 'Haircut', 'قص شعر',
+        'চুল কাটা', 1000, 10000, true, 'standard', 1500, 8696, 1304, 10000
+      );`)
+
+      // Simulate the empty child tables left by a cancelled development push.
+      await db.run(sql`CREATE TABLE products_translations (stale text);`)
+      await db.run(sql`CREATE TABLE invoices_seller_registrations (stale text);`)
+      await db.run(sql`CREATE TABLE invoices_items_translations (stale text);`)
+      await db.run(sql`CREATE TABLE receipt_vouchers_business_registrations (stale text);`)
+      await db.run(sql`CREATE TABLE shop_settings_registrations (stale text);`)
+      await db.run(sql`CREATE TABLE __new_invoices (stale text);`)
+      await db.run(sql`INSERT INTO service_board_settings (id) VALUES (1);`)
+      await db.run(sql`INSERT INTO service_board_settings_columns (
+        _order, _parent_id, id, product_id
+      ) VALUES (1, 1, 'legacy-column', 'legacy-product');`)
+      await db.run(sql`INSERT INTO payload_locked_documents (id) VALUES (1);`)
+      await db.run(sql`INSERT INTO payload_locked_documents_rels (
+        id, parent_id, path, products_id
+      ) VALUES (1, 1, 'products', 'legacy-product');`)
+
+      await database.transaction(async (transaction) => {
+        await addCountryProfiles({
+          db: transaction as unknown as MigrateUpArgs['db'],
+        } as MigrateUpArgs)
+      })
+      await database.transaction(async (transaction) => {
+        const transactionArgs = {
+          db: transaction as unknown as MigrateUpArgs['db'],
+        } as MigrateUpArgs
+        await makeProductNamesNullable(transactionArgs)
+        await makeProductNamesNullable(transactionArgs)
+      })
+
+      const settings = await db.run(sql`SELECT country_code, secondary_language FROM shop_settings WHERE id = 1;`)
+      const invoice = await db.run(sql`SELECT country_code, currency_code, time_zone, tax_mode, qr_payload FROM invoices WHERE id = 'legacy-invoice';`)
+      const product = await db.run(sql`SELECT id, name_arabic, name_bangla FROM products WHERE id = 'legacy-product';`)
+      const productTranslations = await db.run(sql`SELECT language, name FROM products_translations WHERE _parent_id = 'legacy-product' ORDER BY _order;`)
+      const itemTranslations = await db.run(sql`SELECT language, name FROM invoices_items_translations WHERE _parent_id = 'legacy-item' ORDER BY _order;`)
+      const productColumns = await db.run(sql`PRAGMA table_info('products');`)
+      const itemProduct = await db.run(sql`SELECT product_id FROM invoices_items WHERE id = 'legacy-item';`)
+      const boardProduct = await db.run(sql`SELECT product_id FROM service_board_settings_columns WHERE id = 'legacy-column';`)
+      const lockedProduct = await db.run(sql`SELECT products_id FROM payload_locked_documents_rels WHERE id = 1;`)
+
+      assert.deepEqual(settings.rows[0], { country_code: 'SA', secondary_language: 'ar' })
+      assert.deepEqual(product.rows[0], {
+        id: 'legacy-product',
+        name_arabic: 'قص شعر',
+        name_bangla: 'চুল কাটা',
+      })
+      assert.deepEqual(invoice.rows[0], {
+        country_code: 'SA',
+        currency_code: 'SAR',
+        qr_payload: 'legacy-qr',
+        tax_mode: 'saudiVat',
+        time_zone: 'Asia/Riyadh',
+      })
+      assert.deepEqual(productTranslations.rows, [
+        { language: 'ar', name: 'قص شعر' },
+        { language: 'bn', name: 'চুল কাটা' },
+      ])
+      assert.deepEqual(itemTranslations.rows, [
+        { language: 'ar', name: 'قص شعر' },
+        { language: 'bn', name: 'চুল কাটা' },
+      ])
+      const arabicNameColumn = productColumns.rows.find(
+        (column) => String(column.name) === 'name_arabic',
+      )
+      assert.equal(Number(arabicNameColumn?.notnull), 0)
+      assert.equal(itemProduct.rows[0]?.product_id, 'legacy-product')
+      assert.equal(boardProduct.rows[0]?.product_id, 'legacy-product')
+      assert.equal(lockedProduct.rows[0]?.products_id, 'legacy-product')
     } finally {
       client.close()
       rmSync(directory, { force: true, recursive: true })

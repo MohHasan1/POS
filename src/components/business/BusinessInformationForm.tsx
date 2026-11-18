@@ -7,6 +7,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { getBusinessLogo } from '@/lib/business-information'
 import type { Dictionary } from '@/lib/localization'
@@ -15,9 +22,11 @@ import type { ShopSetting } from '@/payload-types'
 export function BusinessInformationForm({
   dictionary,
   settings,
+  countryLocked = false,
 }: {
   dictionary: Dictionary
   settings: ShopSetting
+  countryLocked?: boolean
 }) {
   const savedLogo = getBusinessLogo(settings)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -27,6 +36,7 @@ export function BusinessInformationForm({
   const [logoPreview, setLogoPreview] = useState(savedLogo?.url || '')
   const [removeLogo, setRemoveLogo] = useState(false)
   const [pending, startTransition] = useTransition()
+  const [countryCode, setCountryCode] = useState<'BD' | 'SA'>(settings.countryCode || 'SA')
 
   useEffect(
     () => () => {
@@ -75,6 +85,37 @@ export function BusinessInformationForm({
       encType="multipart/form-data"
       className="space-y-5 rounded-lg border bg-background p-4 sm:p-5"
     >
+      <input type="hidden" name="currentCountryCode" value={settings.countryCode || ''} />
+      {countryLocked && <input type="hidden" name="countryCode" value={countryCode} />}
+      <section className="space-y-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="countryCode">{dictionary.country}</Label>
+          <Select
+            name={countryLocked ? undefined : 'countryCode'}
+            value={countryCode}
+            disabled={countryLocked}
+            onValueChange={(value) => {
+              if (value !== 'SA' && value !== 'BD') return
+              if (
+                settings.countryCode &&
+                value !== settings.countryCode &&
+                !window.confirm('Changing country changes the currency and tax rules. Review all product prices before selling. Continue?')
+              ) return
+              setCountryCode(value)
+            }}
+          >
+            <SelectTrigger id="countryCode" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="SA">{dictionary.saudiArabia}</SelectItem>
+              <SelectItem value="BD">{dictionary.bangladesh}</SelectItem>
+            </SelectContent>
+          </Select>
+          {countryLocked && <p className="text-xs text-muted-foreground">{dictionary.countryLocked}</p>}
+        </div>
+      </section>
+      <Separator />
       <section className="space-y-4" aria-labelledby="business-identity-heading">
         <div>
           <h2 id="business-identity-heading" className="font-semibold">
@@ -106,19 +147,20 @@ export function BusinessInformationForm({
               required
             />
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="sellerNameArabic">{dictionary.sellerNameArabic}</Label>
-            <Input
-              id="sellerNameArabic"
-              name="sellerNameArabic"
-              defaultValue={settings.sellerNameArabic || ''}
-              dir="rtl"
-              maxLength={160}
-              required
-            />
-          </div>
+          {countryCode === 'SA' ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="sellerNameArabic">{dictionary.sellerNameArabic}</Label>
+              <Input id="sellerNameArabic" name="sellerNameArabic" defaultValue={settings.sellerNameArabic || ''} dir="rtl" maxLength={160} required />
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <Label htmlFor="sellerNameBangla">{dictionary.sellerNameBangla}</Label>
+              <Input id="sellerNameBangla" name="sellerNameBangla" defaultValue={settings.sellerNameBangla || ''} maxLength={160} />
+              <p className="text-xs text-muted-foreground">{dictionary.optionalField}</p>
+            </div>
+          )}
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        {countryCode === 'SA' ? <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="crNumber">{dictionary.crNumber}</Label>
             <Input
@@ -143,7 +185,20 @@ export function BusinessInformationForm({
             />
             <p className="text-xs text-muted-foreground">{dictionary.vatNumberDescription}</p>
           </div>
-        </div>
+        </div> : <div className="grid gap-4 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="tradeLicenseNumber">{dictionary.tradeLicenseNumber}</Label>
+            <Input id="tradeLicenseNumber" name="tradeLicenseNumber" defaultValue={settings.tradeLicenseNumber || ''} maxLength={50} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="tinNumber">{dictionary.tinNumber}</Label>
+            <Input id="tinNumber" name="tinNumber" defaultValue={settings.tinNumber || ''} maxLength={50} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="binNumber">{dictionary.binNumber}</Label>
+            <Input id="binNumber" name="binNumber" defaultValue={settings.binNumber || ''} maxLength={50} />
+          </div>
+        </div>}
         <div className="space-y-1.5">
           <Label htmlFor="businessAddress">{dictionary.businessAddress}</Label>
           <Textarea
