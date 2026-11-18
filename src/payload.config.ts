@@ -29,6 +29,7 @@ const db =
         busyTimeout: 5000,
         client: { url: databaseURL },
         migrationDir: path.resolve(dirname, 'migrations'),
+        push: process.env.QUICKPOS_SCHEMA_PUSH === '1',
         transactionOptions: { behavior: 'immediate' },
         wal: { journalSizeLimit: 67_108_864, synchronous: 'FULL' },
       })

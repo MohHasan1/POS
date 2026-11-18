@@ -44,11 +44,13 @@ function invoiceFixture(
 ): Invoice {
   return {
     createdAt: issuedAt,
+    entrySource: 'live',
     id: randomUUID(),
     idempotencyKey: randomUUID(),
     invoiceNumber: `INV-${randomUUID()}`,
     invoiceType: 'simplified',
     issuedAt,
+    issuedAtPrecision: 'exact',
     items,
     qrPayload: 'test',
     salesChannel: 'checkout',

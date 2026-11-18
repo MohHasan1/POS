@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation'
 import { type SubmitEvent, useCallback, useEffect, useRef, useState, useTransition } from 'react'
 
 import { finalizeInvoiceAction } from '@/actions/checkout'
+import { recordHistoricalSaleAction } from '@/actions/historical-sales'
 import { createProductAction } from '@/actions/products'
 import { EmployeeSelector } from '@/components/employees/EmployeeSelector'
 import { Badge } from '@/components/ui/badge'
@@ -39,6 +40,7 @@ import {
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
+import { dateInputToISOString, formatMarketDate } from '@/lib/calendar'
 import type { Dictionary, Locale } from '@/lib/localization'
 import { localizedName, marketLocale, normalizedTranslations, type MarketProfile, type SecondaryLanguage } from '@/lib/market'
 import { decimalToMinor, formatMoney, minorToDecimal } from '@/lib/money'
@@ -394,6 +396,7 @@ function CustomItemDialog({
 
 export function CheckoutClient({
   autoTranslateProducts,
+  defaultSaleDate,
   defaultEmployeeId,
   defaultPriceIncludesVat,
   dictionary,
@@ -401,10 +404,12 @@ export function CheckoutClient({
   locale,
   market,
   products,
+  saleMode = 'checkout',
   secondaryLanguage,
   settingsReady,
 }: {
   autoTranslateProducts: boolean
+  defaultSaleDate?: string
   defaultEmployeeId?: string
   defaultPriceIncludesVat: boolean
   dictionary: Dictionary
@@ -412,6 +417,7 @@ export function CheckoutClient({
   locale: Locale
   market: MarketProfile
   products: ProductSummary[]
+  saleMode?: 'checkout' | 'historical'
   secondaryLanguage: SecondaryLanguage
   settingsReady: boolean
 }) {
@@ -423,9 +429,13 @@ export function CheckoutClient({
   )
   const [buyer, setBuyer] = useState<BuyerInput>({ address: DEFAULT_INVOICE_ADDRESS })
   const [employeeId, setEmployeeId] = useState<string | null>(defaultEmployeeId || null)
+  const [externalReference, setExternalReference] = useState('')
+  const [saleDate, setSaleDate] = useState(defaultSaleDate || '')
   const [priceInputs, setPriceInputs] = useState<Record<string, string>>({})
   const [quantityInputs, setQuantityInputs] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
+  const [saleConfirmationOpen, setSaleConfirmationOpen] = useState(false)
+  const [historicalSuccess, setHistoricalSuccess] = useState(false)
   const [cartActivity, setCartActivity] = useState<{
     id: number
     itemKey: string
@@ -439,7 +449,7 @@ export function CheckoutClient({
   const cartActivityId = useRef(0)
   const cartScrollContainer = useRef<HTMLDivElement>(null)
   const cartItemElements = useRef(new Map<string, HTMLDivElement>())
-  const [idempotencyKey] = useState(() => crypto.randomUUID())
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID())
   const [pending, startTransition] = useTransition()
 
   const query = search.trim().toLocaleLowerCase()
@@ -456,6 +466,11 @@ export function CheckoutClient({
   }).format(cartQuantityMilliunits / 1000)
   const uniqueProductCount = cart.length
   const moneyLocale = marketLocale(market, locale)
+  const historical = saleMode === 'historical'
+  const historicalDateLabel =
+    historical && saleDate
+      ? formatMarketDate(dateInputToISOString(saleDate, market), market, moneyLocale)
+      : ''
 
   const activityId = cartActivity?.id
   const activityItemKey = cartActivity?.itemKey
@@ -607,34 +622,56 @@ export function CheckoutClient({
 
   function finalize() {
     setError('')
+    setHistoricalSuccess(false)
     startTransition(async () => {
-      const result = await finalizeInvoiceAction({
-        employeeId,
-        idempotencyKey,
-        invoiceType,
-        buyer: invoiceType === 'standard' ? buyer : undefined,
-        items: cart.map((item) => ({
-          productId: item.productId,
-          descriptionEnglish: item.productId ? undefined : item.descriptionEnglish,
-          descriptionBangla: item.productId ? undefined : item.descriptionBangla,
-          descriptionArabic: item.productId ? undefined : item.descriptionArabic,
-          unitPriceMinor: item.unitPriceMinor,
-          quantityMilliunits: item.quantityMilliunits,
-          vatCategory: item.productId ? undefined : item.vatCategory,
-          priceIncludesVat: item.productId ? undefined : item.priceIncludesVat,
-          translations: item.productId ? undefined : item.translations,
-        })),
-      })
+      const items = cart.map((item) => ({
+        productId: item.productId,
+        descriptionEnglish: item.productId ? undefined : item.descriptionEnglish,
+        descriptionBangla: item.productId ? undefined : item.descriptionBangla,
+        descriptionArabic: item.productId ? undefined : item.descriptionArabic,
+        unitPriceMinor: item.unitPriceMinor,
+        quantityMilliunits: item.quantityMilliunits,
+        vatCategory: item.productId ? undefined : item.vatCategory,
+        priceIncludesVat: item.productId ? undefined : item.priceIncludesVat,
+        translations: item.productId ? undefined : item.translations,
+      }))
+      const result = historical
+        ? await recordHistoricalSaleAction({
+            employeeId,
+            externalReference,
+            idempotencyKey,
+            items,
+            saleDate,
+          })
+        : await finalizeInvoiceAction({
+            employeeId,
+            idempotencyKey,
+            invoiceType,
+            buyer: invoiceType === 'standard' ? buyer : undefined,
+            items,
+          })
       if (!result.ok || !result.data) {
         setError(result.ok ? 'Unable to open the saved invoice.' : result.error)
         return
       }
+      if (historical) {
+        setCart([])
+        setPriceInputs({})
+        setQuantityInputs({})
+        setExternalReference('')
+        setIdempotencyKey(crypto.randomUUID())
+        setSaleConfirmationOpen(false)
+        setHistoricalSuccess(true)
+        return
+      }
+      setSaleConfirmationOpen(false)
       router.push(`/invoices/${result.data.id}`)
     })
   }
 
   return (
-    <div className="grid items-start gap-4 lg:h-[calc(100dvh-10rem)] lg:min-h-[32rem] lg:grid-cols-[minmax(0,1fr)_420px]">
+    <>
+      <div className="grid items-start gap-4 lg:h-[calc(100dvh-10rem)] lg:min-h-[32rem] lg:grid-cols-[minmax(0,1fr)_420px]">
       <section className="flex min-h-0 flex-col overflow-hidden rounded-lg border bg-card lg:h-full">
         <div className="border-b p-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -711,7 +748,11 @@ export function CheckoutClient({
             {dictionary.uniqueProducts}: {uniqueProductCount}
           </Badge>
         </div>
-        {market.taxMode === 'saudiVat' ? <div className="border-b bg-card p-2">
+        {historical ? (
+          <div className="border-b bg-card p-3 text-sm font-medium">
+            {dictionary.historicalPaperSale}
+          </div>
+        ) : market.taxMode === 'saudiVat' ? <div className="border-b bg-card p-2">
           <div
             className="grid grid-cols-2 rounded-md bg-muted p-1"
             role="radiogroup"
@@ -926,7 +967,7 @@ export function CheckoutClient({
             </div>
           </div>
 
-          {invoiceType === 'standard' && (
+          {!historical && invoiceType === 'standard' && (
             <div className="grid gap-2 rounded-md bg-violet-100/60 p-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 dark:bg-violet-950/30">
               <Input
                 className="bg-card"
@@ -957,6 +998,36 @@ export function CheckoutClient({
             </div>
           )}
 
+          {historical && (
+            <div className="grid gap-3 rounded-md bg-muted/60 p-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="historical-sale-date">
+                  {dictionary.originalSaleDate} <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="historical-sale-date"
+                  type="date"
+                  max={defaultSaleDate}
+                  required
+                  value={saleDate}
+                  onChange={(event) => setSaleDate(event.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="historical-paper-reference">
+                  {dictionary.paperReference}
+                </Label>
+                <Input
+                  id="historical-paper-reference"
+                  maxLength={80}
+                  placeholder={dictionary.paperReferencePlaceholder}
+                  value={externalReference}
+                  onChange={(event) => setExternalReference(event.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
           <EmployeeSelector
             dictionary={dictionary}
             employees={employees}
@@ -978,15 +1049,89 @@ export function CheckoutClient({
               {error}
             </p>
           )}
+          {historicalSuccess && (
+            <p
+              className="rounded-md bg-emerald-100 p-3 text-sm font-medium text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+              role="status"
+            >
+              {dictionary.historicalSaleRecorded}
+            </p>
+          )}
           <Button
             className="h-11 w-full bg-emerald-600 text-base text-white shadow-sm hover:bg-emerald-700 focus-visible:ring-emerald-600 dark:bg-emerald-500 dark:text-emerald-950 dark:hover:bg-emerald-400"
-            disabled={!settingsReady || cart.length === 0 || pending}
-            onClick={finalize}
+            disabled={
+              !settingsReady ||
+              cart.length === 0 ||
+              pending ||
+              (historical && !saleDate)
+            }
+            onClick={() => {
+              setError('')
+              setHistoricalSuccess(false)
+              setSaleConfirmationOpen(true)
+            }}
           >
-            {pending ? dictionary.finalizing : dictionary.finalizeSale}
+            {pending
+              ? historical
+                ? dictionary.recordingPastSale
+                : dictionary.finalizing
+              : historical
+                ? dictionary.recordPastSale
+                : dictionary.finalizeSale}
           </Button>
         </div>
       </aside>
-    </div>
+      </div>
+
+      <Dialog
+        open={saleConfirmationOpen}
+        onOpenChange={(open) => {
+          if (!pending) setSaleConfirmationOpen(open)
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {historical
+                ? dictionary.confirmHistoricalSaleTitle
+                : dictionary.confirmCheckoutSaleTitle}
+            </DialogTitle>
+            <DialogDescription>
+              {(historical
+                ? dictionary.confirmHistoricalSaleDescription.replace(
+                    '{date}',
+                    historicalDateLabel,
+                  )
+                : dictionary.confirmCheckoutSaleDescription
+              ).replace('{amount}', formatMoney(totals.totalMinor, market, moneyLocale))}
+            </DialogDescription>
+          </DialogHeader>
+          {error && (
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
+          )}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="cancel"
+              disabled={pending}
+              onClick={() => setSaleConfirmationOpen(false)}
+            >
+              {dictionary.cancel}
+            </Button>
+            <Button type="button" variant="success" disabled={pending} onClick={finalize}>
+              {pending
+                ? historical
+                  ? dictionary.recordingPastSale
+                  : dictionary.finalizing
+                : historical
+                  ? dictionary.recordPastSale
+                  : dictionary.finalizeSale}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

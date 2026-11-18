@@ -3,12 +3,15 @@ import {
   Building2,
   Columns3,
   FileText,
+  History,
   Home,
   ReceiptText,
   Settings,
   ShoppingCart,
   UsersRound,
 } from 'lucide-react'
+
+import { marketSupports, type MarketProfile } from './market'
 
 export const appNavigation = [
   {
@@ -41,6 +44,15 @@ export const appNavigation = [
     homeLabelKey: 'invoiceHistory',
     homeDescriptionKey: 'homeInvoicesDescription',
     icon: FileText,
+    primary: false,
+  },
+  {
+    href: '/historical-sales',
+    labelKey: 'recordPastSale',
+    homeLabelKey: 'recordPastSale',
+    homeDescriptionKey: 'homeHistoricalSalesDescription',
+    icon: History,
+    marketFeature: 'historicalSales',
     primary: false,
   },
   {
@@ -84,3 +96,9 @@ export const appNavigation = [
     primary: false,
   },
 ] as const
+
+export function getAppNavigation(profile: MarketProfile) {
+  return appNavigation.filter(
+    (item) => !('marketFeature' in item) || marketSupports(profile, item.marketFeature),
+  )
+}

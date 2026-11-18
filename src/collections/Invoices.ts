@@ -6,7 +6,7 @@ const authenticated = ({ req }: { req: { user: unknown } }) => Boolean(req.user)
 export const Invoices: CollectionConfig = {
   slug: 'invoices',
   admin: {
-    defaultColumns: ['invoiceNumber', 'invoiceType', 'issuedAt', 'totalMinor'],
+    defaultColumns: ['invoiceNumber', 'entrySource', 'invoiceType', 'issuedAt', 'totalMinor'],
     useAsTitle: 'invoiceNumber',
   },
   access: {
@@ -44,6 +44,33 @@ export const Invoices: CollectionConfig = {
       options: [
         { label: 'Checkout', value: 'checkout' },
         { label: 'Service Board', value: 'serviceBoard' },
+      ],
+    },
+    {
+      name: 'entrySource',
+      type: 'select',
+      defaultValue: 'live',
+      required: true,
+      options: [
+        { label: 'Live POS sale', value: 'live' },
+        { label: 'Paper backfill', value: 'paperBackfill' },
+      ],
+    },
+    {
+      name: 'externalReference',
+      type: 'text',
+      unique: true,
+      index: true,
+      maxLength: 80,
+    },
+    {
+      name: 'issuedAtPrecision',
+      type: 'select',
+      defaultValue: 'exact',
+      required: true,
+      options: [
+        { label: 'Exact date and time', value: 'exact' },
+        { label: 'Date only', value: 'dateOnly' },
       ],
     },
     { name: 'issuedAt', type: 'date', required: true, index: true },

@@ -5,9 +5,12 @@ export type ServiceBoardCard = {
   customerName?: string
   customerPhone?: string
   employeeName?: string
+  entrySource?: 'live' | 'paperBackfill'
+  externalReference?: string
   invoiceId: string
   invoiceNumber: string
   issuedAt: string
+  issuedAtPrecision?: 'dateOnly' | 'exact' | null
   note?: string
   productId: string
   quantityMilliunits: number

@@ -43,6 +43,7 @@ next-env.d.ts
 
 /media
 /test-media
+/bd-test-media
 
 # local SQLite databases
 *.db

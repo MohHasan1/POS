@@ -16,7 +16,9 @@ function invoiceFixture(invoiceType: Invoice['invoiceType']): Invoice {
     invoiceNumber: 'INV-20261017-0001',
     idempotencyKey: 'idempotency-key',
     invoiceType,
+    entrySource: 'live',
     employeeSnapshot: { name: 'Internal Employee Name' },
+    issuedAtPrecision: 'exact',
     salesChannel: 'checkout',
     issuedAt: '2026-10-17T12:30:00.000Z',
     seller: {

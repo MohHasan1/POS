@@ -1,10 +1,10 @@
 'use client'
 
-import { useTheme } from 'next-themes'
 import { useRouter } from 'next/navigation'
 import { useSyncExternalStore, useTransition } from 'react'
 
 import { setLocaleAction } from '@/actions/locale'
+import { useTheme } from '@/components/layout/ThemeProvider'
 import { Label } from '@/components/ui/label'
 import {
   Select,

@@ -2,7 +2,7 @@ import { ArrowRight, CalendarDays } from 'lucide-react'
 import Link from 'next/link'
 
 import { buttonVariants } from '@/components/ui/button'
-import { appNavigation } from '@/lib/app-navigation'
+import { getAppNavigation } from '@/lib/app-navigation'
 import { getBusinessLogo } from '@/lib/business-information'
 import { getDictionary } from '@/lib/localization'
 import { formatMarketDateTime } from '@/lib/calendar'
@@ -28,8 +28,9 @@ export default async function HomePage() {
   }).format(new Date())
   const shopName = settings.displayName || settings.sellerNameEnglish || dictionary.defaultShopName
   const businessLogo = getBusinessLogo(settings)
-  const primaryActions = appNavigation.filter(({ primary }) => primary)
-  const secondaryActions = appNavigation.filter(({ href, primary }) => href !== '/' && !primary)
+  const availableNavigation = getAppNavigation(dashboard.market)
+  const primaryActions = availableNavigation.filter(({ primary }) => primary)
+  const secondaryActions = availableNavigation.filter(({ href, primary }) => href !== '/' && !primary)
   const periods: Array<{ label: string; metric: SalesPeriodMetric }> = [
     { label: dictionary.todaySales, metric: dashboard.today },
     { label: dictionary.monthSales, metric: dashboard.month },
@@ -91,7 +92,7 @@ export default async function HomePage() {
             </Link>
           ))}
         </div>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
           {secondaryActions.map(({ href, homeLabelKey, icon: Icon }) => (
             <Link
               key={href}

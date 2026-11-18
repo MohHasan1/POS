@@ -6,6 +6,9 @@ export type SecondaryLanguage = (typeof secondaryLanguages)[number]
 export type DocumentLanguage = Exclude<SecondaryLanguage, 'none'>
 export type TaxMode = 'saudiVat' | 'none'
 
+export const marketFeatures = ['historicalSales'] as const
+export type MarketFeature = (typeof marketFeatures)[number]
+
 export type MarketProfile = {
   countryCode: CountryCode
   countryName: string
@@ -13,6 +16,7 @@ export type MarketProfile = {
   currencySymbol: string
   defaultSecondaryLanguage: DocumentLanguage
   documentLanguage: DocumentLanguage
+  features: readonly MarketFeature[]
   locale: string
   minorUnitDigits: number
   taxMode: TaxMode
@@ -27,6 +31,7 @@ export const MARKET_PROFILES: Record<CountryCode, MarketProfile> = {
     currencySymbol: 'SAR',
     defaultSecondaryLanguage: 'ar',
     documentLanguage: 'ar',
+    features: [],
     locale: 'en-SA',
     minorUnitDigits: 2,
     taxMode: 'saudiVat',
@@ -39,6 +44,7 @@ export const MARKET_PROFILES: Record<CountryCode, MarketProfile> = {
     currencySymbol: '৳',
     defaultSecondaryLanguage: 'bn',
     documentLanguage: 'bn',
+    features: ['historicalSales'],
     locale: 'en-BD',
     minorUnitDigits: 2,
     taxMode: 'none',
@@ -54,6 +60,10 @@ export function isCountryCode(value: unknown): value is CountryCode {
 
 export function getMarketProfile(countryCode: unknown): MarketProfile {
   return isCountryCode(countryCode) ? MARKET_PROFILES[countryCode] : DEFAULT_MARKET
+}
+
+export function marketSupports(profile: MarketProfile, feature: MarketFeature): boolean {
+  return profile.features.includes(feature)
 }
 
 export function getDocumentMarket(snapshot: {

@@ -2,9 +2,10 @@ import Image from 'next/image'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 
-import { appNavigation } from '@/lib/app-navigation'
 import type { Dictionary, Locale } from '@/lib/localization'
+import type { MarketProfile } from '@/lib/market'
 import { NavQuickPreferences } from './NavQuickPreferences'
+import { PrimaryNavigation } from './PrimaryNavigation'
 import { SetupGuard } from './SetupGuard'
 
 export function AppShell({
@@ -12,11 +13,13 @@ export function AppShell({
   dictionary,
   locale,
   marketConfigured,
+  marketProfile,
 }: {
   children: ReactNode
   dictionary: Dictionary
   locale: Locale
   marketConfigured: boolean
+  marketProfile: MarketProfile
 }) {
   return (
     <div className="min-h-screen bg-muted/30">
@@ -37,26 +40,11 @@ export function AppShell({
             />
             <span className="hidden sm:inline">{dictionary.appName}</span>
           </Link>
-          <nav aria-label="Primary" className="ml-auto flex items-center gap-1 overflow-x-auto">
-            {appNavigation.filter(({ href }) => marketConfigured || href === '/business').map(({ href, labelKey, icon: Icon, primary }) => (
-              <Link
-                key={href}
-                href={href}
-                className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                  href === '/service-board'
-                    ? 'border border-violet-600 bg-violet-500 text-white shadow-sm hover:bg-violet-600 dark:border-violet-300 dark:bg-violet-400 dark:text-violet-950 dark:hover:bg-violet-300'
-                    : primary
-                      ? 'border border-emerald-700 bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 dark:border-emerald-400 dark:bg-emerald-500 dark:text-emerald-950 dark:hover:bg-emerald-400'
-                    : href === '/receipt-vouchers'
-                      ? 'bg-amber-100 text-amber-950 hover:bg-amber-200 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-amber-900'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                }`}
-              >
-                <Icon className="size-4" aria-hidden="true" />
-                <span className="hidden md:inline">{dictionary[labelKey]}</span>
-              </Link>
-            ))}
-          </nav>
+          <PrimaryNavigation
+            dictionary={dictionary}
+            marketConfigured={marketConfigured}
+            marketProfile={marketProfile}
+          />
           <NavQuickPreferences dictionary={dictionary} locale={locale} />
         </div>
       </header>

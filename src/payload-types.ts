@@ -218,6 +218,9 @@ export interface Invoice {
   documentLanguage?: string | null;
   secondaryLanguage?: string | null;
   salesChannel: 'checkout' | 'serviceBoard';
+  entrySource: 'live' | 'paperBackfill';
+  externalReference?: string | null;
+  issuedAtPrecision: 'exact' | 'dateOnly';
   issuedAt: string;
   employee?: (string | null) | Employee;
   employeeSnapshot?: {
@@ -532,6 +535,9 @@ export interface InvoicesSelect<T extends boolean = true> {
   documentLanguage?: T;
   secondaryLanguage?: T;
   salesChannel?: T;
+  entrySource?: T;
+  externalReference?: T;
+  issuedAtPrecision?: T;
   issuedAt?: T;
   employee?: T;
   employeeSnapshot?:

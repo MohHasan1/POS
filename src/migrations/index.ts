@@ -8,6 +8,7 @@ import * as migration_20261117_105643_service_board_and_dashboard from './202611
 import * as migration_20261117_123954_country_profiles from './20261117_123954_country_profiles';
 import * as migration_20261117_132500_nullable_product_names from './20261117_132500_nullable_product_names';
 import * as migration_20261118_123605_employee_assignments from './20261118_123605_employee_assignments';
+import * as migration_20261118_130246_historical_sales_backfill from './20261118_130246_historical_sales_backfill';
 
 export const migrations = [
   {
@@ -58,6 +59,11 @@ export const migrations = [
   {
     up: migration_20261118_123605_employee_assignments.up,
     down: migration_20261118_123605_employee_assignments.down,
-    name: '20261118_123605_employee_assignments'
+    name: '20261118_123605_employee_assignments',
+  },
+  {
+    up: migration_20261118_130246_historical_sales_backfill.up,
+    down: migration_20261118_130246_historical_sales_backfill.down,
+    name: '20261118_130246_historical_sales_backfill'
   },
 ];

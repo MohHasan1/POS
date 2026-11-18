@@ -29,13 +29,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang={locale} suppressHydrationWarning>
       <body>
         <ThemeProvider
-          attribute="class"
           defaultTheme="system"
-          enableSystem
           disableTransitionOnChange
           storageKey="counter-pos-theme"
         >
-          <AppShell dictionary={dictionary} locale={locale} marketConfigured={market.configured}>
+          <AppShell
+            dictionary={dictionary}
+            locale={locale}
+            marketConfigured={market.configured}
+            marketProfile={market.profile}
+          >
             {children}
           </AppShell>
           <PwaRegistration />

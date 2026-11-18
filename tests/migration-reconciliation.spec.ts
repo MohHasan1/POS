@@ -19,6 +19,7 @@ import { up as addServiceBoardAndDashboard } from '@/migrations/20261117_105643_
 import { up as addCountryProfiles } from '@/migrations/20261117_123954_country_profiles'
 import { up as makeProductNamesNullable } from '@/migrations/20261117_132500_nullable_product_names'
 import { up as addEmployeeAssignments } from '@/migrations/20261118_123605_employee_assignments'
+import { up as addHistoricalSalesBackfill } from '@/migrations/20261118_130246_historical_sales_backfill'
 
 describe('SQLite migration reconciliation', () => {
   it('safely reconciles a schema that Payload already pushed in development', async () => {
@@ -33,12 +34,19 @@ describe('SQLite migration reconciliation', () => {
     await addCountryProfiles(args)
     await addEmployeeAssignments(args)
     await addEmployeeAssignments(args)
+    await addHistoricalSalesBackfill(args)
+    await addHistoricalSalesBackfill(args)
 
     const { rows } = await db.run(sql`PRAGMA table_info('payload_locked_documents_rels');`)
     const columns = new Set(rows.map((row) => String((row as unknown as { name: unknown }).name)))
     assert.equal(columns.has('media_id'), true)
     assert.equal(columns.has('receipt_vouchers_id'), true)
     assert.equal(columns.has('employees_id'), true)
+    const invoiceColumns = await db.run(sql`PRAGMA table_info('invoices');`)
+    const invoiceColumnNames = new Set(invoiceColumns.rows.map((row) => String(row.name)))
+    assert.equal(invoiceColumnNames.has('entry_source'), true)
+    assert.equal(invoiceColumnNames.has('external_reference'), true)
+    assert.equal(invoiceColumnNames.has('issued_at_precision'), true)
   })
 
   it('adds optional employee fields without changing legacy invoices', async () => {
@@ -67,9 +75,12 @@ describe('SQLite migration reconciliation', () => {
 
       await addEmployeeAssignments(args)
       await addEmployeeAssignments(args)
+      await addHistoricalSalesBackfill(args)
+      await addHistoricalSalesBackfill(args)
 
       const invoice = await db.run(sql`SELECT invoice_number, employee_id,
-        employee_snapshot_name FROM invoices WHERE id = 'legacy-invoice';`)
+        employee_snapshot_name, entry_source, external_reference, issued_at_precision
+        FROM invoices WHERE id = 'legacy-invoice';`)
       const settings = await db.run(sql`SELECT default_employee_id FROM shop_settings WHERE id = 1;`)
       const employeeTable = await db.run(sql`SELECT name FROM sqlite_master
         WHERE type = 'table' AND name = 'employees';`)
@@ -77,7 +88,10 @@ describe('SQLite migration reconciliation', () => {
       assert.deepEqual(invoice.rows[0], {
         employee_id: null,
         employee_snapshot_name: null,
+        entry_source: 'live',
+        external_reference: null,
         invoice_number: 'INV-LEGACY',
+        issued_at_precision: 'exact',
       })
       assert.equal(settings.rows[0]?.default_employee_id, null)
       assert.equal(employeeTable.rows.length, 1)

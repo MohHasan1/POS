@@ -1,4 +1,4 @@
-import { formatMarketDateTime } from '@/lib/calendar'
+import { formatMarketDate, formatMarketDateTime } from '@/lib/calendar'
 import { getDocumentMarket, localizedName, normalizedTranslations } from '@/lib/market'
 import { formatMoney, formatQuantity } from '@/lib/money'
 import type { Invoice } from '@/payload-types'
@@ -27,7 +27,9 @@ export function SalesInvoiceTemplate({ invoice }: { invoice: Invoice }) {
           <div className="sm:text-right">
             <dt className="font-semibold">Date and time / তারিখ ও সময়</dt>
             <dd className="mt-1 tabular-nums">
-              {formatMarketDateTime(invoice.issuedAt, market, 'en-BD')}
+              {invoice.issuedAtPrecision === 'dateOnly'
+                ? formatMarketDate(invoice.issuedAt, market, 'en-BD')
+                : formatMarketDateTime(invoice.issuedAt, market, 'en-BD')}
             </dd>
           </div>
         </dl>

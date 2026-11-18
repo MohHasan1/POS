@@ -13,7 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { getDictionary } from '@/lib/localization'
-import { formatMarketDateTime } from '@/lib/calendar'
+import { formatMarketDate, formatMarketDateTime } from '@/lib/calendar'
 import { getDocumentMarket, marketLocale } from '@/lib/market'
 import { formatMoney } from '@/lib/money'
 import { cn } from '@/lib/utils'
@@ -42,7 +42,7 @@ export default async function InvoicesPage({
         <form className="flex gap-2 border-b p-3" role="search">
           <div className="relative w-full max-w-sm">
             <Search className="pointer-events-none absolute left-2.5 top-2 size-4 text-muted-foreground" aria-hidden="true" />
-            <Input className="pl-8" defaultValue={q} name="q" placeholder={dictionary.invoiceNumber} />
+            <Input className="pl-8" defaultValue={q} name="q" placeholder={`${dictionary.invoiceNumber} / ${dictionary.paperReference}`} />
           </div>
           <button className={buttonVariants({ variant: 'outline' })} type="submit">{dictionary.search}</button>
         </form>
@@ -62,9 +62,18 @@ export default async function InvoicesPage({
               const market = getDocumentMarket(invoice)
               const dateLocale = marketLocale(market, locale)
               return <TableRow key={invoice.id}>
-                <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
-                <TableCell>{formatMarketDateTime(invoice.issuedAt, market, dateLocale)}</TableCell>
-                <TableCell>{invoice.invoiceType === 'sales' ? dictionary.salesInvoice : invoice.invoiceType === 'simplified' ? dictionary.simplifiedInvoice : dictionary.standardInvoice}</TableCell>
+                <TableCell>
+                  <p className="font-medium">{invoice.invoiceNumber}</p>
+                  {invoice.externalReference && (
+                    <p className="text-xs text-muted-foreground">{invoice.externalReference}</p>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {invoice.issuedAtPrecision === 'dateOnly'
+                    ? formatMarketDate(invoice.issuedAt, market, dateLocale)
+                    : formatMarketDateTime(invoice.issuedAt, market, dateLocale)}
+                </TableCell>
+                <TableCell>{invoice.entrySource === 'paperBackfill' ? dictionary.historicalPaperSale : invoice.invoiceType === 'sales' ? dictionary.salesInvoice : invoice.invoiceType === 'simplified' ? dictionary.simplifiedInvoice : dictionary.standardInvoice}</TableCell>
                 <TableCell>{invoice.employeeSnapshot?.name || '—'}</TableCell>
                 <TableCell className="text-right tabular-nums">{formatMoney(invoice.totalMinor, market, dateLocale)}</TableCell>
                 <TableCell className="text-right">

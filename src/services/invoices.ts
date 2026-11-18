@@ -5,6 +5,7 @@ import { nextInvoiceNumber } from '@/lib/invoice-number'
 import { marketDateKey } from '@/lib/calendar'
 import {
   localizedName,
+  marketSupports,
   normalizedTranslations,
   type MarketProfile,
 } from '@/lib/market'
@@ -19,12 +20,27 @@ import { getEmployee } from './employees'
 import { areShopSettingsComplete, getShopSettings, marketContextFromSettings } from './settings'
 
 export type FinalizeInvoiceOptions = {
+  entrySource?: Invoice['entrySource']
+  externalReference?: string
+  generateQr?: boolean
+  issuedAt?: Date
+  issuedAtPrecision?: Invoice['issuedAtPrecision']
   salesChannel?: Invoice['salesChannel']
   serviceBoardDetails?: {
     customerName?: string
     customerPhone?: string
     note?: string
   }
+}
+
+async function findByExternalReference(reference: string): Promise<Invoice | null> {
+  const payload = await getPayload({ config })
+  const result = await payload.find({
+    collection: 'invoices',
+    limit: 1,
+    where: { externalReference: { equals: reference } },
+  })
+  return result.docs[0] || null
 }
 
 async function findByIdempotencyKey(key: string): Promise<Invoice | null> {
@@ -104,12 +120,20 @@ export async function finalizeInvoice(
   const existing = await findByIdempotencyKey(input.idempotencyKey)
   if (existing) return existing
 
+  const externalReference = options.externalReference?.trim()
+  if (externalReference && (await findByExternalReference(externalReference))) {
+    throw new Error('This paper reference has already been recorded.')
+  }
+
   const settings = await getShopSettings()
   if (!areShopSettingsComplete(settings)) {
     throw new Error('Complete the business information before finalizing an invoice.')
   }
   const market = marketContextFromSettings(settings)
   const { profile, secondaryLanguage } = market
+  if (options.entrySource === 'paperBackfill' && !marketSupports(profile, 'historicalSales')) {
+    throw new Error('Historical sales are not available for this market.')
+  }
   const expectedType = profile.taxMode === 'none' ? 'sales' : input.invoiceType
   if (profile.taxMode === 'none' && input.invoiceType !== 'sales') {
     throw new Error('Bangladesh uses the Sales Invoice type.')
@@ -140,7 +164,8 @@ export async function finalizeInvoice(
     }
   }
 
-  const issuedAt = new Date()
+  const issuedAt = options.issuedAt ? new Date(options.issuedAt) : new Date()
+  if (Number.isNaN(issuedAt.getTime())) throw new Error('Enter a valid sale date.')
   issuedAt.setMilliseconds(0)
   const items = await Promise.all(
     input.items.map((item) => resolveItem(item, profile)),
@@ -155,7 +180,7 @@ export async function finalizeInvoice(
     registrations: (settings.registrations || []).map(({ type, value }) => ({ type, value })),
   }
   const qrPayload =
-    profile.taxMode === 'saudiVat'
+    profile.taxMode === 'saudiVat' && options.generateQr !== false
       ? encodeZatcaQr({
           sellerName: seller.nameArabic!,
           vatNumber: seller.vatNumber!,
@@ -183,6 +208,9 @@ export async function finalizeInvoice(
           documentLanguage: profile.documentLanguage,
           secondaryLanguage,
           salesChannel: options.salesChannel || 'checkout',
+          entrySource: options.entrySource || 'live',
+          externalReference,
+          issuedAtPrecision: options.issuedAtPrecision || 'exact',
           issuedAt: issuedAt.toISOString(),
           employee: employee?.id,
           employeeSnapshot: employee ? { name: employee.name } : undefined,
@@ -197,6 +225,9 @@ export async function finalizeInvoice(
     } catch (error) {
       const duplicate = await findByIdempotencyKey(input.idempotencyKey)
       if (duplicate) return duplicate
+      if (externalReference && (await findByExternalReference(externalReference))) {
+        throw new Error('This paper reference has already been recorded.')
+      }
       if (!isUniqueConstraintError(error) || attempt === 4) throw error
     }
   }
@@ -206,11 +237,19 @@ export async function finalizeInvoice(
 
 export async function getInvoices(search?: string, limit = 100): Promise<Invoice[]> {
   const payload = await getPayload({ config })
+  const query = search?.trim()
   const result = await payload.find({
     collection: 'invoices',
     limit,
     sort: '-issuedAt',
-    where: search?.trim() ? { invoiceNumber: { contains: search.trim() } } : undefined,
+    where: query
+      ? {
+          or: [
+            { invoiceNumber: { contains: query } },
+            { externalReference: { contains: query } },
+          ],
+        }
+      : undefined,
   })
   return result.docs
 }

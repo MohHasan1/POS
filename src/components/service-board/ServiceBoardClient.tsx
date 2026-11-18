@@ -42,7 +42,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import type { Dictionary, Locale } from '@/lib/localization'
-import { formatMarketDateTime } from '@/lib/calendar'
+import { formatMarketDate, formatMarketDateTime } from '@/lib/calendar'
 import { localizedName, marketLocale, normalizedTranslations } from '@/lib/market'
 import { decimalToMinor, formatMoney, formatQuantity, minorToDecimal } from '@/lib/money'
 import type { EmployeeSummary, ProductSummary } from '@/lib/pos-types'
@@ -97,9 +97,13 @@ function ServiceCard({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate font-semibold">{card.customerName || card.invoiceNumber}</p>
+          <p className="truncate font-semibold">
+            {card.customerName || card.externalReference || card.invoiceNumber}
+          </p>
           {card.customerName && (
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">{card.invoiceNumber}</p>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              {card.externalReference || card.invoiceNumber}
+            </p>
           )}
         </div>
         <Badge variant="outline" className="shrink-0 bg-background/70 tabular-nums">
@@ -110,7 +114,9 @@ function ServiceCard({
         <div className="flex justify-between gap-3">
           <dt className="text-muted-foreground">{dictionary.date}</dt>
           <dd className="text-right tabular-nums">
-            {formatMarketDateTime(card.issuedAt, view.market, dateLocale)}
+            {card.issuedAtPrecision === 'dateOnly'
+              ? formatMarketDate(card.issuedAt, view.market, dateLocale)
+              : formatMarketDateTime(card.issuedAt, view.market, dateLocale)}
           </dd>
         </div>
         {card.customerPhone && (
@@ -142,7 +148,9 @@ function ServiceCard({
           'w-full border-0 bg-zinc-800 text-zinc-50 hover:bg-zinc-700 hover:text-white dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600 dark:hover:text-white',
         )}
       >
-        {dictionary.viewPrintInvoice}
+        {card.entrySource === 'paperBackfill'
+          ? dictionary.viewHistoricalRecord
+          : dictionary.viewPrintInvoice}
       </Link>
     </article>
   )
