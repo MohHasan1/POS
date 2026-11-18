@@ -139,7 +139,7 @@ function ServiceCard({
         href={`/invoices/${card.invoiceId}`}
         className={cn(
           buttonVariants({ size: 'sm', variant: 'outline' }),
-          'w-full border-0 bg-amber-100 text-amber-900 hover:bg-amber-200 hover:text-amber-950 dark:bg-amber-900/40 dark:text-amber-200 dark:hover:bg-amber-900/60 dark:hover:text-amber-100',
+          'w-full border-0 bg-zinc-800 text-zinc-50 hover:bg-zinc-700 hover:text-white dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600 dark:hover:text-white',
         )}
       >
         {dictionary.viewPrintInvoice}
@@ -193,7 +193,9 @@ export function ServiceBoardClient({
   dictionary,
   employees,
   locale,
+  selectedDate,
   settingsReady,
+  todayDate,
   view,
 }: {
   allProducts: ProductSummary[]
@@ -203,7 +205,9 @@ export function ServiceBoardClient({
   dictionary: Dictionary
   employees: EmployeeSummary[]
   locale: Locale
+  selectedDate: string
   settingsReady: boolean
+  todayDate: string
   view: ServiceBoardView
 }) {
   const router = useRouter()
@@ -233,6 +237,7 @@ export function ServiceBoardClient({
   const visibleProducts = view.columns.map(({ product }) => product)
   const dateLocale = marketLocale(view.market, locale)
   const anyDialogOpen = manageOpen || createServiceOpen || saleOpen
+  const viewingToday = selectedDate === todayDate
 
   useEffect(() => {
     if (anyDialogOpen) return
@@ -359,12 +364,39 @@ export function ServiceBoardClient({
             {dictionary.refreshBoard}
           </Button>
         </div>
+        <div className="flex items-center gap-2">
+          <Label htmlFor="service-board-date" className="text-sm text-muted-foreground">
+            {dictionary.boardDate}
+          </Label>
+          <Input
+            id="service-board-date"
+            className="w-auto bg-background"
+            type="date"
+            value={selectedDate}
+            onChange={(event) => {
+              const nextDate = event.target.value
+              if (!nextDate) return
+              router.push(nextDate === todayDate ? '/service-board' : `/service-board?date=${nextDate}`)
+            }}
+          />
+          {!viewingToday && (
+            <Button type="button" variant="outline" onClick={() => router.push('/service-board')}>
+              {dictionary.returnToToday}
+            </Button>
+          )}
+        </div>
         {message && (
           <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400" role="status">
             {message}
           </p>
         )}
       </div>
+
+      {!viewingToday && (
+        <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
+          {dictionary.historicalBoardViewOnly}
+        </p>
+      )}
 
       {error && !saleOpen && (
         <p
@@ -380,13 +412,13 @@ export function ServiceBoardClient({
         aria-label={dictionary.salesDashboard}
       >
         {[
-          [dictionary.allSalesToday, formatMoney(view.summary.allSalesTodayMinor, view.market, dateLocale)],
+          [dictionary.allSalesForDay, formatMoney(view.summary.allSalesTodayMinor, view.market, dateLocale)],
           [
             dictionary.visibleServiceRevenue,
             formatMoney(view.summary.visibleServiceRevenueMinor, view.market, dateLocale),
           ],
           [
-            dictionary.visitsToday,
+            dictionary.visitsForDay,
             new Intl.NumberFormat(dateLocale).format(view.summary.distinctVisits),
           ],
           [dictionary.mostPopularService, popularName],
@@ -433,7 +465,7 @@ export function ServiceBoardClient({
                 <div key={product.id} className="min-w-0 space-y-2">
                   <div className="rounded-lg bg-violet-50/80 px-3 py-2 shadow-sm dark:bg-indigo-900/55">
                     <p className="text-[0.6875rem] font-medium text-muted-foreground">
-                      {dictionary.serviceTotalToday}
+                      {dictionary.serviceTotalForDay}
                     </p>
                     <div className="mt-1 flex items-end justify-between gap-2">
                       <p className="min-w-0 truncate text-base font-semibold tabular-nums">
@@ -505,7 +537,7 @@ export function ServiceBoardClient({
                     </div>
                     <Button
                       className="w-full border-0 bg-emerald-500 text-white hover:bg-emerald-600 dark:bg-emerald-200 dark:text-emerald-950 dark:hover:bg-emerald-100"
-                      disabled={!settingsReady}
+                      disabled={!settingsReady || !viewingToday}
                       onClick={() => openSale(product)}
                     >
                       <Plus aria-hidden="true" />

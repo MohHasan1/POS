@@ -35,7 +35,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           disableTransitionOnChange
           storageKey="counter-pos-theme"
         >
-          <AppShell dictionary={dictionary} marketConfigured={market.configured}>{children}</AppShell>
+          <AppShell dictionary={dictionary} locale={locale} marketConfigured={market.configured}>
+            {children}
+          </AppShell>
           <PwaRegistration />
         </ThemeProvider>
       </body>

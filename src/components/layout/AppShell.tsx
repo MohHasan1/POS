@@ -3,16 +3,19 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 
 import { appNavigation } from '@/lib/app-navigation'
-import type { Dictionary } from '@/lib/localization'
+import type { Dictionary, Locale } from '@/lib/localization'
+import { NavQuickPreferences } from './NavQuickPreferences'
 import { SetupGuard } from './SetupGuard'
 
 export function AppShell({
   children,
   dictionary,
+  locale,
   marketConfigured,
 }: {
   children: ReactNode
   dictionary: Dictionary
+  locale: Locale
   marketConfigured: boolean
 }) {
   return (
@@ -54,6 +57,7 @@ export function AppShell({
               </Link>
             ))}
           </nav>
+          <NavQuickPreferences dictionary={dictionary} locale={locale} />
         </div>
       </header>
       <main className="mx-auto max-w-[1600px] p-4 sm:p-6">
