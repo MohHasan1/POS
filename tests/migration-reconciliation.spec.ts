@@ -20,6 +20,7 @@ import { up as addCountryProfiles } from '@/migrations/20261117_123954_country_p
 import { up as makeProductNamesNullable } from '@/migrations/20261117_132500_nullable_product_names'
 import { up as addEmployeeAssignments } from '@/migrations/20261118_123605_employee_assignments'
 import { up as addHistoricalSalesBackfill } from '@/migrations/20261118_130246_historical_sales_backfill'
+import { up as addEmployeePayroll } from '@/lib/payroll-migration'
 
 describe('SQLite migration reconciliation', () => {
   it('safely reconciles a schema that Payload already pushed in development', async () => {
@@ -36,17 +37,73 @@ describe('SQLite migration reconciliation', () => {
     await addEmployeeAssignments(args)
     await addHistoricalSalesBackfill(args)
     await addHistoricalSalesBackfill(args)
+    await addEmployeePayroll(args)
+    await addEmployeePayroll(args)
 
     const { rows } = await db.run(sql`PRAGMA table_info('payload_locked_documents_rels');`)
     const columns = new Set(rows.map((row) => String((row as unknown as { name: unknown }).name)))
     assert.equal(columns.has('media_id'), true)
     assert.equal(columns.has('receipt_vouchers_id'), true)
     assert.equal(columns.has('employees_id'), true)
+    assert.equal(columns.has('employee_payroll_entries_id'), true)
     const invoiceColumns = await db.run(sql`PRAGMA table_info('invoices');`)
     const invoiceColumnNames = new Set(invoiceColumns.rows.map((row) => String(row.name)))
     assert.equal(invoiceColumnNames.has('entry_source'), true)
     assert.equal(invoiceColumnNames.has('external_reference'), true)
     assert.equal(invoiceColumnNames.has('issued_at_precision'), true)
+  })
+
+  it('adds payroll tables and leaves existing employees and invoices unchanged', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'quickpos-payroll-migration-'))
+    const client = createClient({ url: `file:${path.join(directory, 'legacy.db')}` })
+    const database = drizzle(client)
+    const db = database as unknown as MigrateUpArgs['db']
+    const args = { db } as MigrateUpArgs
+
+    try {
+      await db.run(sql`CREATE TABLE employees (
+        id text PRIMARY KEY NOT NULL, name text NOT NULL, active integer NOT NULL
+      );`)
+      await db.run(sql`CREATE TABLE products (id text PRIMARY KEY NOT NULL);`)
+      await db.run(sql`CREATE TABLE invoices (id text PRIMARY KEY NOT NULL);`)
+      await db.run(sql`CREATE TABLE invoices_items (
+        _order integer NOT NULL, _parent_id text NOT NULL, id text PRIMARY KEY NOT NULL
+      );`)
+      await db.run(sql`CREATE TABLE payload_locked_documents_rels (id integer PRIMARY KEY NOT NULL);`)
+      await db.run(sql`INSERT INTO employees (id, name, active) VALUES ('legacy-employee', 'Legacy Employee', 1);`)
+      await db.run(sql`INSERT INTO invoices (id) VALUES ('legacy-invoice');`)
+      await db.run(sql`INSERT INTO invoices_items (_order, _parent_id, id)
+        VALUES (1, 'legacy-invoice', 'legacy-line');`)
+
+      await addEmployeePayroll(args)
+      await addEmployeePayroll(args)
+
+      const employee = await db.run(sql`SELECT name, compensation_type, monthly_salary_minor
+        FROM employees WHERE id = 'legacy-employee';`)
+      assert.deepEqual(employee.rows[0], {
+        compensation_type: 'unconfigured',
+        monthly_salary_minor: null,
+        name: 'Legacy Employee',
+      })
+      const line = await db.run(sql`SELECT commission_rate_bps, commission_basis_minor,
+        commission_amount_minor FROM invoices_items WHERE id = 'legacy-line';`)
+      assert.deepEqual(line.rows[0], {
+        commission_amount_minor: null,
+        commission_basis_minor: null,
+        commission_rate_bps: null,
+      })
+      for (const table of [
+        'employee_commission_rates',
+        'employee_commission_overrides',
+        'employee_payroll_entries',
+      ]) {
+        const found = await db.run(sql.raw(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = '${table}';`))
+        assert.equal(found.rows.length, 1)
+      }
+    } finally {
+      client.close()
+      rmSync(directory, { force: true, recursive: true })
+    }
   })
 
   it('adds optional employee fields without changing legacy invoices', async () => {

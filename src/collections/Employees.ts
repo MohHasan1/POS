@@ -32,6 +32,23 @@ export const Employees: CollectionConfig = {
     { name: 'role', type: 'text', maxLength: 100 },
     { name: 'address', type: 'textarea', maxLength: 500 },
     { name: 'notes', type: 'textarea', maxLength: 500 },
+    {
+      name: 'compensationType',
+      type: 'select',
+      defaultValue: 'unconfigured',
+      required: true,
+      options: [
+        { label: 'Unconfigured', value: 'unconfigured' },
+        { label: 'Monthly salary', value: 'monthly' },
+        { label: 'Service commission', value: 'commission' },
+      ],
+    },
+    {
+      name: 'monthlySalaryMinor',
+      type: 'number',
+      min: 1,
+      admin: { description: 'Default monthly salary in the configured currency minor unit.' },
+    },
     { name: 'active', type: 'checkbox', defaultValue: true, required: true },
   ],
 }

@@ -70,7 +70,10 @@ export interface Config {
     users: User;
     products: Product;
     employees: Employee;
+    'employee-commission-rates': EmployeeCommissionRate;
     invoices: Invoice;
+    'employee-commission-overrides': EmployeeCommissionOverride;
+    'employee-payroll-entries': EmployeePayrollEntry;
     'receipt-vouchers': ReceiptVoucher;
     media: Media;
     'payload-kv': PayloadKv;
@@ -83,7 +86,10 @@ export interface Config {
     users: UsersSelect<false> | UsersSelect<true>;
     products: ProductsSelect<false> | ProductsSelect<true>;
     employees: EmployeesSelect<false> | EmployeesSelect<true>;
+    'employee-commission-rates': EmployeeCommissionRatesSelect<false> | EmployeeCommissionRatesSelect<true>;
     invoices: InvoicesSelect<false> | InvoicesSelect<true>;
+    'employee-commission-overrides': EmployeeCommissionOverridesSelect<false> | EmployeeCommissionOverridesSelect<true>;
+    'employee-payroll-entries': EmployeePayrollEntriesSelect<false> | EmployeePayrollEntriesSelect<true>;
     'receipt-vouchers': ReceiptVouchersSelect<false> | ReceiptVouchersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -197,6 +203,24 @@ export interface Employee {
   role?: string | null;
   address?: string | null;
   notes?: string | null;
+  compensationType: 'unconfigured' | 'monthly' | 'commission';
+  /**
+   * Default monthly salary in the configured currency minor unit.
+   */
+  monthlySalaryMinor?: number | null;
+  active: boolean;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "employee-commission-rates".
+ */
+export interface EmployeeCommissionRate {
+  id: string;
+  employee: string | Employee;
+  product: string | Product;
+  rateBps: number;
   active: boolean;
   updatedAt: string;
   createdAt: string;
@@ -271,12 +295,59 @@ export interface Invoice {
     netMinor: number;
     vatMinor: number;
     totalMinor: number;
+    commission?: {
+      rateBps?: number | null;
+      basisMinor?: number | null;
+      amountMinor?: number | null;
+    };
     id?: string | null;
   }[];
   subtotalMinor: number;
   vatMinor: number;
   totalMinor: number;
   qrPayload?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "employee-commission-overrides".
+ */
+export interface EmployeeCommissionOverride {
+  id: string;
+  invoice: string | Invoice;
+  invoiceItemId: string;
+  employee: string | Employee;
+  employeeSnapshot: {
+    name: string;
+  };
+  correctedAmountMinor: number;
+  note?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "employee-payroll-entries".
+ */
+export interface EmployeePayrollEntry {
+  id: string;
+  idempotencyKey: string;
+  employee: string | Employee;
+  employeeSnapshot: {
+    name: string;
+  };
+  entryType: 'monthlySalary' | 'payout';
+  entryDate: string;
+  salaryMonth?: string | null;
+  amountMinor: number;
+  countryCode: string;
+  currencyCode: string;
+  currencyMinorUnitDigits: number;
+  timeZone: string;
+  paymentMethod?: ('cash' | 'bank' | 'other') | null;
+  reference?: string | null;
+  note?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -401,8 +472,20 @@ export interface PayloadLockedDocument {
         value: string | Employee;
       } | null)
     | ({
+        relationTo: 'employee-commission-rates';
+        value: string | EmployeeCommissionRate;
+      } | null)
+    | ({
         relationTo: 'invoices';
         value: string | Invoice;
+      } | null)
+    | ({
+        relationTo: 'employee-commission-overrides';
+        value: string | EmployeeCommissionOverride;
+      } | null)
+    | ({
+        relationTo: 'employee-payroll-entries';
+        value: string | EmployeePayrollEntry;
       } | null)
     | ({
         relationTo: 'receipt-vouchers';
@@ -514,6 +597,21 @@ export interface EmployeesSelect<T extends boolean = true> {
   role?: T;
   address?: T;
   notes?: T;
+  compensationType?: T;
+  monthlySalaryMinor?: T;
+  active?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "employee-commission-rates_select".
+ */
+export interface EmployeeCommissionRatesSelect<T extends boolean = true> {
+  id?: T;
+  employee?: T;
+  product?: T;
+  rateBps?: T;
   active?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -598,12 +696,65 @@ export interface InvoicesSelect<T extends boolean = true> {
         netMinor?: T;
         vatMinor?: T;
         totalMinor?: T;
+        commission?:
+          | T
+          | {
+              rateBps?: T;
+              basisMinor?: T;
+              amountMinor?: T;
+            };
         id?: T;
       };
   subtotalMinor?: T;
   vatMinor?: T;
   totalMinor?: T;
   qrPayload?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "employee-commission-overrides_select".
+ */
+export interface EmployeeCommissionOverridesSelect<T extends boolean = true> {
+  id?: T;
+  invoice?: T;
+  invoiceItemId?: T;
+  employee?: T;
+  employeeSnapshot?:
+    | T
+    | {
+        name?: T;
+      };
+  correctedAmountMinor?: T;
+  note?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "employee-payroll-entries_select".
+ */
+export interface EmployeePayrollEntriesSelect<T extends boolean = true> {
+  id?: T;
+  idempotencyKey?: T;
+  employee?: T;
+  employeeSnapshot?:
+    | T
+    | {
+        name?: T;
+      };
+  entryType?: T;
+  entryDate?: T;
+  salaryMonth?: T;
+  amountMinor?: T;
+  countryCode?: T;
+  currencyCode?: T;
+  currencyMinorUnitDigits?: T;
+  timeZone?: T;
+  paymentMethod?: T;
+  reference?: T;
+  note?: T;
   updatedAt?: T;
   createdAt?: T;
 }

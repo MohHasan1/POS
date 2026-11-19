@@ -13,6 +13,7 @@ import {
   Settings,
   ShoppingCart,
   UsersRound,
+  WalletCards,
 } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -44,7 +45,7 @@ export function PrimaryNavigation({
   marketProfile: MarketProfile
 }) {
   const pathname = usePathname()
-  const primaryItems: Array<NavigationItem & { style: 'checkout' | 'invoices' | 'service' | 'voucher' }> = [
+  const primaryItems: Array<NavigationItem & { style: 'checkout' | 'neutral' | 'service' | 'voucher' }> = [
     { href: '/checkout', icon: ShoppingCart, label: dictionary.checkout, style: 'checkout' },
     {
       href: '/service-board',
@@ -58,9 +59,10 @@ export function PrimaryNavigation({
       label: dictionary.receiptVouchers,
       style: 'voucher',
     },
-    { href: '/invoices', icon: FileText, label: dictionary.invoices, style: 'invoices' },
+    { href: '/payroll', icon: WalletCards, label: dictionary.payroll, style: 'neutral' },
   ]
   const manageItems: NavigationItem[] = [
+    { href: '/invoices', icon: FileText, label: dictionary.invoices },
     { href: '/products', icon: Boxes, label: dictionary.products },
     { href: '/employees', icon: UsersRound, label: dictionary.employees },
     ...(marketSupports(marketProfile, 'historicalSales')
@@ -113,7 +115,7 @@ export function PrimaryNavigation({
                 'border border-violet-600 bg-violet-500 text-white shadow-sm hover:bg-violet-600 dark:border-violet-300 dark:bg-violet-400 dark:text-violet-950 dark:hover:bg-violet-300',
               style === 'voucher' &&
                 'bg-amber-100 text-amber-950 shadow-sm hover:bg-amber-200 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-amber-900',
-              style === 'invoices' &&
+              style === 'neutral' &&
                 (active
                   ? 'bg-muted text-foreground'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'),

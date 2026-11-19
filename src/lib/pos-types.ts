@@ -18,7 +18,7 @@ export type ProductSummary = Pick<
 
 export type EmployeeSummary = Pick<
   Employee,
-  'active' | 'employeeCode' | 'id' | 'name' | 'role'
+  'active' | 'compensationType' | 'employeeCode' | 'id' | 'name' | 'role'
 >
 
 export type BuyerInput = {

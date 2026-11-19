@@ -153,6 +153,15 @@ export const Invoices: CollectionConfig = {
         { name: 'netMinor', type: 'number', required: true, min: 0 },
         { name: 'vatMinor', type: 'number', required: true, min: 0 },
         { name: 'totalMinor', type: 'number', required: true, min: 0 },
+        {
+          name: 'commission',
+          type: 'group',
+          fields: [
+            { name: 'rateBps', type: 'number', min: 0, max: 10_000 },
+            { name: 'basisMinor', type: 'number', min: 0 },
+            { name: 'amountMinor', type: 'number', min: 0 },
+          ],
+        },
       ],
     },
     { name: 'subtotalMinor', type: 'number', required: true, min: 0 },

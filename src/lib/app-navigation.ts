@@ -9,6 +9,7 @@ import {
   Settings,
   ShoppingCart,
   UsersRound,
+  WalletCards,
 } from 'lucide-react'
 
 import { marketSupports, type MarketProfile } from './market'
@@ -41,7 +42,7 @@ export const appNavigation = [
   {
     href: '/invoices',
     labelKey: 'invoices',
-    homeLabelKey: 'invoiceHistory',
+    homeLabelKey: 'invoices',
     homeDescriptionKey: 'homeInvoicesDescription',
     icon: FileText,
     primary: false,
@@ -49,7 +50,7 @@ export const appNavigation = [
   {
     href: '/historical-sales',
     labelKey: 'recordPastSale',
-    homeLabelKey: 'recordPastSale',
+    homeLabelKey: 'homeHistoryLabel',
     homeDescriptionKey: 'homeHistoricalSalesDescription',
     icon: History,
     marketFeature: 'historicalSales',
@@ -58,7 +59,7 @@ export const appNavigation = [
   {
     href: '/products',
     labelKey: 'products',
-    homeLabelKey: 'manageProducts',
+    homeLabelKey: 'products',
     homeDescriptionKey: 'homeProductsDescription',
     icon: Boxes,
     primary: false,
@@ -66,15 +67,23 @@ export const appNavigation = [
   {
     href: '/employees',
     labelKey: 'employees',
-    homeLabelKey: 'manageEmployees',
+    homeLabelKey: 'employees',
     homeDescriptionKey: 'homeEmployeesDescription',
     icon: UsersRound,
     primary: false,
   },
   {
+    href: '/payroll',
+    labelKey: 'payroll',
+    homeLabelKey: 'homePayrollLabel',
+    homeDescriptionKey: 'homePayrollDescription',
+    icon: WalletCards,
+    primary: false,
+  },
+  {
     href: '/receipt-vouchers',
     labelKey: 'receiptVouchers',
-    homeLabelKey: 'receiptVouchers',
+    homeLabelKey: 'homeVouchersLabel',
     homeDescriptionKey: 'homeReceiptVouchersDescription',
     icon: ReceiptText,
     primary: false,
@@ -82,7 +91,7 @@ export const appNavigation = [
   {
     href: '/business',
     labelKey: 'businessInformation',
-    homeLabelKey: 'businessInformation',
+    homeLabelKey: 'homeBusinessLabel',
     homeDescriptionKey: 'homeBusinessDescription',
     icon: Building2,
     primary: false,

@@ -9,6 +9,11 @@ export type EmployeeInput = Pick<
   'address' | 'email' | 'employeeCode' | 'name' | 'notes' | 'phone' | 'role'
 >
 
+export type EmployeeCompensationInput = Pick<
+  Employee,
+  'compensationType' | 'monthlySalaryMinor'
+>
+
 export function employeeRelationshipId(
   value: Employee | null | string | undefined,
 ): string | undefined {
@@ -37,10 +42,21 @@ export async function getEmployee(id: string): Promise<Employee | null> {
 
 export async function createEmployee(data: EmployeeInput): Promise<Employee> {
   const payload = await getPayload({ config })
-  return payload.create({ collection: 'employees', data: { ...data, active: true } })
+  return payload.create({
+    collection: 'employees',
+    data: { ...data, active: true, compensationType: 'unconfigured' },
+  })
 }
 
 export async function updateEmployee(id: string, data: EmployeeInput): Promise<Employee> {
+  const payload = await getPayload({ config })
+  return payload.update({ collection: 'employees', id, data })
+}
+
+export async function updateEmployeeCompensation(
+  id: string,
+  data: EmployeeCompensationInput,
+): Promise<Employee> {
   const payload = await getPayload({ config })
   return payload.update({ collection: 'employees', id, data })
 }

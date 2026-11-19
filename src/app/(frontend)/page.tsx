@@ -92,7 +92,7 @@ export default async function HomePage() {
             </Link>
           ))}
         </div>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-8">
           {secondaryActions.map(({ href, homeLabelKey, icon: Icon }) => (
             <Link
               key={href}
@@ -153,11 +153,14 @@ export default async function HomePage() {
                   <span className="flex size-7 items-center justify-center rounded-full bg-muted text-xs font-semibold">
                     {index + 1}
                   </span>
-                  <span className="min-w-0">
+                  <span className="min-w-0 text-left">
                     <span className="block truncate text-sm font-medium">
                       {service.nameEnglish}
                     </span>
-                    <span className="block truncate text-xs text-muted-foreground" dir="rtl">
+                    <span
+                      className="block truncate text-left text-xs text-muted-foreground"
+                      dir={dashboard.secondaryLanguage === 'ar' ? 'rtl' : 'ltr'}
+                    >
                       {localizedName(normalizedTranslations(undefined, { ar: service.nameArabic, bn: service.nameBangla }), dashboard.secondaryLanguage)}
                     </span>
                   </span>

@@ -1,11 +1,13 @@
 'use client'
 
-import { Pencil, Plus, Search, Star } from 'lucide-react'
+import { Pencil, Plus, Search, Star, WalletCards } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 
 import { setDefaultEmployeeAction, setEmployeeActiveAction } from '@/actions/employees'
+import { CompensationPlanBadge } from '@/components/employees/CompensationPlanBadge'
 import { EmployeeForm } from '@/components/employees/EmployeeForm'
+import { CompensationForm } from '@/components/employees/CompensationForm'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -25,21 +27,31 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { Dictionary } from '@/lib/localization'
-import type { Employee } from '@/payload-types'
+import type { MarketProfile } from '@/lib/market'
+import type { Employee, Product } from '@/payload-types'
 
 export function EmployeesManager({
   defaultEmployeeId,
   dictionary,
   employees,
+  initialCompensationEmployeeId,
+  market,
+  products,
 }: {
   defaultEmployeeId?: string
   dictionary: Dictionary
   employees: Employee[]
+  initialCompensationEmployeeId?: string
+  market: MarketProfile
+  products: Product[]
 }) {
   const router = useRouter()
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<Employee | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [compensationEditing, setCompensationEditing] = useState<Employee | null>(
+    () => employees.find(({ id }) => id === initialCompensationEmployeeId) || null,
+  )
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
   const query = search.trim().toLocaleLowerCase()
@@ -52,6 +64,11 @@ export function EmployeesManager({
   function openForm(employee: Employee | null) {
     setEditing(employee)
     setDialogOpen(true)
+  }
+
+  function closeCompensation() {
+    setCompensationEditing(null)
+    if (initialCompensationEmployeeId) router.replace('/employees', { scroll: false })
   }
 
   function run(action: () => Promise<{ ok: boolean; error?: string }>) {
@@ -90,6 +107,7 @@ export function EmployeesManager({
             <TableHead>{dictionary.employeeRole}</TableHead>
             <TableHead>{dictionary.status}</TableHead>
             <TableHead>{dictionary.defaultEmployee}</TableHead>
+            <TableHead>{dictionary.compensationPlan}</TableHead>
             <TableHead className="text-right">{dictionary.actions}</TableHead>
           </TableRow>
         </TableHeader>
@@ -113,9 +131,18 @@ export function EmployeesManager({
                   {isDefault ? <Badge><Star className="size-3" />{dictionary.defaultEmployee}</Badge> : '—'}
                 </TableCell>
                 <TableCell>
+                  <CompensationPlanBadge
+                    label={dictionary[`compensation_${employee.compensationType}`]}
+                    type={employee.compensationType}
+                  />
+                </TableCell>
+                <TableCell>
                   <div className="flex justify-end gap-1">
                     <Button size="sm" variant="ghost" onClick={() => openForm(employee)}>
                       <Pencil /> {dictionary.edit}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setCompensationEditing(employee)}>
+                      <WalletCards /> {dictionary.setupPay}
                     </Button>
                     <Button
                       size="sm"
@@ -140,7 +167,7 @@ export function EmployeesManager({
           })}
           {filtered.length === 0 && (
             <TableRow>
-              <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+              <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                 {dictionary.noEmployees}
               </TableCell>
             </TableRow>
@@ -159,6 +186,28 @@ export function EmployeesManager({
             employee={editing}
             onDone={() => setDialogOpen(false)}
           />
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={Boolean(compensationEditing)}
+        onOpenChange={(open) => !open && closeCompensation()}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{dictionary.setupCompensation}</DialogTitle>
+            <DialogDescription>
+              {compensationEditing?.name} · {dictionary.compensationDescription}
+            </DialogDescription>
+          </DialogHeader>
+          {compensationEditing && (
+            <CompensationForm
+              dictionary={dictionary}
+              employee={compensationEditing}
+              market={market}
+              onDone={closeCompensation}
+              products={products}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </section>

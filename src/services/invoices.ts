@@ -17,6 +17,7 @@ import { encodeZatcaQr } from '@/lib/zatca-qr'
 import type { Invoice, Product } from '@/payload-types'
 
 import { getEmployee } from './employees'
+import { getActiveCommissionRateMap } from './payroll'
 import { areShopSettingsComplete, getShopSettings, marketContextFromSettings } from './settings'
 
 export type FinalizeInvoiceOptions = {
@@ -73,6 +74,7 @@ function isUniqueConstraintError(error: unknown): boolean {
 async function resolveItem(
   item: FinalizeInvoiceInput['items'][number],
   profile: MarketProfile,
+  commissionRates: Map<string, number>,
 ) {
   let product: Product | null = null
   if (item.productId) {
@@ -103,6 +105,16 @@ async function resolveItem(
     vatCategory,
   })
 
+  const commissionRateBps = product ? commissionRates.get(product.id) : undefined
+  const commission =
+    commissionRateBps === undefined
+      ? undefined
+      : {
+          rateBps: commissionRateBps,
+          basisMinor: calculated.netMinor,
+          amountMinor: Math.round((calculated.netMinor * commissionRateBps) / 10_000),
+        }
+
   return {
     product: product?.id,
     descriptionEnglish,
@@ -110,6 +122,7 @@ async function resolveItem(
     descriptionArabic,
     translations,
     ...calculated,
+    commission,
   }
 }
 
@@ -146,6 +159,10 @@ export async function finalizeInvoice(
   if (input.employeeId && !employee?.active) {
     throw new Error('The selected employee is missing or inactive.')
   }
+  const commissionRates =
+    employee?.compensationType === 'commission'
+      ? await getActiveCommissionRateMap(employee.id)
+      : new Map<string, number>()
 
   const buyer =
     expectedType === 'standard'
@@ -168,7 +185,7 @@ export async function finalizeInvoice(
   if (Number.isNaN(issuedAt.getTime())) throw new Error('Enter a valid sale date.')
   issuedAt.setMilliseconds(0)
   const items = await Promise.all(
-    input.items.map((item) => resolveItem(item, profile)),
+    input.items.map((item) => resolveItem(item, profile, commissionRates)),
   )
   const totals = calculateInvoiceTotals(items)
   const seller = {

@@ -6,6 +6,9 @@ import { fileURLToPath } from 'url'
 
 import { Invoices } from './collections/Invoices'
 import { Employees } from './collections/Employees'
+import { EmployeeCommissionOverrides } from './collections/EmployeeCommissionOverrides'
+import { EmployeeCommissionRates } from './collections/EmployeeCommissionRates'
+import { EmployeePayrollEntries } from './collections/EmployeePayrollEntries'
 import { Media } from './collections/Media'
 import { Products } from './collections/Products'
 import { ReceiptVouchers } from './collections/ReceiptVouchers'
@@ -41,7 +44,17 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Products, Employees, Invoices, ReceiptVouchers, Media],
+  collections: [
+    Users,
+    Products,
+    Employees,
+    EmployeeCommissionRates,
+    Invoices,
+    EmployeeCommissionOverrides,
+    EmployeePayrollEntries,
+    ReceiptVouchers,
+    Media,
+  ],
   globals: [ShopSettings, ServiceBoardSettings],
   secret: payloadSecret,
   typescript: {
