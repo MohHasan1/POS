@@ -74,6 +74,10 @@ export interface Config {
     invoices: Invoice;
     'employee-commission-overrides': EmployeeCommissionOverride;
     'employee-payroll-entries': EmployeePayrollEntry;
+    'expense-categories': ExpenseCategory;
+    'expense-templates': ExpenseTemplate;
+    expenses: Expense;
+    'invoice-cost-overrides': InvoiceCostOverride;
     'receipt-vouchers': ReceiptVoucher;
     media: Media;
     'payload-kv': PayloadKv;
@@ -90,6 +94,10 @@ export interface Config {
     invoices: InvoicesSelect<false> | InvoicesSelect<true>;
     'employee-commission-overrides': EmployeeCommissionOverridesSelect<false> | EmployeeCommissionOverridesSelect<true>;
     'employee-payroll-entries': EmployeePayrollEntriesSelect<false> | EmployeePayrollEntriesSelect<true>;
+    'expense-categories': ExpenseCategoriesSelect<false> | ExpenseCategoriesSelect<true>;
+    'expense-templates': ExpenseTemplatesSelect<false> | ExpenseTemplatesSelect<true>;
+    expenses: ExpensesSelect<false> | ExpensesSelect<true>;
+    'invoice-cost-overrides': InvoiceCostOverridesSelect<false> | InvoiceCostOverridesSelect<true>;
     'receipt-vouchers': ReceiptVouchersSelect<false> | ReceiptVouchersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -184,6 +192,10 @@ export interface Product {
    * Selling price in the configured currency minor unit.
    */
   priceMinor: number;
+  /**
+   * Optional VAT-exclusive direct cost per sold unit.
+   */
+  unitCostMinor?: number | null;
   vatCategory: 'standard' | 'zero' | 'exempt';
   priceIncludesVat: boolean;
   active: boolean;
@@ -295,6 +307,10 @@ export interface Invoice {
     netMinor: number;
     vatMinor: number;
     totalMinor: number;
+    cost?: {
+      unitCostMinor?: number | null;
+      totalCostMinor?: number | null;
+    };
     commission?: {
       rateBps?: number | null;
       basisMinor?: number | null;
@@ -347,6 +363,90 @@ export interface EmployeePayrollEntry {
   timeZone: string;
   paymentMethod?: ('cash' | 'bank' | 'other') | null;
   reference?: string | null;
+  note?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "expense-categories".
+ */
+export interface ExpenseCategory {
+  id: string;
+  name: string;
+  description?: string | null;
+  active: boolean;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "expense-templates".
+ */
+export interface ExpenseTemplate {
+  id: string;
+  name: string;
+  category: string | ExpenseCategory;
+  vendor?: string | null;
+  defaultTotalMinor: number;
+  defaultVatMinor: number;
+  frequency: 'weekly' | 'monthly' | 'yearly';
+  weeklyDay?: number | null;
+  monthlyDay?: number | null;
+  yearlyMonth?: number | null;
+  yearlyDay?: number | null;
+  startDate: string;
+  endDate?: string | null;
+  note?: string | null;
+  active: boolean;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "expenses".
+ */
+export interface Expense {
+  id: string;
+  idempotencyKey: string;
+  recordType: 'fixed' | 'variable' | 'capital';
+  status: 'confirmed' | 'voided' | 'skipped';
+  template?: (string | null) | ExpenseTemplate;
+  occurrenceKey?: string | null;
+  category?: (string | null) | ExpenseCategory;
+  categorySnapshot: {
+    name: string;
+  };
+  name: string;
+  vendor?: string | null;
+  billDate: string;
+  totalMinor: number;
+  vatMinor: number;
+  netMinor: number;
+  paymentStatus: 'unpaid' | 'paid';
+  paidAt?: string | null;
+  paymentMethod?: ('cash' | 'bank' | 'other') | null;
+  reference?: string | null;
+  note?: string | null;
+  voidReason?: string | null;
+  countryCode: string;
+  currencyCode: string;
+  currencyMinorUnitDigits: number;
+  timeZone: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "invoice-cost-overrides".
+ */
+export interface InvoiceCostOverride {
+  id: string;
+  invoice: string | Invoice;
+  invoiceItemId: string;
+  product?: (string | null) | Product;
+  unitCostMinor: number;
+  totalCostMinor: number;
   note?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -488,6 +588,22 @@ export interface PayloadLockedDocument {
         value: string | EmployeePayrollEntry;
       } | null)
     | ({
+        relationTo: 'expense-categories';
+        value: string | ExpenseCategory;
+      } | null)
+    | ({
+        relationTo: 'expense-templates';
+        value: string | ExpenseTemplate;
+      } | null)
+    | ({
+        relationTo: 'expenses';
+        value: string | Expense;
+      } | null)
+    | ({
+        relationTo: 'invoice-cost-overrides';
+        value: string | InvoiceCostOverride;
+      } | null)
+    | ({
         relationTo: 'receipt-vouchers';
         value: string | ReceiptVoucher;
       } | null)
@@ -578,6 +694,7 @@ export interface ProductsSelect<T extends boolean = true> {
       };
   sku?: T;
   priceMinor?: T;
+  unitCostMinor?: T;
   vatCategory?: T;
   priceIncludesVat?: T;
   active?: T;
@@ -696,6 +813,12 @@ export interface InvoicesSelect<T extends boolean = true> {
         netMinor?: T;
         vatMinor?: T;
         totalMinor?: T;
+        cost?:
+          | T
+          | {
+              unitCostMinor?: T;
+              totalCostMinor?: T;
+            };
         commission?:
           | T
           | {
@@ -754,6 +877,92 @@ export interface EmployeePayrollEntriesSelect<T extends boolean = true> {
   timeZone?: T;
   paymentMethod?: T;
   reference?: T;
+  note?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "expense-categories_select".
+ */
+export interface ExpenseCategoriesSelect<T extends boolean = true> {
+  id?: T;
+  name?: T;
+  description?: T;
+  active?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "expense-templates_select".
+ */
+export interface ExpenseTemplatesSelect<T extends boolean = true> {
+  id?: T;
+  name?: T;
+  category?: T;
+  vendor?: T;
+  defaultTotalMinor?: T;
+  defaultVatMinor?: T;
+  frequency?: T;
+  weeklyDay?: T;
+  monthlyDay?: T;
+  yearlyMonth?: T;
+  yearlyDay?: T;
+  startDate?: T;
+  endDate?: T;
+  note?: T;
+  active?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "expenses_select".
+ */
+export interface ExpensesSelect<T extends boolean = true> {
+  id?: T;
+  idempotencyKey?: T;
+  recordType?: T;
+  status?: T;
+  template?: T;
+  occurrenceKey?: T;
+  category?: T;
+  categorySnapshot?:
+    | T
+    | {
+        name?: T;
+      };
+  name?: T;
+  vendor?: T;
+  billDate?: T;
+  totalMinor?: T;
+  vatMinor?: T;
+  netMinor?: T;
+  paymentStatus?: T;
+  paidAt?: T;
+  paymentMethod?: T;
+  reference?: T;
+  note?: T;
+  voidReason?: T;
+  countryCode?: T;
+  currencyCode?: T;
+  currencyMinorUnitDigits?: T;
+  timeZone?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "invoice-cost-overrides_select".
+ */
+export interface InvoiceCostOverridesSelect<T extends boolean = true> {
+  id?: T;
+  invoice?: T;
+  invoiceItemId?: T;
+  product?: T;
+  unitCostMinor?: T;
+  totalCostMinor?: T;
   note?: T;
   updatedAt?: T;
   createdAt?: T;

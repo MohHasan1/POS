@@ -18,6 +18,7 @@ describe('product CSV transfer', () => {
         priceIncludesVat: true,
         priceMinor: 2_575,
         sku: 'OIL-1',
+        unitCostMinor: 1_250,
         vatCategory: 'standard' as const,
       },
     ]
@@ -45,6 +46,17 @@ describe('product CSV transfer', () => {
         vatCategory: 'zero',
       },
     ])
+  })
+
+  it('keeps legacy CSV files without a unit cost column compatible', () => {
+    const csv = [
+      'nameEnglish,nameArabic,nameBangla,sku,price,vatCategory,priceIncludesVat,active',
+      'Legacy Service,,,LEGACY-1,25.00,exempt,false,true',
+    ].join('\n')
+
+    const [product] = parseProductsCsv(csv)
+    assert.equal(product.priceMinor, 2_500)
+    assert.equal('unitCostMinor' in product, false)
   })
 
   it('rejects duplicate SKUs before any database writes', () => {

@@ -30,7 +30,9 @@ export default async function HomePage() {
   const businessLogo = getBusinessLogo(settings)
   const availableNavigation = getAppNavigation(dashboard.market)
   const primaryActions = availableNavigation.filter(({ primary }) => primary)
-  const secondaryActions = availableNavigation.filter(({ href, primary }) => href !== '/' && !primary)
+  const secondaryActions = availableNavigation.filter((item) =>
+    item.href !== '/' && !item.primary && (!('homeVisible' in item) || item.homeVisible !== false),
+  )
   const periods: Array<{ label: string; metric: SalesPeriodMetric }> = [
     { label: dictionary.todaySales, metric: dashboard.today },
     { label: dictionary.monthSales, metric: dashboard.month },

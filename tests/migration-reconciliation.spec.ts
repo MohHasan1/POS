@@ -21,6 +21,7 @@ import { up as makeProductNamesNullable } from '@/migrations/20261117_132500_nul
 import { up as addEmployeeAssignments } from '@/migrations/20261118_123605_employee_assignments'
 import { up as addHistoricalSalesBackfill } from '@/migrations/20261118_130246_historical_sales_backfill'
 import { up as addEmployeePayroll } from '@/lib/payroll-migration'
+import { up as addBusinessReports } from '@/lib/business-reports-migration'
 
 describe('SQLite migration reconciliation', () => {
   it('safely reconciles a schema that Payload already pushed in development', async () => {
@@ -39,6 +40,8 @@ describe('SQLite migration reconciliation', () => {
     await addHistoricalSalesBackfill(args)
     await addEmployeePayroll(args)
     await addEmployeePayroll(args)
+    await addBusinessReports(args)
+    await addBusinessReports(args)
 
     const { rows } = await db.run(sql`PRAGMA table_info('payload_locked_documents_rels');`)
     const columns = new Set(rows.map((row) => String((row as unknown as { name: unknown }).name)))
@@ -46,11 +49,23 @@ describe('SQLite migration reconciliation', () => {
     assert.equal(columns.has('receipt_vouchers_id'), true)
     assert.equal(columns.has('employees_id'), true)
     assert.equal(columns.has('employee_payroll_entries_id'), true)
+    assert.equal(columns.has('expenses_id'), true)
+    assert.equal(columns.has('invoice_cost_overrides_id'), true)
     const invoiceColumns = await db.run(sql`PRAGMA table_info('invoices');`)
     const invoiceColumnNames = new Set(invoiceColumns.rows.map((row) => String(row.name)))
     assert.equal(invoiceColumnNames.has('entry_source'), true)
     assert.equal(invoiceColumnNames.has('external_reference'), true)
     assert.equal(invoiceColumnNames.has('issued_at_precision'), true)
+    const productColumns = await db.run(sql`PRAGMA table_info('products');`)
+    assert.equal(
+      productColumns.rows.some((row) => row.name === 'unit_cost_minor'),
+      true,
+    )
+    const itemColumns = await db.run(sql`PRAGMA table_info('invoices_items');`)
+    assert.equal(
+      itemColumns.rows.some((row) => row.name === 'cost_total_cost_minor'),
+      true,
+    )
   })
 
   it('adds payroll tables and leaves existing employees and invoices unchanged', async () => {
@@ -69,8 +84,12 @@ describe('SQLite migration reconciliation', () => {
       await db.run(sql`CREATE TABLE invoices_items (
         _order integer NOT NULL, _parent_id text NOT NULL, id text PRIMARY KEY NOT NULL
       );`)
-      await db.run(sql`CREATE TABLE payload_locked_documents_rels (id integer PRIMARY KEY NOT NULL);`)
-      await db.run(sql`INSERT INTO employees (id, name, active) VALUES ('legacy-employee', 'Legacy Employee', 1);`)
+      await db.run(
+        sql`CREATE TABLE payload_locked_documents_rels (id integer PRIMARY KEY NOT NULL);`,
+      )
+      await db.run(
+        sql`INSERT INTO employees (id, name, active) VALUES ('legacy-employee', 'Legacy Employee', 1);`,
+      )
       await db.run(sql`INSERT INTO invoices (id) VALUES ('legacy-invoice');`)
       await db.run(sql`INSERT INTO invoices_items (_order, _parent_id, id)
         VALUES (1, 'legacy-invoice', 'legacy-line');`)
@@ -97,7 +116,71 @@ describe('SQLite migration reconciliation', () => {
         'employee_commission_overrides',
         'employee_payroll_entries',
       ]) {
-        const found = await db.run(sql.raw(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = '${table}';`))
+        const found = await db.run(
+          sql.raw(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = '${table}';`),
+        )
+        assert.equal(found.rows.length, 1)
+      }
+    } finally {
+      client.close()
+      rmSync(directory, { force: true, recursive: true })
+    }
+  })
+
+  it('adds reporting and expense tables without changing legacy sales data', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'quickpos-reporting-migration-'))
+    const client = createClient({ url: `file:${path.join(directory, 'legacy.db')}` })
+    const database = drizzle(client)
+    const db = database as unknown as MigrateUpArgs['db']
+    const args = { db } as MigrateUpArgs
+
+    try {
+      await db.run(sql`CREATE TABLE products (
+        id text PRIMARY KEY NOT NULL, name_english text NOT NULL, price_minor numeric NOT NULL
+      );`)
+      await db.run(sql`CREATE TABLE invoices (
+        id text PRIMARY KEY NOT NULL, invoice_number text NOT NULL
+      );`)
+      await db.run(sql`CREATE TABLE invoices_items (
+        _order integer NOT NULL, _parent_id text NOT NULL, id text PRIMARY KEY NOT NULL,
+        description_english text NOT NULL
+      );`)
+      await db.run(
+        sql`CREATE TABLE payload_locked_documents_rels (id integer PRIMARY KEY NOT NULL);`,
+      )
+      await db.run(sql`INSERT INTO products (id, name_english, price_minor)
+        VALUES ('legacy-product', 'Legacy Product', 10000);`)
+      await db.run(sql`INSERT INTO invoices (id, invoice_number)
+        VALUES ('legacy-invoice', 'INV-LEGACY');`)
+      await db.run(sql`INSERT INTO invoices_items (_order, _parent_id, id, description_english)
+        VALUES (1, 'legacy-invoice', 'legacy-line', 'Legacy Product');`)
+
+      await addBusinessReports(args)
+      await addBusinessReports(args)
+
+      const product = await db.run(sql`SELECT name_english, price_minor, unit_cost_minor
+        FROM products WHERE id = 'legacy-product';`)
+      assert.deepEqual(product.rows[0], {
+        name_english: 'Legacy Product',
+        price_minor: 10000,
+        unit_cost_minor: null,
+      })
+      const line = await db.run(sql`SELECT description_english, cost_unit_cost_minor,
+        cost_total_cost_minor FROM invoices_items WHERE id = 'legacy-line';`)
+      assert.deepEqual(line.rows[0], {
+        cost_total_cost_minor: null,
+        cost_unit_cost_minor: null,
+        description_english: 'Legacy Product',
+      })
+      for (const table of [
+        'expense_categories',
+        'expense_templates',
+        'expenses',
+        'invoice_cost_overrides',
+      ]) {
+        const found = await db.run(
+          sql.raw(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = '${table}';`),
+        )
         assert.equal(found.rows.length, 1)
       }
     } finally {
@@ -138,7 +221,9 @@ describe('SQLite migration reconciliation', () => {
       const invoice = await db.run(sql`SELECT invoice_number, employee_id,
         employee_snapshot_name, entry_source, external_reference, issued_at_precision
         FROM invoices WHERE id = 'legacy-invoice';`)
-      const settings = await db.run(sql`SELECT default_employee_id FROM shop_settings WHERE id = 1;`)
+      const settings = await db.run(
+        sql`SELECT default_employee_id FROM shop_settings WHERE id = 1;`,
+      )
       const employeeTable = await db.run(sql`SELECT name FROM sqlite_master
         WHERE type = 'table' AND name = 'employees';`)
 
@@ -418,15 +503,31 @@ describe('SQLite migration reconciliation', () => {
         await makeProductNamesNullable(transactionArgs)
       })
 
-      const settings = await db.run(sql`SELECT country_code, secondary_language FROM shop_settings WHERE id = 1;`)
-      const invoice = await db.run(sql`SELECT country_code, currency_code, time_zone, tax_mode, qr_payload FROM invoices WHERE id = 'legacy-invoice';`)
-      const product = await db.run(sql`SELECT id, name_arabic, name_bangla FROM products WHERE id = 'legacy-product';`)
-      const productTranslations = await db.run(sql`SELECT language, name FROM products_translations WHERE _parent_id = 'legacy-product' ORDER BY _order;`)
-      const itemTranslations = await db.run(sql`SELECT language, name FROM invoices_items_translations WHERE _parent_id = 'legacy-item' ORDER BY _order;`)
+      const settings = await db.run(
+        sql`SELECT country_code, secondary_language FROM shop_settings WHERE id = 1;`,
+      )
+      const invoice = await db.run(
+        sql`SELECT country_code, currency_code, time_zone, tax_mode, qr_payload FROM invoices WHERE id = 'legacy-invoice';`,
+      )
+      const product = await db.run(
+        sql`SELECT id, name_arabic, name_bangla FROM products WHERE id = 'legacy-product';`,
+      )
+      const productTranslations = await db.run(
+        sql`SELECT language, name FROM products_translations WHERE _parent_id = 'legacy-product' ORDER BY _order;`,
+      )
+      const itemTranslations = await db.run(
+        sql`SELECT language, name FROM invoices_items_translations WHERE _parent_id = 'legacy-item' ORDER BY _order;`,
+      )
       const productColumns = await db.run(sql`PRAGMA table_info('products');`)
-      const itemProduct = await db.run(sql`SELECT product_id FROM invoices_items WHERE id = 'legacy-item';`)
-      const boardProduct = await db.run(sql`SELECT product_id FROM service_board_settings_columns WHERE id = 'legacy-column';`)
-      const lockedProduct = await db.run(sql`SELECT products_id FROM payload_locked_documents_rels WHERE id = 1;`)
+      const itemProduct = await db.run(
+        sql`SELECT product_id FROM invoices_items WHERE id = 'legacy-item';`,
+      )
+      const boardProduct = await db.run(
+        sql`SELECT product_id FROM service_board_settings_columns WHERE id = 'legacy-column';`,
+      )
+      const lockedProduct = await db.run(
+        sql`SELECT products_id FROM payload_locked_documents_rels WHERE id = 1;`,
+      )
 
       assert.deepEqual(settings.rows[0], { country_code: 'SA', secondary_language: 'ar' })
       assert.deepEqual(product.rows[0], {

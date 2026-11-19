@@ -144,7 +144,15 @@ export function PayrollClient({
               onValueChange={(value) => {
                 const mode = value as PayrollPeriodMode
                 setFilterMode(mode)
-                setFilterValue(mode === 'day' ? today : mode === 'month' ? today.slice(0, 7) : mode === 'year' ? today.slice(0, 4) : '')
+                setFilterValue(
+                  mode === 'day'
+                    ? today
+                    : mode === 'month'
+                      ? today.slice(0, 7)
+                      : mode === 'year'
+                        ? today.slice(0, 4)
+                        : '',
+                )
               }}
             >
               <SelectTrigger id="payroll-period" className="h-9 min-w-36 bg-background">
@@ -165,7 +173,13 @@ export function PayrollClient({
                 id="payroll-period-value"
                 type={filterMode === 'year' ? 'number' : filterMode}
                 min={filterMode === 'year' ? '2000' : undefined}
-                max={filterMode === 'year' ? today.slice(0, 4) : filterMode === 'month' ? today.slice(0, 7) : today}
+                max={
+                  filterMode === 'year'
+                    ? today.slice(0, 4)
+                    : filterMode === 'month'
+                      ? today.slice(0, 7)
+                      : today
+                }
                 required
                 value={filterValue}
                 onChange={(event) => setFilterValue(event.target.value)}
@@ -176,21 +190,34 @@ export function PayrollClient({
             <Label htmlFor="payroll-employee-filter">{dictionary.employee}</Label>
             <Select
               value={filterEmployee || ALL_EMPLOYEES}
-              onValueChange={(value) => setFilterEmployee(value === ALL_EMPLOYEES ? '' : value || '')}
+              onValueChange={(value) =>
+                setFilterEmployee(value === ALL_EMPLOYEES ? '' : value || '')
+              }
             >
               <SelectTrigger id="payroll-employee-filter" className="h-9 w-full bg-background">
-                <SelectValue />
+                <SelectValue>
+                  {filterEmployee
+                    ? employees.find((employee) => employee.id === filterEmployee)?.name ||
+                      dictionary.allEmployees
+                    : dictionary.allEmployees}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent align="start">
                 <SelectItem value={ALL_EMPLOYEES}>{dictionary.allEmployees}</SelectItem>
                 {employees.map((employee) => (
-                  <SelectItem key={employee.id} value={employee.id}>{employee.name}</SelectItem>
+                  <SelectItem key={employee.id} value={employee.id}>
+                    {employee.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-          <Button type="submit" variant="secondary">{dictionary.applyFilter}</Button>
-          <Button type="button" variant="ghost" onClick={resetFilters}>{dictionary.resetFilters}</Button>
+          <Button type="submit" variant="secondary">
+            {dictionary.applyFilter}
+          </Button>
+          <Button type="button" variant="ghost" onClick={resetFilters}>
+            {dictionary.resetFilters}
+          </Button>
           <div className="flex flex-wrap gap-2 lg:ml-auto">
             <Button type="button" variant="success" onClick={() => openMonthlySalary()}>
               <WalletCards /> {dictionary.confirmMonthlySalary}
@@ -206,7 +233,9 @@ export function PayrollClient({
         {metricCards.map(([label, value], index) => (
           <article key={label} className="rounded-lg border bg-card p-4 shadow-sm">
             <p className="text-xs font-medium text-muted-foreground">{label}</p>
-            <p className={`mt-2 text-xl font-semibold tabular-nums ${index === 4 && value < 0 ? 'text-amber-600 dark:text-amber-400' : ''}`}>
+            <p
+              className={`mt-2 text-xl font-semibold tabular-nums ${index === 4 && value < 0 ? 'text-amber-600 dark:text-amber-400' : ''}`}
+            >
               {money(value)}
             </p>
             {index === 4 && (
@@ -220,18 +249,22 @@ export function PayrollClient({
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
         <section className="overflow-hidden rounded-lg border bg-background">
-          <div className="border-b px-4 py-3"><h2 className="font-medium">{dictionary.employeeBalances}</h2></div>
+          <div className="border-b px-4 py-3">
+            <h2 className="font-medium">{dictionary.employeeBalances}</h2>
+          </div>
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader><TableRow>
-                <TableHead>{dictionary.employee}</TableHead>
-                <TableHead>{dictionary.compensationPlan}</TableHead>
-                <TableHead className="text-right">{dictionary.salesGenerated}</TableHead>
-                <TableHead className="text-right">{dictionary.totalEarned}</TableHead>
-                <TableHead className="text-right">{dictionary.totalPaid}</TableHead>
-                <TableHead className="text-right">{dictionary.currentBalance}</TableHead>
-                <TableHead className="text-right">{dictionary.actions}</TableHead>
-              </TableRow></TableHeader>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{dictionary.employee}</TableHead>
+                  <TableHead>{dictionary.compensationPlan}</TableHead>
+                  <TableHead className="text-right">{dictionary.salesGenerated}</TableHead>
+                  <TableHead className="text-right">{dictionary.totalEarned}</TableHead>
+                  <TableHead className="text-right">{dictionary.totalPaid}</TableHead>
+                  <TableHead className="text-right">{dictionary.currentBalance}</TableHead>
+                  <TableHead className="text-right">{dictionary.actions}</TableHead>
+                </TableRow>
+              </TableHeader>
               <TableBody>
                 {dashboard.employeeSummaries.map((summary) => (
                   <TableRow key={summary.employeeId}>
@@ -242,10 +275,18 @@ export function PayrollClient({
                         type={summary.compensationType}
                       />
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">{money(summary.salesGeneratedMinor)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{money(summary.totalEarnedMinor)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{money(summary.paidMinor)}</TableCell>
-                    <TableCell className={`text-right font-medium tabular-nums ${summary.currentBalanceMinor < 0 ? 'text-amber-600 dark:text-amber-400' : ''}`}>
+                    <TableCell className="text-right tabular-nums">
+                      {money(summary.salesGeneratedMinor)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {money(summary.totalEarnedMinor)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {money(summary.paidMinor)}
+                    </TableCell>
+                    <TableCell
+                      className={`text-right font-medium tabular-nums ${summary.currentBalanceMinor < 0 ? 'text-amber-600 dark:text-amber-400' : ''}`}
+                    >
                       {money(summary.currentBalanceMinor)}
                     </TableCell>
                     <TableCell className="flex justify-end gap-2 whitespace-nowrap">
@@ -254,23 +295,33 @@ export function PayrollClient({
                           size="sm"
                           type="button"
                           variant="secondary"
-                          onClick={() => router.push(`/employees?compensation=${summary.employeeId}`)}
+                          onClick={() =>
+                            router.push(`/employees?compensation=${summary.employeeId}`)
+                          }
                         >
                           <WalletCards /> {dictionary.setupPay}
                         </Button>
                       )}
-                      {summary.compensationType === 'monthly' && !summary.salaryConfirmedForActionMonth && (
+                      {summary.compensationType === 'monthly' &&
+                        !summary.salaryConfirmedForActionMonth && (
+                          <Button
+                            size="sm"
+                            type="button"
+                            variant="success"
+                            onClick={() =>
+                              openMonthlySalary(summary.employeeId, dashboard.salaryActionMonth)
+                            }
+                          >
+                            <WalletCards /> {dictionary.confirmSalary}
+                          </Button>
+                        )}
+                      {summary.compensationType !== 'unconfigured' && (
                         <Button
                           size="sm"
                           type="button"
-                          variant="success"
-                          onClick={() => openMonthlySalary(summary.employeeId, dashboard.salaryActionMonth)}
+                          variant="secondary"
+                          onClick={() => openPayout(summary.employeeId)}
                         >
-                          <WalletCards /> {dictionary.confirmSalary}
-                        </Button>
-                      )}
-                      {summary.compensationType !== 'unconfigured' && (
-                        <Button size="sm" type="button" variant="secondary" onClick={() => openPayout(summary.employeeId)}>
                           <Banknote /> {dictionary.payEmployee}
                         </Button>
                       )}
@@ -283,17 +334,26 @@ export function PayrollClient({
         </section>
 
         <section className="rounded-lg border bg-background">
-          <div className="border-b px-4 py-3"><h2 className="font-medium">{dictionary.commissionByService}</h2></div>
+          <div className="border-b px-4 py-3">
+            <h2 className="font-medium">{dictionary.commissionByService}</h2>
+          </div>
           {dashboard.commissionBreakdown.length ? (
             <div className="divide-y">
               {dashboard.commissionBreakdown.map((item) => (
-                <div key={item.serviceName} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+                <div
+                  key={item.serviceName}
+                  className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
+                >
                   <span className="truncate">{item.serviceName}</span>
                   <span className="font-medium tabular-nums">{money(item.amountMinor)}</span>
                 </div>
               ))}
             </div>
-          ) : <p className="p-6 text-center text-sm text-muted-foreground">{dictionary.noCommissionActivity}</p>}
+          ) : (
+            <p className="p-6 text-center text-sm text-muted-foreground">
+              {dictionary.noCommissionActivity}
+            </p>
+          )}
         </section>
       </div>
 
@@ -307,25 +367,42 @@ export function PayrollClient({
         {dashboard.activities.length ? (
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader><TableRow>
-                <TableHead>{dictionary.date}</TableHead>
-                <TableHead>{dictionary.employee}</TableHead>
-                <TableHead>{dictionary.type}</TableHead>
-                <TableHead>{dictionary.invoiceNumber}</TableHead>
-                <TableHead className="text-right">{dictionary.amount}</TableHead>
-                <TableHead className="text-right">{dictionary.actions}</TableHead>
-              </TableRow></TableHeader>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{dictionary.date}</TableHead>
+                  <TableHead>{dictionary.employee}</TableHead>
+                  <TableHead>{dictionary.type}</TableHead>
+                  <TableHead>{dictionary.invoiceNumber}</TableHead>
+                  <TableHead className="text-right">{dictionary.amount}</TableHead>
+                  <TableHead className="text-right">{dictionary.actions}</TableHead>
+                </TableRow>
+              </TableHeader>
               <TableBody>
                 {dashboard.activities.map((activity) => (
                   <TableRow key={activity.id}>
-                    <TableCell>{formatMarketDate(activity.date, dashboard.market, dateLocale)}</TableCell>
+                    <TableCell>
+                      {formatMarketDate(activity.date, dashboard.market, dateLocale)}
+                    </TableCell>
                     <TableCell className="font-medium">{activity.employeeName}</TableCell>
                     <TableCell>
                       <span>{dictionary[`payroll_${activity.kind}`]}</span>
-                      {activity.serviceName && <span className="block text-xs text-muted-foreground">{activity.serviceName}</span>}
+                      {activity.serviceName && (
+                        <span className="block text-xs text-muted-foreground">
+                          {activity.serviceName}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
-                      {activity.invoiceId ? <Link className="text-sm underline underline-offset-2" href={`/invoices/${activity.invoiceId}`}>{activity.invoiceNumber}</Link> : '—'}
+                      {activity.invoiceId ? (
+                        <Link
+                          className="text-sm underline underline-offset-2"
+                          href={`/invoices/${activity.invoiceId}`}
+                        >
+                          {activity.invoiceNumber}
+                        </Link>
+                      ) : (
+                        '—'
+                      )}
                     </TableCell>
                     <TableCell className="text-right font-medium tabular-nums">
                       {money(activity.correctedAmountMinor ?? activity.amountMinor)}
@@ -333,7 +410,9 @@ export function PayrollClient({
                     <TableCell className="text-right">
                       <Button size="sm" variant="ghost" onClick={() => openActivity(activity)}>
                         {activity.kind === 'commission' ? <Percent /> : <Pencil />}
-                        {activity.kind === 'commission' ? dictionary.correctCommission : dictionary.edit}
+                        {activity.kind === 'commission'
+                          ? dictionary.correctCommission
+                          : dictionary.edit}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -341,7 +420,11 @@ export function PayrollClient({
               </TableBody>
             </Table>
           </div>
-        ) : <p className="p-8 text-center text-sm text-muted-foreground">{dictionary.noPayrollActivity}</p>}
+        ) : (
+          <p className="p-8 text-center text-sm text-muted-foreground">
+            {dictionary.noPayrollActivity}
+          </p>
+        )}
       </section>
 
       <PayrollDialog
@@ -388,23 +471,32 @@ export function PayrollDialog({
   const [pending, startTransition] = useTransition()
   const today = todayDateInput(dashboard.market)
   const candidates = useMemo(() => {
-    if (kind === 'monthly') return employees.filter(({ active, compensationType }) => active && compensationType === 'monthly')
+    if (kind === 'monthly')
+      return employees.filter(
+        ({ active, compensationType }) => active && compensationType === 'monthly',
+      )
     return employees
   }, [employees, kind])
   const initialEmployee = activity?.employeeId || preferredEmployeeId || candidates[0]?.id || ''
   const [employeeId, setEmployeeId] = useState(initialEmployee)
-  const selectedEmployee = candidates.find(({ id }) => id === employeeId) || employees.find(({ id }) => id === employeeId)
+  const selectedEmployee =
+    candidates.find(({ id }) => id === employeeId) || employees.find(({ id }) => id === employeeId)
   const [amount, setAmount] = useState(
-    activity ? minorToDecimal(activity.correctedAmountMinor ?? activity.amountMinor, dashboard.market) :
-      kind === 'monthly' && selectedEmployee?.monthlySalaryMinor
+    activity
+      ? minorToDecimal(activity.correctedAmountMinor ?? activity.amountMinor, dashboard.market)
+      : kind === 'monthly' && selectedEmployee?.monthlySalaryMinor
         ? minorToDecimal(selectedEmployee.monthlySalaryMinor, dashboard.market)
         : '',
   )
-  const [entryDate, setEntryDate] = useState(activity ? toMarketDateInput(activity.date, dashboard.market) : today)
+  const [entryDate, setEntryDate] = useState(
+    activity ? toMarketDateInput(activity.date, dashboard.market) : today,
+  )
   const [salaryMonth, setSalaryMonth] = useState(
     activity?.salaryMonth || preferredSalaryMonth || today.slice(0, 7),
   )
-  const [paymentMethod, setPaymentMethod] = useState<PayrollPaymentMethod>(activity?.paymentMethod || 'cash')
+  const [paymentMethod, setPaymentMethod] = useState<PayrollPaymentMethod>(
+    activity?.paymentMethod || 'cash',
+  )
   const [reference, setReference] = useState(activity?.reference || '')
   const [note, setNote] = useState(activity?.note || '')
   const [payoutAmount, setPayoutAmount] = useState('')
@@ -437,7 +529,9 @@ export function PayrollDialog({
           salaryMonth: activity.kind === 'monthlySalary' ? salaryMonth : undefined,
         })
       } else if (kind === 'monthly') {
-        const payoutMinor = payoutAmount.trim() ? decimalToMinor(payoutAmount, dashboard.market) : null
+        const payoutMinor = payoutAmount.trim()
+          ? decimalToMinor(payoutAmount, dashboard.market)
+          : null
         if (payoutAmount.trim() && (!payoutMinor || payoutMinor < 1)) {
           setError(dictionary.payrollAmountError)
           return
@@ -448,14 +542,16 @@ export function PayrollDialog({
           idempotencyKey: crypto.randomUUID(),
           note,
           salaryMonth,
-          payout: payoutMinor ? {
-            amountMinor: payoutMinor,
-            entryDate,
-            idempotencyKey: crypto.randomUUID(),
-            note,
-            paymentMethod,
-            reference,
-          } : undefined,
+          payout: payoutMinor
+            ? {
+                amountMinor: payoutMinor,
+                entryDate,
+                idempotencyKey: crypto.randomUUID(),
+                note,
+                paymentMethod,
+                reference,
+              }
+            : undefined,
         })
       } else {
         result = await recordPayoutAction({
@@ -477,9 +573,13 @@ export function PayrollDialog({
     })
   }
 
-  const title = kind === 'monthly' ? dictionary.confirmMonthlySalary
-      : kind === 'payout' ? dictionary.recordPayout
-        : kind === 'commission' ? dictionary.correctCommission
+  const title =
+    kind === 'monthly'
+      ? dictionary.confirmMonthlySalary
+      : kind === 'payout'
+        ? dictionary.recordPayout
+        : kind === 'commission'
+          ? dictionary.correctCommission
           : dictionary.editPayrollEntry
 
   return (
@@ -487,7 +587,9 @@ export function PayrollDialog({
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{activity?.employeeName || dictionary.payrollDescription}</DialogDescription>
+          <DialogDescription>
+            {activity?.employeeName || dictionary.payrollDescription}
+          </DialogDescription>
         </DialogHeader>
         <form className="space-y-4" onSubmit={submit}>
           {kind !== 'commission' && (
@@ -502,17 +604,30 @@ export function PayrollDialog({
                   setEmployeeId(next)
                   if (kind === 'monthly') {
                     const employee = employees.find(({ id }) => id === next)
-                    setAmount(employee?.monthlySalaryMinor ? minorToDecimal(employee.monthlySalaryMinor, dashboard.market) : '')
+                    setAmount(
+                      employee?.monthlySalaryMinor
+                        ? minorToDecimal(employee.monthlySalaryMinor, dashboard.market)
+                        : '',
+                    )
                   }
                 }}
               >
                 <SelectTrigger id="payroll-dialog-employee" className="h-9 w-full bg-background">
-                  <SelectValue />
+                  <SelectValue>
+                    {employeeId
+                      ? employees.find((employee) => employee.id === employeeId)?.name ||
+                        dictionary.noEmployee
+                      : dictionary.noEmployee}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent align="start">
-                  <SelectItem value={NO_EMPLOYEE} disabled>{dictionary.noEmployee}</SelectItem>
+                  <SelectItem value={NO_EMPLOYEE} disabled>
+                    {dictionary.noEmployee}
+                  </SelectItem>
                   {candidates.map((employee) => (
-                    <SelectItem key={employee.id} value={employee.id}>{employee.name}</SelectItem>
+                    <SelectItem key={employee.id} value={employee.id}>
+                      {employee.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -522,29 +637,67 @@ export function PayrollDialog({
           {kind === 'monthly' || (kind === 'edit' && activity?.kind === 'monthlySalary') ? (
             <div className="space-y-1.5">
               <Label htmlFor="payroll-salary-month">{dictionary.salaryMonth}</Label>
-              <Input id="payroll-salary-month" type="month" max={today.slice(0, 7)} required value={salaryMonth} onChange={(event) => setSalaryMonth(event.target.value)} />
+              <Input
+                id="payroll-salary-month"
+                type="month"
+                max={today.slice(0, 7)}
+                required
+                value={salaryMonth}
+                onChange={(event) => setSalaryMonth(event.target.value)}
+              />
             </div>
-          ) : kind !== 'commission' && (
-            <div className="space-y-1.5">
-              <Label htmlFor="payroll-entry-date">{kind === 'payout' || activity?.kind === 'payout' ? dictionary.payoutDate : dictionary.salaryDate}</Label>
-              <Input id="payroll-entry-date" type="date" max={today} required value={entryDate} onChange={(event) => setEntryDate(event.target.value)} />
-            </div>
+          ) : (
+            kind !== 'commission' && (
+              <div className="space-y-1.5">
+                <Label htmlFor="payroll-entry-date">
+                  {kind === 'payout' || activity?.kind === 'payout'
+                    ? dictionary.payoutDate
+                    : dictionary.salaryDate}
+                </Label>
+                <Input
+                  id="payroll-entry-date"
+                  type="date"
+                  max={today}
+                  required
+                  value={entryDate}
+                  onChange={(event) => setEntryDate(event.target.value)}
+                />
+              </div>
+            )
           )}
 
           <div className="space-y-1.5">
             <Label htmlFor="payroll-amount">
-              {kind === 'commission' ? dictionary.correctedCommission : kind === 'payout' || activity?.kind === 'payout' ? dictionary.payoutAmount : dictionary.salaryAmount}
+              {kind === 'commission'
+                ? dictionary.correctedCommission
+                : kind === 'payout' || activity?.kind === 'payout'
+                  ? dictionary.payoutAmount
+                  : dictionary.salaryAmount}
             </Label>
-            <Input id="payroll-amount" inputMode="decimal" required value={amount} onChange={(event) => setAmount(event.target.value)} />
+            <Input
+              id="payroll-amount"
+              inputMode="decimal"
+              required
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+            />
             {kind === 'commission' && activity && (
-              <p className="text-xs text-muted-foreground">{dictionary.originalCommission}: {formatMoney(activity.amountMinor, dashboard.market)}</p>
+              <p className="text-xs text-muted-foreground">
+                {dictionary.originalCommission}:{' '}
+                {formatMoney(activity.amountMinor, dashboard.market)}
+              </p>
             )}
           </div>
 
           {kind === 'monthly' && (
             <div className="space-y-1.5">
               <Label htmlFor="payroll-paid-now">{dictionary.paidNowOptional}</Label>
-              <Input id="payroll-paid-now" inputMode="decimal" value={payoutAmount} onChange={(event) => setPayoutAmount(event.target.value)} />
+              <Input
+                id="payroll-paid-now"
+                inputMode="decimal"
+                value={payoutAmount}
+                onChange={(event) => setPayoutAmount(event.target.value)}
+              />
             </div>
           )}
 
@@ -576,14 +729,33 @@ export function PayrollDialog({
           {kind === 'commission' && (
             <div className="space-y-1.5">
               <Label htmlFor="commission-note">{dictionary.payrollNote}</Label>
-              <Textarea id="commission-note" maxLength={500} value={note} onChange={(event) => setNote(event.target.value)} />
+              <Textarea
+                id="commission-note"
+                maxLength={500}
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+              />
             </div>
           )}
-          {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
+          {error && (
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
+          )}
           <DialogFooter>
-            <Button type="button" variant="cancel" disabled={pending} onClick={onClose}>{dictionary.cancel}</Button>
-            <Button type="submit" variant="success" disabled={pending || !candidates.length && kind !== 'commission'}>
-              {pending ? dictionary.saving : kind === 'commission' ? dictionary.saveCorrection : dictionary.save}
+            <Button type="button" variant="cancel" disabled={pending} onClick={onClose}>
+              {dictionary.cancel}
+            </Button>
+            <Button
+              type="submit"
+              variant="success"
+              disabled={pending || (!candidates.length && kind !== 'commission')}
+            >
+              {pending
+                ? dictionary.saving
+                : kind === 'commission'
+                  ? dictionary.saveCorrection
+                  : dictionary.save}
             </Button>
           </DialogFooter>
         </form>
@@ -626,11 +798,21 @@ function PaymentFields({
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="payroll-reference">{dictionary.payrollReference}</Label>
-        <Input id="payroll-reference" maxLength={120} value={reference} onChange={(event) => onReference(event.target.value)} />
+        <Input
+          id="payroll-reference"
+          maxLength={120}
+          value={reference}
+          onChange={(event) => onReference(event.target.value)}
+        />
       </div>
       <div className="space-y-1.5 sm:col-span-2">
         <Label htmlFor="payroll-note">{dictionary.payrollNote}</Label>
-        <Textarea id="payroll-note" maxLength={500} value={note} onChange={(event) => onNote(event.target.value)} />
+        <Textarea
+          id="payroll-note"
+          maxLength={500}
+          value={note}
+          onChange={(event) => onNote(event.target.value)}
+        />
       </div>
     </div>
   )

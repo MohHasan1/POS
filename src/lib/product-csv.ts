@@ -6,6 +6,7 @@ export const productCsvHeaders = [
   'nameBangla',
   'sku',
   'price',
+  'unitCost',
   'vatCategory',
   'priceIncludesVat',
   'active',
@@ -19,6 +20,7 @@ export type ProductCsvRow = {
   priceIncludesVat: boolean
   priceMinor: number
   sku?: null | string
+  unitCostMinor?: null | number
   vatCategory: 'exempt' | 'standard' | 'zero'
 }
 
@@ -41,6 +43,7 @@ export function serializeProductsCsv(products: readonly ProductCsvRow[]): string
       product.nameBangla || '',
       product.sku || '',
       minorToDecimal(product.priceMinor),
+      minorToDecimal(product.unitCostMinor ?? 0),
       product.vatCategory,
       String(product.priceIncludesVat),
       String(product.active),
@@ -141,9 +144,7 @@ function parseVatCategory(value: string, rowNumber: number): ProductCsvRow['vatC
   if (normalized === 'standard' || normalized === 'zero' || normalized === 'exempt') {
     return normalized
   }
-  throw new ProductCsvError(
-    `Row ${rowNumber}: vatCategory must be standard, zero, or exempt.`,
-  )
+  throw new ProductCsvError(`Row ${rowNumber}: vatCategory must be standard, zero, or exempt.`)
 }
 
 export function parseProductsCsv(csv: string, maxRows = 2_500): ProductCsvRow[] {
@@ -157,7 +158,7 @@ export function parseProductsCsv(csv: string, maxRows = 2_500): ProductCsvRow[] 
     throw new ProductCsvError('The CSV contains duplicate column names.')
   }
 
-  for (const requiredHeader of productCsvHeaders) {
+  for (const requiredHeader of productCsvHeaders.filter((header) => header !== 'unitCost')) {
     if (!headers.includes(requiredHeader)) {
       throw new ProductCsvError(`Missing required column: ${requiredHeader}.`)
     }
@@ -178,8 +179,10 @@ export function parseProductsCsv(csv: string, maxRows = 2_500): ProductCsvRow[] 
       throw new ProductCsvError(`Row ${rowNumber}: the number of values does not match the header.`)
     }
 
-    const value = (header: (typeof productCsvHeaders)[number]) =>
-      record[headerIndexes.get(header)!]
+    const value = (header: (typeof productCsvHeaders)[number]) => {
+      const headerIndex = headerIndexes.get(header)
+      return headerIndex === undefined ? '' : record[headerIndex]
+    }
     const sku = optionalText(value('sku'), 'sku', rowNumber)
     if (sku && seenSkus.has(sku)) {
       throw new ProductCsvError(`Row ${rowNumber}: duplicate SKU ${sku}.`)
@@ -192,19 +195,23 @@ export function parseProductsCsv(csv: string, maxRows = 2_500): ProductCsvRow[] 
         `Row ${rowNumber}: price must be between 0 and 1000000 with up to two decimals.`,
       )
     }
+    const rawUnitCost = value('unitCost').trim()
+    const unitCostMinor = rawUnitCost ? decimalToMinor(rawUnitCost) : 0
+    if (rawUnitCost && (unitCostMinor === null || unitCostMinor > 100_000_000)) {
+      throw new ProductCsvError(
+        `Row ${rowNumber}: unitCost must be between 0 and 1000000 with up to two decimals.`,
+      )
+    }
 
     return {
       active: parseBoolean(value('active'), 'active', rowNumber),
       nameArabic: optionalText(value('nameArabic'), 'nameArabic', rowNumber),
       nameBangla: optionalText(value('nameBangla'), 'nameBangla', rowNumber),
       nameEnglish: requiredText(value('nameEnglish'), 'nameEnglish', rowNumber),
-      priceIncludesVat: parseBoolean(
-        value('priceIncludesVat'),
-        'priceIncludesVat',
-        rowNumber,
-      ),
+      priceIncludesVat: parseBoolean(value('priceIncludesVat'), 'priceIncludesVat', rowNumber),
       priceMinor,
       sku,
+      ...(headerIndexes.has('unitCost') ? { unitCostMinor } : {}),
       vatCategory: parseVatCategory(value('vatCategory'), rowNumber),
     }
   })

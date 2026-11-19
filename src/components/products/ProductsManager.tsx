@@ -25,7 +25,12 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { Dictionary } from '@/lib/localization'
-import { localizedName, normalizedTranslations, type MarketProfile, type SecondaryLanguage } from '@/lib/market'
+import {
+  localizedName,
+  normalizedTranslations,
+  type MarketProfile,
+  type SecondaryLanguage,
+} from '@/lib/market'
 import { formatMoney } from '@/lib/money'
 import type { ProductSummary } from '@/lib/pos-types'
 
@@ -102,9 +107,12 @@ export function ProductsManager({
         <TableHeader>
           <TableRow>
             <TableHead>{dictionary.nameEnglish}</TableHead>
-            {secondaryLanguage !== 'none' && <TableHead>{dictionary.secondaryProductLanguage}</TableHead>}
+            {secondaryLanguage !== 'none' && (
+              <TableHead>{dictionary.secondaryProductLanguage}</TableHead>
+            )}
             <TableHead>{dictionary.sku}</TableHead>
             <TableHead>{dictionary.price}</TableHead>
+            <TableHead>{dictionary.unitCost}</TableHead>
             {market.taxMode === 'saudiVat' && <TableHead>{dictionary.vatCategory}</TableHead>}
             <TableHead>{dictionary.status}</TableHead>
             <TableHead className="text-right">{dictionary.actions}</TableHead>
@@ -116,18 +124,29 @@ export function ProductsManager({
               <TableCell>
                 <span className="font-medium">{product.nameEnglish}</span>
               </TableCell>
-              {secondaryLanguage !== 'none' && <TableCell dir={secondaryLanguage === 'ar' ? 'rtl' : undefined}>
-                {localizedName(normalizedTranslations(product.translations, { ar: product.nameArabic, bn: product.nameBangla }), secondaryLanguage) || '—'}
-              </TableCell>}
+              {secondaryLanguage !== 'none' && (
+                <TableCell dir={secondaryLanguage === 'ar' ? 'rtl' : undefined}>
+                  {localizedName(
+                    normalizedTranslations(product.translations, {
+                      ar: product.nameArabic,
+                      bn: product.nameBangla,
+                    }),
+                    secondaryLanguage,
+                  ) || '—'}
+                </TableCell>
+              )}
               <TableCell>{product.sku || '—'}</TableCell>
               <TableCell>{formatMoney(product.priceMinor, market)}</TableCell>
-              {market.taxMode === 'saudiVat' && <TableCell>
-                {product.vatCategory === 'standard'
-                  ? '15%'
-                  : product.vatCategory === 'zero'
-                    ? '0%'
-                    : dictionary.exempt}
-              </TableCell>}
+              <TableCell>{formatMoney(product.unitCostMinor ?? 0, market)}</TableCell>
+              {market.taxMode === 'saudiVat' && (
+                <TableCell>
+                  {product.vatCategory === 'standard'
+                    ? '15%'
+                    : product.vatCategory === 'zero'
+                      ? '0%'
+                      : dictionary.exempt}
+                </TableCell>
+              )}
               <TableCell>
                 <Badge variant={product.active ? 'secondary' : 'outline'}>
                   {product.active ? dictionary.active : dictionary.inactive}
@@ -153,7 +172,7 @@ export function ProductsManager({
           ))}
           {filtered.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+              <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                 {dictionary.noProducts}
               </TableCell>
             </TableRow>

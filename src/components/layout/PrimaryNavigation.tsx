@@ -4,12 +4,14 @@ import { Menu } from '@base-ui/react/menu'
 import {
   Boxes,
   Building2,
+  ChartNoAxesCombined,
   ChevronDown,
   Columns3,
   Ellipsis,
   FileText,
   History,
   ReceiptText,
+  ReceiptCent,
   Settings,
   ShoppingCart,
   UsersRound,
@@ -62,6 +64,8 @@ export function PrimaryNavigation({
     { href: '/payroll', icon: WalletCards, label: dictionary.payroll, style: 'neutral' },
   ]
   const manageItems: NavigationItem[] = [
+    { href: '/reports', icon: ChartNoAxesCombined, label: dictionary.reports },
+    { href: '/expenses', icon: ReceiptCent, label: dictionary.expenses },
     { href: '/invoices', icon: FileText, label: dictionary.invoices },
     { href: '/products', icon: Boxes, label: dictionary.products },
     { href: '/employees', icon: UsersRound, label: dictionary.employees },

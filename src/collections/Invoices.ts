@@ -154,6 +154,14 @@ export const Invoices: CollectionConfig = {
         { name: 'vatMinor', type: 'number', required: true, min: 0 },
         { name: 'totalMinor', type: 'number', required: true, min: 0 },
         {
+          name: 'cost',
+          type: 'group',
+          fields: [
+            { name: 'unitCostMinor', type: 'number', min: 0 },
+            { name: 'totalCostMinor', type: 'number', min: 0 },
+          ],
+        },
+        {
           name: 'commission',
           type: 'group',
           fields: [

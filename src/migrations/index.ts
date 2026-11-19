@@ -10,6 +10,7 @@ import * as migration_20261117_132500_nullable_product_names from './20261117_13
 import * as migration_20261118_123605_employee_assignments from './20261118_123605_employee_assignments';
 import * as migration_20261118_130246_historical_sales_backfill from './20261118_130246_historical_sales_backfill';
 import * as migration_20261118_180955_employee_payroll_schema from './20261118_180955_employee_payroll_schema';
+import * as migration_20261119_080747_business_reports_expenses from './20261119_080747_business_reports_expenses';
 
 export const migrations = [
   {
@@ -71,5 +72,10 @@ export const migrations = [
     up: migration_20261118_180955_employee_payroll_schema.up,
     down: migration_20261118_180955_employee_payroll_schema.down,
     name: '20261118_180955_employee_payroll_schema',
+  },
+  {
+    up: migration_20261119_080747_business_reports_expenses.up,
+    down: migration_20261119_080747_business_reports_expenses.down,
+    name: '20261119_080747_business_reports_expenses'
   },
 ];

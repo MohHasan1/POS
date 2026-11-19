@@ -66,6 +66,7 @@ describe('product import', () => {
     const updated = await payload.findByID({ collection: 'products', id: existing.id })
     assert.equal(updated.nameEnglish, 'Tea')
     assert.equal(updated.priceMinor, 1_050)
+    assert.equal(updated.unitCostMinor, 0)
     assert.equal(updated.active, false)
 
     const created = await payload.find({
@@ -74,5 +75,6 @@ describe('product import', () => {
       where: { sku: { equals: newSku } },
     })
     assert.equal(created.docs[0]?.nameEnglish, 'Coffee')
+    assert.equal(created.docs[0]?.unitCostMinor, 0)
   })
 })

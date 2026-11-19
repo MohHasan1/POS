@@ -33,6 +33,7 @@ export async function importProducts(rows: readonly ProductCsvRow[]): Promise<Pr
           ar: row.nameArabic,
           bn: row.nameBangla,
         }),
+        unitCostMinor: row.unitCostMinor ?? 0,
       }
       const existingProduct = row.sku ? productsBySku.get(row.sku) : undefined
 

@@ -37,6 +37,12 @@ export const Products: CollectionConfig = {
       admin: { description: 'Selling price in the configured currency minor unit.' },
     },
     {
+      name: 'unitCostMinor',
+      type: 'number',
+      min: 0,
+      admin: { description: 'Optional VAT-exclusive direct cost per sold unit.' },
+    },
+    {
       name: 'vatCategory',
       type: 'select',
       defaultValue: 'standard',

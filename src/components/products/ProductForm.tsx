@@ -24,7 +24,12 @@ import {
 } from '@/components/ui/select'
 import type { Dictionary } from '@/lib/localization'
 import { decimalToMinor, minorToDecimal } from '@/lib/money'
-import { localizedName, normalizedTranslations, type MarketProfile, type SecondaryLanguage } from '@/lib/market'
+import {
+  localizedName,
+  normalizedTranslations,
+  type MarketProfile,
+  type SecondaryLanguage,
+} from '@/lib/market'
 import type { ProductSummary } from '@/lib/pos-types'
 import {
   ProductTranslationError,
@@ -147,6 +152,12 @@ export function ProductForm({
       setError('Enter a valid price with up to two decimal places.')
       return
     }
+    const rawUnitCost = String(formData.get('unitCost') || '').trim()
+    const unitCostMinor = rawUnitCost ? decimalToMinor(rawUnitCost, market) : 0
+    if (rawUnitCost && unitCostMinor === null) {
+      setError(dictionary.unitCostError)
+      return
+    }
 
     const translatedNames = autoTranslateProducts
       ? await translateMissingNames(false)
@@ -167,6 +178,7 @@ export function ProductForm({
       ],
       sku: String(formData.get('sku') || ''),
       priceMinor,
+      unitCostMinor,
       vatCategory: String(formData.get('vatCategory')) as ProductSummary['vatCategory'],
       priceIncludesVat: includesVat,
     }
@@ -197,16 +209,18 @@ export function ProductForm({
                 </span>
               </span>
             </Label>
-            {secondaryLanguage !== 'none' && <Button
-              type="button"
-              size="xs"
-              variant="outline"
-              disabled={pending || translationPending}
-              onClick={autoTranslate}
-            >
-              <Languages aria-hidden="true" />
-              {dictionary.autoTranslate}
-            </Button>}
+            {secondaryLanguage !== 'none' && (
+              <Button
+                type="button"
+                size="xs"
+                variant="outline"
+                disabled={pending || translationPending}
+                onClick={autoTranslate}
+              >
+                <Languages aria-hidden="true" />
+                {dictionary.autoTranslate}
+              </Button>
+            )}
           </div>
           <Input
             id="nameEnglish"
@@ -234,31 +248,37 @@ export function ProductForm({
             required
           />
         </div>
-        {secondaryLanguage === 'ar' && <div className="space-y-1.5">
-          <Label htmlFor="nameArabic">{dictionary.nameArabic}</Label>
-          <Input
-            id="nameArabic"
-            name="nameArabic"
-            dir="rtl"
-            disabled={translationPending}
-            onChange={(event) => setNameArabic(event.target.value)}
-            value={nameArabic}
-          />
-        </div>}
-        {secondaryLanguage === 'bn' && <div className="space-y-1.5">
-          <Label htmlFor="nameBangla">{dictionary.nameBangla}</Label>
-          <Input
-            id="nameBangla"
-            name="nameBangla"
-            disabled={translationPending}
-            onChange={(event) => setNameBangla(event.target.value)}
-            value={nameBangla}
-          />
-        </div>}
-        {market.taxMode === 'saudiVat' && <div className="space-y-1.5">
-          <Label htmlFor="sku">{dictionary.sku}</Label>
-          <Input id="sku" name="sku" defaultValue={product?.sku || ''} />
-        </div>}
+        {secondaryLanguage === 'ar' && (
+          <div className="space-y-1.5">
+            <Label htmlFor="nameArabic">{dictionary.nameArabic}</Label>
+            <Input
+              id="nameArabic"
+              name="nameArabic"
+              dir="rtl"
+              disabled={translationPending}
+              onChange={(event) => setNameArabic(event.target.value)}
+              value={nameArabic}
+            />
+          </div>
+        )}
+        {secondaryLanguage === 'bn' && (
+          <div className="space-y-1.5">
+            <Label htmlFor="nameBangla">{dictionary.nameBangla}</Label>
+            <Input
+              id="nameBangla"
+              name="nameBangla"
+              disabled={translationPending}
+              onChange={(event) => setNameBangla(event.target.value)}
+              value={nameBangla}
+            />
+          </div>
+        )}
+        {market.taxMode === 'saudiVat' && (
+          <div className="space-y-1.5">
+            <Label htmlFor="sku">{dictionary.sku}</Label>
+            <Input id="sku" name="sku" defaultValue={product?.sku || ''} />
+          </div>
+        )}
         <div className="space-y-1.5">
           <Label htmlFor="vatCategory">{dictionary.vatCategory}</Label>
           <Select name="vatCategory" defaultValue={product?.vatCategory || 'standard'}>
@@ -271,6 +291,19 @@ export function ProductForm({
               <SelectItem value="exempt">{dictionary.exempt}</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="unitCost">
+            {dictionary.unitCost} ({market.currencyCode})
+          </Label>
+          <Input
+            id="unitCost"
+            name="unitCost"
+            inputMode="decimal"
+            defaultValue={minorToDecimal(product?.unitCostMinor ?? 0, market)}
+            placeholder={dictionary.unitCostPlaceholder}
+          />
+          <p className="text-xs text-muted-foreground">{dictionary.unitCostHelp}</p>
         </div>
       </div>
       {product && market.taxMode === 'saudiVat' && (
@@ -293,11 +326,7 @@ export function ProductForm({
         <Button type="button" variant="cancel" onClick={onDone}>
           {dictionary.cancel}
         </Button>
-        <Button
-          type="submit"
-          variant="success"
-          disabled={pending || translationPending}
-        >
+        <Button type="submit" variant="success" disabled={pending || translationPending}>
           {pending ? dictionary.saving : dictionary.save}
         </Button>
       </DialogFooter>

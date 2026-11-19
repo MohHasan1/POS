@@ -31,6 +31,7 @@ const productSchema = z.object({
     .default([]),
   sku: optionalText,
   priceMinor: z.number().int().min(0).max(100_000_000),
+  unitCostMinor: z.number().int().min(0).max(100_000_000).nullable().optional(),
   vatCategory: z.enum(['standard', 'zero', 'exempt']),
   priceIncludesVat: z.boolean(),
 })

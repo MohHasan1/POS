@@ -91,9 +91,10 @@ async function resolveItem(
   const descriptionArabic = localizedName(translations, 'ar') || descriptionEnglish
   const descriptionBangla = localizedName(translations, 'bn')
 
-  const vatCategory = profile.taxMode === 'none' ? 'exempt' : product?.vatCategory || item.vatCategory
+  const vatCategory =
+    profile.taxMode === 'none' ? 'exempt' : product?.vatCategory || item.vatCategory
   const priceIncludesVat =
-    profile.taxMode === 'none' ? false : product?.priceIncludesVat ?? item.priceIncludesVat
+    profile.taxMode === 'none' ? false : (product?.priceIncludesVat ?? item.priceIncludesVat)
   if (!vatCategory || priceIncludesVat === undefined) {
     throw new Error('Every invoice item requires a VAT category and pricing mode.')
   }
@@ -114,6 +115,14 @@ async function resolveItem(
           basisMinor: calculated.netMinor,
           amountMinor: Math.round((calculated.netMinor * commissionRateBps) / 10_000),
         }
+  const unitCostMinor = product ? (product.unitCostMinor ?? 0) : undefined
+  const cost =
+    unitCostMinor === undefined
+      ? undefined
+      : {
+          unitCostMinor,
+          totalCostMinor: Math.round((unitCostMinor * item.quantityMilliunits) / 1_000),
+        }
 
   return {
     product: product?.id,
@@ -122,6 +131,7 @@ async function resolveItem(
     descriptionArabic,
     translations,
     ...calculated,
+    cost,
     commission,
   }
 }
@@ -261,10 +271,7 @@ export async function getInvoices(search?: string, limit = 100): Promise<Invoice
     sort: '-issuedAt',
     where: query
       ? {
-          or: [
-            { invoiceNumber: { contains: query } },
-            { externalReference: { contains: query } },
-          ],
+          or: [{ invoiceNumber: { contains: query } }, { externalReference: { contains: query } }],
         }
       : undefined,
   })

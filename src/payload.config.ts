@@ -5,10 +5,14 @@ import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 
 import { Invoices } from './collections/Invoices'
+import { ExpenseCategories } from './collections/ExpenseCategories'
+import { Expenses } from './collections/Expenses'
+import { ExpenseTemplates } from './collections/ExpenseTemplates'
 import { Employees } from './collections/Employees'
 import { EmployeeCommissionOverrides } from './collections/EmployeeCommissionOverrides'
 import { EmployeeCommissionRates } from './collections/EmployeeCommissionRates'
 import { EmployeePayrollEntries } from './collections/EmployeePayrollEntries'
+import { InvoiceCostOverrides } from './collections/InvoiceCostOverrides'
 import { Media } from './collections/Media'
 import { Products } from './collections/Products'
 import { ReceiptVouchers } from './collections/ReceiptVouchers'
@@ -52,6 +56,10 @@ export default buildConfig({
     Invoices,
     EmployeeCommissionOverrides,
     EmployeePayrollEntries,
+    ExpenseCategories,
+    ExpenseTemplates,
+    Expenses,
+    InvoiceCostOverrides,
     ReceiptVouchers,
     Media,
   ],

@@ -12,6 +12,7 @@ export type ProductInput = Pick<
   | 'priceMinor'
   | 'sku'
   | 'translations'
+  | 'unitCostMinor'
   | 'vatCategory'
 >
 
@@ -31,13 +32,17 @@ export async function createProduct(data: ProductInput): Promise<Product> {
   const payload = await getPayload({ config })
   return payload.create({
     collection: 'products',
-    data: { ...data, active: true },
+    data: { ...data, active: true, unitCostMinor: data.unitCostMinor ?? 0 },
   })
 }
 
 export async function updateProduct(id: string, data: ProductInput): Promise<Product> {
   const payload = await getPayload({ config })
-  return payload.update({ collection: 'products', id, data })
+  return payload.update({
+    collection: 'products',
+    id,
+    data: { ...data, unitCostMinor: data.unitCostMinor ?? 0 },
+  })
 }
 
 export async function setProductActive(id: string, active: boolean): Promise<Product> {

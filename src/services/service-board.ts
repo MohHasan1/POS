@@ -31,6 +31,7 @@ function toProductSummary(product: Product): ProductSummary {
     priceIncludesVat: product.priceIncludesVat,
     priceMinor: product.priceMinor,
     sku: product.sku,
+    unitCostMinor: product.unitCostMinor,
     vatCategory: product.vatCategory,
   }
 }

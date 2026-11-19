@@ -13,6 +13,7 @@ export type ProductSummary = Pick<
   | 'priceMinor'
   | 'sku'
   | 'translations'
+  | 'unitCostMinor'
   | 'vatCategory'
 >
 
