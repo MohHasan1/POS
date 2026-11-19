@@ -7,6 +7,7 @@ import { employeeRelationshipId, getEmployees } from '@/services/employees'
 import { getProducts } from '@/services/products'
 import { getServiceBoardView } from '@/services/service-board'
 import { areShopSettingsComplete, getShopSettings, marketContextFromSettings } from '@/services/settings'
+import { getSalesDashboard } from '@/services/sales-reporting'
 
 export const metadata: Metadata = { title: 'Service Board' }
 
@@ -15,12 +16,13 @@ export default async function ServiceBoardPage({
 }: {
   searchParams: Promise<{ date?: string }>
 }) {
-  const [{ dictionary, locale }, employees, products, settings, { date }] = await Promise.all([
+  const [{ dictionary, locale }, employees, products, settings, { date }, dashboard] = await Promise.all([
     getDictionary(),
     getEmployees(),
     getProducts(),
     getShopSettings(),
     searchParams,
+    getSalesDashboard(),
   ])
   const market = marketContextFromSettings(settings)
   const today = todayDateInput(market.profile)
@@ -59,6 +61,7 @@ export default async function ServiceBoardPage({
         settingsReady={areShopSettingsComplete(settings)}
         todayDate={today}
         view={view}
+        salesDashboard={dashboard}
       />
     </div>
   )

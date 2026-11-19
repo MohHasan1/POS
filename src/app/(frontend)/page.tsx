@@ -163,7 +163,13 @@ export default async function HomePage() {
                       className="block truncate text-left text-xs text-muted-foreground"
                       dir={dashboard.secondaryLanguage === 'ar' ? 'rtl' : 'ltr'}
                     >
-                      {localizedName(normalizedTranslations(undefined, { ar: service.nameArabic, bn: service.nameBangla }), dashboard.secondaryLanguage)}
+                      {localizedName(
+                        normalizedTranslations(undefined, {
+                          ar: service.nameArabic,
+                          bn: service.nameBangla,
+                        }),
+                        dashboard.secondaryLanguage,
+                      )}
                     </span>
                   </span>
                   <span className="text-right text-sm tabular-nums">
