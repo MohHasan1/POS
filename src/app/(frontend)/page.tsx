@@ -30,7 +30,9 @@ export default async function HomePage() {
   const businessLogo = getBusinessLogo(settings)
   const availableNavigation = getAppNavigation(dashboard.market)
   const primaryActions = availableNavigation.filter(({ primary }) => primary)
-  const secondaryActions = availableNavigation.filter(({ href, primary }) => href !== '/' && !primary)
+  const secondaryActions = availableNavigation.filter(
+    ({ href, primary }) => href !== '/' && !primary,
+  )
   const periods: Array<{ label: string; metric: SalesPeriodMetric }> = [
     { label: dictionary.todaySales, metric: dashboard.today },
     { label: dictionary.monthSales, metric: dashboard.month },
@@ -161,7 +163,13 @@ export default async function HomePage() {
                       className="block truncate text-left text-xs text-muted-foreground"
                       dir={dashboard.secondaryLanguage === 'ar' ? 'rtl' : 'ltr'}
                     >
-                      {localizedName(normalizedTranslations(undefined, { ar: service.nameArabic, bn: service.nameBangla }), dashboard.secondaryLanguage)}
+                      {localizedName(
+                        normalizedTranslations(undefined, {
+                          ar: service.nameArabic,
+                          bn: service.nameBangla,
+                        }),
+                        dashboard.secondaryLanguage,
+                      )}
                     </span>
                   </span>
                   <span className="text-right text-sm tabular-nums">

@@ -46,11 +46,8 @@ import { formatMarketDate, formatMarketDateTime } from '@/lib/calendar'
 import { localizedName, marketLocale, normalizedTranslations } from '@/lib/market'
 import { decimalToMinor, formatMoney, formatQuantity, minorToDecimal } from '@/lib/money'
 import type { EmployeeSummary, ProductSummary } from '@/lib/pos-types'
-import {
-  buildServiceCardAccents,
-  type ServiceCardAccent,
-} from '@/lib/service-board-colors'
-import type { ServiceBoardCard, ServiceBoardView } from '@/lib/service-board-types'
+import { buildServiceCardAccents, type ServiceCardAccent } from '@/lib/service-board-colors'
+import type { SalesDashboard, ServiceBoardCard, ServiceBoardView } from '@/lib/service-board-types'
 import { cn } from '@/lib/utils'
 
 type SaleRow = {
@@ -63,9 +60,15 @@ function localizedProductName(product: ProductSummary) {
   return product.nameEnglish
 }
 
-function secondaryProductName(product: ProductSummary, language: ServiceBoardView['secondaryLanguage']) {
+function secondaryProductName(
+  product: ProductSummary,
+  language: ServiceBoardView['secondaryLanguage'],
+) {
   return localizedName(
-    normalizedTranslations(product.translations, { ar: product.nameArabic, bn: product.nameBangla }),
+    normalizedTranslations(product.translations, {
+      ar: product.nameArabic,
+      bn: product.nameBangla,
+    }),
     language,
   )
 }
@@ -205,6 +208,7 @@ export function ServiceBoardClient({
   settingsReady,
   todayDate,
   view,
+  salesDashboard,
 }: {
   allProducts: ProductSummary[]
   autoTranslateProducts: boolean
@@ -217,6 +221,7 @@ export function ServiceBoardClient({
   settingsReady: boolean
   todayDate: string
   view: ServiceBoardView
+  salesDashboard: SalesDashboard
 }) {
   const router = useRouter()
   const [manageOpen, setManageOpen] = useState(false)
@@ -384,7 +389,9 @@ export function ServiceBoardClient({
             onChange={(event) => {
               const nextDate = event.target.value
               if (!nextDate) return
-              router.push(nextDate === todayDate ? '/service-board' : `/service-board?date=${nextDate}`)
+              router.push(
+                nextDate === todayDate ? '/service-board' : `/service-board?date=${nextDate}`,
+              )
             }}
           />
           {!viewingToday && (
@@ -416,11 +423,14 @@ export function ServiceBoardClient({
       )}
 
       <section
-        className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+        className="grid gap-3 sm:grid-cols-4 xl:grid-cols-5"
         aria-label={dictionary.salesDashboard}
       >
         {[
-          [dictionary.allSalesForDay, formatMoney(view.summary.allSalesTodayMinor, view.market, dateLocale)],
+          [
+            dictionary.allSalesForDay,
+            formatMoney(view.summary.allSalesTodayMinor, view.market, dateLocale),
+          ],
           [
             dictionary.visibleServiceRevenue,
             formatMoney(view.summary.visibleServiceRevenueMinor, view.market, dateLocale),
@@ -430,6 +440,10 @@ export function ServiceBoardClient({
             new Intl.NumberFormat(dateLocale).format(view.summary.distinctVisits),
           ],
           [dictionary.mostPopularService, popularName],
+          [
+            dictionary.allTimeSales,
+            formatMoney(salesDashboard.allTime.totalMinor, salesDashboard.market, dateLocale),
+          ],
         ].map(([label, value]) => (
           <div key={label} className="rounded-lg border bg-card p-4 shadow-sm">
             <p className="text-xs font-medium text-muted-foreground">{label}</p>
@@ -488,87 +502,91 @@ export function ServiceBoardClient({
                     </div>
                   </div>
                   <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
-                  <header className="space-y-3 border-b border-violet-300/70 bg-violet-200/90 p-3 dark:border-zinc-700/80 dark:bg-zinc-900/90">
-                    <div className="flex items-start gap-2">
-                      <div className="min-w-0 flex-1">
-                        <h2 className="truncate font-semibold">
-                          {localizedProductName(product)}
-                        </h2>
-                        <p
-                          className="mt-0.5 truncate text-left text-xs text-muted-foreground"
-                          dir="auto"
-                        >
-                          {secondaryProductName(product, view.secondaryLanguage)}
-                        </p>
-                        <p className="mt-1 text-sm font-medium tabular-nums">
-                          {formatMoney(product.priceMinor, view.market, dateLocale)}
-                        </p>
+                    <header className="space-y-3 border-b border-violet-300/70 bg-violet-200/90 p-3 dark:border-zinc-700/80 dark:bg-zinc-900/90">
+                      <div className="flex items-start gap-2">
+                        <div className="min-w-0 flex-1">
+                          <h2 className="truncate font-semibold">
+                            {localizedProductName(product)}
+                          </h2>
+                          <p
+                            className="mt-0.5 truncate text-left text-xs text-muted-foreground"
+                            dir="auto"
+                          >
+                            {secondaryProductName(product, view.secondaryLanguage)}
+                          </p>
+                          <p className="mt-1 text-sm font-medium tabular-nums">
+                            {formatMoney(product.priceMinor, view.market, dateLocale)}
+                          </p>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            size="icon-xs"
+                            variant="ghost"
+                            disabled={pending || index === 0}
+                            aria-label={dictionary.moveColumnLeft}
+                            title={dictionary.moveColumnLeft}
+                            onClick={() =>
+                              runColumnAction(() =>
+                                moveServiceBoardColumnAction(product.id, 'left'),
+                              )
+                            }
+                          >
+                            <ArrowLeft />
+                          </Button>
+                          <Button
+                            size="icon-xs"
+                            variant="ghost"
+                            disabled={pending || index === view.columns.length - 1}
+                            aria-label={dictionary.moveColumnRight}
+                            title={dictionary.moveColumnRight}
+                            onClick={() =>
+                              runColumnAction(() =>
+                                moveServiceBoardColumnAction(product.id, 'right'),
+                              )
+                            }
+                          >
+                            <ArrowRight />
+                          </Button>
+                          <Button
+                            size="icon-xs"
+                            variant="ghost"
+                            disabled={pending}
+                            aria-label={dictionary.hideColumn}
+                            title={dictionary.hideColumn}
+                            onClick={() =>
+                              runColumnAction(() => removeServiceBoardColumnAction(product.id))
+                            }
+                          >
+                            <EyeOff />
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex gap-1">
-                        <Button
-                          size="icon-xs"
-                          variant="ghost"
-                          disabled={pending || index === 0}
-                          aria-label={dictionary.moveColumnLeft}
-                          title={dictionary.moveColumnLeft}
-                          onClick={() =>
-                            runColumnAction(() => moveServiceBoardColumnAction(product.id, 'left'))
-                          }
-                        >
-                          <ArrowLeft />
-                        </Button>
-                        <Button
-                          size="icon-xs"
-                          variant="ghost"
-                          disabled={pending || index === view.columns.length - 1}
-                          aria-label={dictionary.moveColumnRight}
-                          title={dictionary.moveColumnRight}
-                          onClick={() =>
-                            runColumnAction(() => moveServiceBoardColumnAction(product.id, 'right'))
-                          }
-                        >
-                          <ArrowRight />
-                        </Button>
-                        <Button
-                          size="icon-xs"
-                          variant="ghost"
-                          disabled={pending}
-                          aria-label={dictionary.hideColumn}
-                          title={dictionary.hideColumn}
-                          onClick={() =>
-                            runColumnAction(() => removeServiceBoardColumnAction(product.id))
-                          }
-                        >
-                          <EyeOff />
-                        </Button>
-                      </div>
+                      <Button
+                        className="w-full border-0 bg-emerald-500 text-white hover:bg-emerald-600 dark:bg-emerald-200 dark:text-emerald-950 dark:hover:bg-emerald-100"
+                        disabled={!settingsReady || !viewingToday}
+                        onClick={() => openSale(product)}
+                      >
+                        <Plus aria-hidden="true" />
+                        {dictionary.addSale}
+                      </Button>
+                    </header>
+                    <div className="max-h-[calc(100dvh-23rem)] min-h-40 space-y-3 overflow-y-auto p-3">
+                      {cards.map((card, cardIndex) => (
+                        <ServiceCard
+                          key={`${card.invoiceId}:${card.productId}:${cardIndex}`}
+                          accent={cardAccents.get(card.invoiceId)!}
+                          card={card}
+                          dictionary={dictionary}
+                          locale={locale}
+                          view={view}
+                        />
+                      ))}
+                      {cards.length === 0 && (
+                        <p className="py-8 text-center text-sm text-muted-foreground">
+                          {dictionary.noSalesToday}
+                        </p>
+                      )}
                     </div>
-                    <Button
-                      className="w-full border-0 bg-emerald-500 text-white hover:bg-emerald-600 dark:bg-emerald-200 dark:text-emerald-950 dark:hover:bg-emerald-100"
-                      disabled={!settingsReady || !viewingToday}
-                      onClick={() => openSale(product)}
-                    >
-                      <Plus aria-hidden="true" />
-                      {dictionary.addSale}
-                    </Button>
-                  </header>
-                  <div className="max-h-[calc(100dvh-23rem)] min-h-40 space-y-3 overflow-y-auto p-3">
-                    {cards.map((card, cardIndex) => (
-                      <ServiceCard
-                        key={`${card.invoiceId}:${card.productId}:${cardIndex}`}
-                        accent={cardAccents.get(card.invoiceId)!}
-                        card={card}
-                        dictionary={dictionary}
-                        locale={locale}
-                        view={view}
-                      />
-                    ))}
-                    {cards.length === 0 && (
-                      <p className="py-8 text-center text-sm text-muted-foreground">
-                        {dictionary.noSalesToday}
-                      </p>
-                    )}
-                  </div>
                   </section>
                 </div>
               )
@@ -773,18 +791,10 @@ export function ServiceBoardClient({
               </p>
             )}
             <DialogFooter className="mx-0 mb-0 px-0 pb-0">
-              <Button
-                type="button"
-                variant="cancel"
-                onClick={() => setSaleOpen(false)}
-              >
+              <Button type="button" variant="cancel" onClick={() => setSaleOpen(false)}>
                 {dictionary.cancel}
               </Button>
-              <Button
-                type="submit"
-                variant="success"
-                disabled={pending || !settingsReady}
-              >
+              <Button type="submit" variant="success" disabled={pending || !settingsReady}>
                 {pending ? dictionary.creatingSale : dictionary.createSale}
               </Button>
             </DialogFooter>
