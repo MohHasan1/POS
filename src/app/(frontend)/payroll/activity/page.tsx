@@ -6,6 +6,13 @@ import { PayrollActivityTable } from '@/components/payroll/PayrollActivityTable'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { todayDateInput } from '@/lib/calendar'
 import { getDictionary } from '@/lib/localization'
 import type { PayrollActivity, PayrollPeriodFilter, PayrollPeriodMode } from '@/lib/payroll-types'
@@ -17,6 +24,7 @@ import { getShopSettings, marketContextFromSettings } from '@/services/settings'
 export const metadata: Metadata = { title: 'Payroll Activity' }
 
 const PAGE_SIZE = 30
+const ALL_EMPLOYEES = '__all_employees__'
 const periodModes: PayrollPeriodMode[] = ['day', 'month', 'year', 'all']
 const activityKinds: Array<PayrollActivity['kind']> = ['monthlySalary', 'commission', 'payout']
 
@@ -88,17 +96,20 @@ export default async function PayrollActivityPage({
         <form action="/payroll/activity" className="flex flex-col gap-3 lg:flex-row lg:items-end">
           <div className="space-y-1.5">
             <Label htmlFor="activity-period">{dictionary.payrollPeriod}</Label>
-            <select
-              id="activity-period"
+            <Select
               name="mode"
-              className="h-9 min-w-36 rounded-md border bg-background px-3 text-sm"
               defaultValue={mode}
             >
-              <option value="day">{dictionary.payrollDay}</option>
-              <option value="month">{dictionary.payrollMonth}</option>
-              <option value="year">{dictionary.payrollYear}</option>
-              <option value="all">{dictionary.payrollAllTime}</option>
-            </select>
+              <SelectTrigger id="activity-period" className="h-9 min-w-36 bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectItem value="day">{dictionary.payrollDay}</SelectItem>
+                <SelectItem value="month">{dictionary.payrollMonth}</SelectItem>
+                <SelectItem value="year">{dictionary.payrollYear}</SelectItem>
+                <SelectItem value="all">{dictionary.payrollAllTime}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           {mode !== 'all' && (
             <div className="space-y-1.5">
@@ -116,31 +127,37 @@ export default async function PayrollActivityPage({
           )}
           <div className="min-w-52 space-y-1.5">
             <Label htmlFor="activity-employee">{dictionary.employee}</Label>
-            <select
-              id="activity-employee"
+            <Select
               name="employee"
-              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-              defaultValue={filter.employeeId || ''}
+              defaultValue={filter.employeeId || ALL_EMPLOYEES}
             >
-              <option value="">{dictionary.allEmployees}</option>
-              {employees.map((employee) => (
-                <option key={employee.id} value={employee.id}>{employee.name}</option>
-              ))}
-            </select>
+              <SelectTrigger id="activity-employee" className="h-9 w-full bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectItem value={ALL_EMPLOYEES}>{dictionary.allEmployees}</SelectItem>
+                {employees.map((employee) => (
+                  <SelectItem key={employee.id} value={employee.id}>{employee.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="min-w-48 space-y-1.5">
             <Label htmlFor="activity-kind">{dictionary.activityType}</Label>
-            <select
-              id="activity-kind"
+            <Select
               name="kind"
-              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
               defaultValue={activityKind}
             >
-              <option value="all">{dictionary.allActivityTypes}</option>
-              {activityKinds.map((kind) => (
-                <option key={kind} value={kind}>{dictionary[`payroll_${kind}`]}</option>
-              ))}
-            </select>
+              <SelectTrigger id="activity-kind" className="h-9 w-full bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectItem value="all">{dictionary.allActivityTypes}</SelectItem>
+                {activityKinds.map((kind) => (
+                  <SelectItem key={kind} value={kind}>{dictionary[`payroll_${kind}`]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <Button type="submit" variant="secondary">{dictionary.applyFilter}</Button>
           <Link className={buttonVariants({ variant: 'ghost' })} href="/payroll/activity">

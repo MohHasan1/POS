@@ -24,6 +24,13 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Table,
   TableBody,
   TableCell,
@@ -51,6 +58,9 @@ const planLabels = {
   monthly: 'compensation_monthly',
   unconfigured: 'compensation_unconfigured',
 } as const
+
+const ALL_EMPLOYEES = '__all_employees__'
+const NO_EMPLOYEE = '__no_employee__'
 
 export function PayrollClient({
   dashboard,
@@ -129,21 +139,24 @@ export function PayrollClient({
         <form className="flex flex-col gap-3 lg:flex-row lg:items-end" onSubmit={applyFilter}>
           <div className="space-y-1.5">
             <Label htmlFor="payroll-period">{dictionary.payrollPeriod}</Label>
-            <select
-              id="payroll-period"
-              className="h-9 min-w-36 rounded-md border bg-background px-3 text-sm"
+            <Select
               value={filterMode}
-              onChange={(event) => {
-                const mode = event.target.value as PayrollPeriodMode
+              onValueChange={(value) => {
+                const mode = value as PayrollPeriodMode
                 setFilterMode(mode)
                 setFilterValue(mode === 'day' ? today : mode === 'month' ? today.slice(0, 7) : mode === 'year' ? today.slice(0, 4) : '')
               }}
             >
-              <option value="day">{dictionary.payrollDay}</option>
-              <option value="month">{dictionary.payrollMonth}</option>
-              <option value="year">{dictionary.payrollYear}</option>
-              <option value="all">{dictionary.payrollAllTime}</option>
-            </select>
+              <SelectTrigger id="payroll-period" className="h-9 min-w-36 bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectItem value="day">{dictionary.payrollDay}</SelectItem>
+                <SelectItem value="month">{dictionary.payrollMonth}</SelectItem>
+                <SelectItem value="year">{dictionary.payrollYear}</SelectItem>
+                <SelectItem value="all">{dictionary.payrollAllTime}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           {filterMode !== 'all' && (
             <div className="space-y-1.5">
@@ -161,15 +174,20 @@ export function PayrollClient({
           )}
           <div className="min-w-56 space-y-1.5">
             <Label htmlFor="payroll-employee-filter">{dictionary.employee}</Label>
-            <select
-              id="payroll-employee-filter"
-              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-              value={filterEmployee}
-              onChange={(event) => setFilterEmployee(event.target.value)}
+            <Select
+              value={filterEmployee || ALL_EMPLOYEES}
+              onValueChange={(value) => setFilterEmployee(value === ALL_EMPLOYEES ? '' : value || '')}
             >
-              <option value="">{dictionary.allEmployees}</option>
-              {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}
-            </select>
+              <SelectTrigger id="payroll-employee-filter" className="h-9 w-full bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectItem value={ALL_EMPLOYEES}>{dictionary.allEmployees}</SelectItem>
+                {employees.map((employee) => (
+                  <SelectItem key={employee.id} value={employee.id}>{employee.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <Button type="submit" variant="secondary">{dictionary.applyFilter}</Button>
           <Button type="button" variant="ghost" onClick={resetFilters}>{dictionary.resetFilters}</Button>
@@ -475,14 +493,12 @@ export function PayrollDialog({
           {kind !== 'commission' && (
             <div className="space-y-1.5">
               <Label htmlFor="payroll-dialog-employee">{dictionary.employee}</Label>
-              <select
-                id="payroll-dialog-employee"
-                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+              <Select
                 disabled={kind === 'edit'}
                 required
-                value={employeeId}
-                onChange={(event) => {
-                  const next = event.target.value
+                value={employeeId || NO_EMPLOYEE}
+                onValueChange={(value) => {
+                  const next = value === NO_EMPLOYEE ? '' : value || ''
                   setEmployeeId(next)
                   if (kind === 'monthly') {
                     const employee = employees.find(({ id }) => id === next)
@@ -490,9 +506,16 @@ export function PayrollDialog({
                   }
                 }}
               >
-                <option value="" disabled>{dictionary.noEmployee}</option>
-                {candidates.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}
-              </select>
+                <SelectTrigger id="payroll-dialog-employee" className="h-9 w-full bg-background">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  <SelectItem value={NO_EMPLOYEE} disabled>{dictionary.noEmployee}</SelectItem>
+                  {candidates.map((employee) => (
+                    <SelectItem key={employee.id} value={employee.id}>{employee.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 
@@ -590,11 +613,16 @@ function PaymentFields({
     <div className="grid gap-3 sm:grid-cols-2">
       <div className="space-y-1.5">
         <Label htmlFor="payroll-payment-method">{dictionary.payrollPaymentMethod}</Label>
-        <select id="payroll-payment-method" className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={method} onChange={(event) => onMethod(event.target.value as PayrollPaymentMethod)}>
-          <option value="cash">{dictionary.payrollCash}</option>
-          <option value="bank">{dictionary.payrollBank}</option>
-          <option value="other">{dictionary.payrollOther}</option>
-        </select>
+        <Select value={method} onValueChange={(value) => onMethod(value as PayrollPaymentMethod)}>
+          <SelectTrigger id="payroll-payment-method" className="h-9 w-full bg-background">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="start">
+            <SelectItem value="cash">{dictionary.payrollCash}</SelectItem>
+            <SelectItem value="bank">{dictionary.payrollBank}</SelectItem>
+            <SelectItem value="other">{dictionary.payrollOther}</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="payroll-reference">{dictionary.payrollReference}</Label>

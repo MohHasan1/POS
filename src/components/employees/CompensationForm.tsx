@@ -11,6 +11,13 @@ import { Button } from '@/components/ui/button'
 import { DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import type { Dictionary } from '@/lib/localization'
 import type { CompensationType } from '@/lib/payroll-types'
 import { decimalToMinor, minorToDecimal } from '@/lib/money'
@@ -106,16 +113,19 @@ export function CompensationForm({
     <form className="space-y-4" onSubmit={submit}>
       <div className="space-y-1.5">
         <Label htmlFor="compensation-type">{dictionary.compensationPlan}</Label>
-        <select
-          id="compensation-type"
-          className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+        <Select
           value={compensationType}
-          onChange={(event) => setCompensationType(event.target.value as CompensationType)}
+          onValueChange={(value) => setCompensationType(value as CompensationType)}
         >
-          <option value="unconfigured">{dictionary.compensationUnconfigured}</option>
-          <option value="monthly">{dictionary.monthlySalary}</option>
-          <option value="commission">{dictionary.serviceCommission}</option>
-        </select>
+          <SelectTrigger id="compensation-type" className="h-9 w-full bg-background">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="start">
+            <SelectItem value="unconfigured">{dictionary.compensationUnconfigured}</SelectItem>
+            <SelectItem value="monthly">{dictionary.monthlySalary}</SelectItem>
+            <SelectItem value="commission">{dictionary.serviceCommission}</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {compensationType === 'monthly' && (
