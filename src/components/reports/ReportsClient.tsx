@@ -1,6 +1,13 @@
 'use client'
 
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, ReceiptCent, Wrench } from 'lucide-react'
+import {
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowUpRight,
+  FileDown,
+  ReceiptCent,
+  Wrench,
+} from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { type FormEvent, useState } from 'react'
@@ -94,20 +101,25 @@ export function ReportsClient({
   const [startDate, setStartDate] = useState(report.filter.startDate || '')
   const [endDate, setEndDate] = useState(report.filter.endDate || '')
   const money = (value: number) => formatMoney(value, report.market, moneyLocale)
-  const periodLabels: Record<BusinessReportPeriod, string> = {
-    all: dictionary.allTime,
-    custom: dictionary.customRange,
-    month: dictionary.thisMonth,
-    previousMonth: dictionary.previousMonth,
-    previousYear: dictionary.previousYear,
-    today: dictionary.today,
-    year: dictionary.thisYear,
-    yesterday: dictionary.yesterday,
-  }
+  const periodOptions = [
+    { label: dictionary.today, value: 'today' },
+    { label: dictionary.yesterday, value: 'yesterday' },
+    { label: dictionary.thisMonth, value: 'month' },
+    { label: dictionary.previousMonth, value: 'previousMonth' },
+    { label: dictionary.thisYear, value: 'year' },
+    { label: dictionary.previousYear, value: 'previousYear' },
+    { label: dictionary.allTime, value: 'all' },
+    { label: dictionary.customRange, value: 'custom' },
+  ]
   const employeeOptions = [
     { label: dictionary.allEmployees, value: ALL_EMPLOYEES },
     ...employees.map((employee) => ({ label: employee.name, value: employee.id })),
   ]
+  const printParams = new URLSearchParams({ period: report.filter.period })
+  if (report.filter.employeeId) printParams.set('employee', report.filter.employeeId)
+  if (report.filter.startDate) printParams.set('start', report.filter.startDate)
+  if (report.filter.endDate) printParams.set('end', report.filter.endDate)
+  const printHref = `/reports/print?${printParams}`
 
   function apply(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -120,67 +132,187 @@ export function ReportsClient({
     router.push(`/reports?${values}`)
   }
 
-  const metrics: Array<{
+  const isDaily = report.filter.period === 'today' || report.filter.period === 'yesterday'
+  const showSalaryWarning = !isDaily && report.warnings.unconfirmedSalaryCount > 0
+  const hasVisibleWarnings = report.warnings.missingCostLines > 0 || showSalaryWarning
+  type ReportMetric = {
+    format?: 'count' | 'money'
     key: keyof BusinessReportSummary
     label: string
     value: number
     lowerIsBetter?: boolean
     warning?: boolean
-  }> = [
-    { key: 'grossSalesMinor', label: dictionary.grossSales, value: report.summary.grossSalesMinor },
-    { key: 'netSalesMinor', label: dictionary.netSales, value: report.summary.netSalesMinor },
+  }
+  const calculationMetrics: ReportMetric[] = isDaily
+    ? [
+        {
+          key: 'grossSalesMinor',
+          label: dictionary.grossSales,
+          value: report.summary.grossSalesMinor,
+        },
+        {
+          key: 'directCostMinor',
+          label: dictionary.directCosts,
+          lowerIsBetter: true,
+          value: report.summary.directCostMinor,
+          warning: report.warnings.missingCostLines > 0,
+        },
+        {
+          key: 'grossProfitMinor',
+          label: dictionary.grossProfit,
+          value: report.summary.grossProfitMinor,
+          warning: report.warnings.missingCostLines > 0,
+        },
+        {
+          key: 'commissionEarnedMinor',
+          label: dictionary.commissionEarned,
+          lowerIsBetter: true,
+          value: report.summary.commissionEarnedMinor,
+        },
+        {
+          key: 'salesContributionMinor',
+          label: dictionary.salesContribution,
+          value: report.summary.salesContributionMinor,
+          warning: report.warnings.missingCostLines > 0,
+        },
+      ]
+    : [
+        {
+          key: 'grossSalesMinor',
+          label: dictionary.grossSales,
+          value: report.summary.grossSalesMinor,
+        },
+        { key: 'netSalesMinor', label: dictionary.netSales, value: report.summary.netSalesMinor },
+        {
+          key: 'directCostMinor',
+          label: dictionary.directCosts,
+          lowerIsBetter: true,
+          value: report.summary.directCostMinor,
+          warning: report.warnings.missingCostLines > 0,
+        },
+        {
+          key: 'grossProfitMinor',
+          label: dictionary.grossProfit,
+          value: report.summary.grossProfitMinor,
+          warning: report.warnings.missingCostLines > 0,
+        },
+        {
+          key: 'commissionEarnedMinor',
+          label: dictionary.commissionEarned,
+          lowerIsBetter: true,
+          value: report.summary.commissionEarnedMinor,
+        },
+        {
+          key: 'salesContributionMinor',
+          label: dictionary.salesContribution,
+          value: report.summary.salesContributionMinor,
+          warning: report.warnings.missingCostLines > 0,
+        },
+        {
+          key: 'salaryEarnedMinor',
+          label: dictionary.salaryConfirmed,
+          lowerIsBetter: true,
+          value: report.summary.salaryEarnedMinor,
+          warning: showSalaryWarning,
+        },
+        {
+          key: 'expenseMinor',
+          label: dictionary.operatingExpenses,
+          lowerIsBetter: true,
+          value: report.summary.expenseMinor,
+        },
+        {
+          key: 'operatingProfitMinor',
+          label: dictionary.operatingProfit,
+          value: report.summary.operatingProfitMinor,
+          warning:
+            report.warnings.missingCostLines > 0 || report.warnings.unconfirmedSalaryCount > 0,
+        },
+      ]
+  const activityMetrics: ReportMetric[] = [
     {
-      key: 'directCostMinor',
-      label: dictionary.directCosts,
-      lowerIsBetter: true,
-      value: report.summary.directCostMinor,
-      warning: report.warnings.missingCostLines > 0,
+      format: 'count',
+      key: 'invoiceCount',
+      label: dictionary.invoices,
+      value: report.summary.invoiceCount,
     },
     {
-      key: 'grossProfitMinor',
-      label: dictionary.grossProfit,
-      value: report.summary.grossProfitMinor,
-      warning: report.warnings.missingCostLines > 0,
+      key: 'averageInvoiceMinor',
+      label: dictionary.averageInvoice,
+      value: report.summary.averageInvoiceMinor,
     },
-    {
-      key: 'salaryEarnedMinor',
-      label: dictionary.salaryConfirmed,
-      lowerIsBetter: true,
-      value: report.summary.salaryEarnedMinor,
-      warning: report.warnings.unconfirmedSalaryCount > 0,
-    },
-    {
-      key: 'commissionEarnedMinor',
-      label: dictionary.commissionEarned,
-      lowerIsBetter: true,
-      value: report.summary.commissionEarnedMinor,
-    },
-    {
-      key: 'expenseMinor',
-      label: dictionary.operatingExpenses,
-      lowerIsBetter: true,
-      value: report.summary.expenseMinor,
-    },
-    {
-      key: 'operatingProfitMinor',
-      label: dictionary.operatingProfit,
-      value: report.summary.operatingProfitMinor,
-      warning: report.warnings.missingCostLines > 0 || report.warnings.unconfirmedSalaryCount > 0,
-    },
+    ...(report.market.taxMode === 'saudiVat'
+      ? [
+          {
+            key: 'vatMinor' as const,
+            label: dictionary.vatCollected,
+            value: report.summary.vatMinor,
+          },
+        ]
+      : []),
   ]
+
+  function metricCard(metric: ReportMetric) {
+    return (
+      <Card
+        key={metric.key}
+        className={cn(
+          'report-avoid-break',
+          (metric.key === 'operatingProfitMinor' || metric.key === 'salesContributionMinor') &&
+            'ring-1 ring-primary/20',
+        )}
+      >
+        <CardHeader className="flex-row items-start justify-between gap-3 pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            {metric.label}
+            {metric.warning ? ' *' : ''}
+          </CardTitle>
+          <ComparisonBadge
+            current={metric.value}
+            locale={moneyLocale}
+            lowerIsBetter={metric.lowerIsBetter}
+            newLabel={dictionary.reportNewValue}
+            previous={report.comparison?.summary[metric.key]}
+          />
+        </CardHeader>
+        <CardContent>
+          <p
+            className={cn(
+              'text-2xl font-semibold tabular-nums',
+              metric.value < 0 && 'text-red-600 dark:text-red-400',
+            )}
+          >
+            {metric.format === 'count'
+              ? new Intl.NumberFormat(moneyLocale).format(metric.value)
+              : money(metric.value)}
+          </p>
+          {metric.key === 'operatingProfitMinor' && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {dictionary.profitMargin}:{' '}
+              {new Intl.NumberFormat(moneyLocale, { maximumFractionDigits: 1 }).format(
+                report.summary.profitMarginBps / 100,
+              )}
+              %
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <div className="space-y-5">
-      <section className="rounded-lg border bg-background p-3">
+      <section className="no-print rounded-lg border bg-background p-3">
         <form className="flex flex-col gap-3 lg:flex-row lg:items-end" onSubmit={apply}>
           <div className="min-w-48 space-y-1.5">
             <Label htmlFor="report-period">{dictionary.reportingPeriod}</Label>
             <Select
+              items={periodOptions}
               value={period}
               onValueChange={(value) => setPeriod(value as BusinessReportPeriod)}
             >
               <SelectTrigger id="report-period" className="h-9 w-full bg-background">
-                <SelectValue>{periodLabels[period]}</SelectValue>
+                <SelectValue />
               </SelectTrigger>
               <SelectContent align="start">
                 <SelectItem value="today">{dictionary.today}</SelectItem>
@@ -246,6 +378,10 @@ export function ReportsClient({
             {dictionary.resetFilters}
           </Button>
           <div className="flex gap-2 lg:ml-auto">
+            <Link className={buttonVariants()} href={printHref} target="_blank" rel="noreferrer">
+              <FileDown />
+              {dictionary.exportPDF}
+            </Link>
             <Link className={buttonVariants({ variant: 'outline' })} href="/reports/costs">
               <Wrench />
               {dictionary.missingCosts}
@@ -255,10 +391,15 @@ export function ReportsClient({
               {dictionary.manageExpenses}
             </Link>
           </div>
+          {report.filter.employeeId && (
+            <p className="basis-full text-xs text-muted-foreground">
+              {dictionary.employeeFilterHint}
+            </p>
+          )}
         </form>
       </section>
 
-      {(report.warnings.missingCostLines > 0 || report.warnings.unconfirmedSalaryCount > 0) && (
+      {hasVisibleWarnings && (
         <section className="grid gap-3 md:grid-cols-2">
           {report.warnings.missingCostLines > 0 && (
             <div className="flex gap-3 rounded-lg bg-amber-100 p-4 text-amber-950 dark:bg-amber-950 dark:text-amber-200">
@@ -276,7 +417,7 @@ export function ReportsClient({
               </div>
             </div>
           )}
-          {report.warnings.unconfirmedSalaryCount > 0 && (
+          {showSalaryWarning && (
             <div className="flex gap-3 rounded-lg bg-amber-100 p-4 text-amber-950 dark:bg-amber-950 dark:text-amber-200">
               <AlertTriangle className="mt-0.5 size-5 shrink-0" />
               <div>
@@ -293,71 +434,60 @@ export function ReportsClient({
         </section>
       )}
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {metrics.map((metric) => (
-          <Card
-            key={metric.key}
-            className={cn(metric.key === 'operatingProfitMinor' && 'ring-1 ring-primary/20')}
-          >
-            <CardHeader className="flex-row items-start justify-between gap-3 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {metric.label}
-                {metric.warning ? ' *' : ''}
-              </CardTitle>
-              <ComparisonBadge
-                current={metric.value}
-                locale={moneyLocale}
-                lowerIsBetter={metric.lowerIsBetter}
-                newLabel={dictionary.reportNewValue}
-                previous={report.comparison?.summary[metric.key]}
-              />
-            </CardHeader>
-            <CardContent>
-              <p
-                className={cn(
-                  'text-2xl font-semibold tabular-nums',
-                  metric.value < 0 && 'text-red-600 dark:text-red-400',
-                )}
-              >
-                {money(metric.value)}
-              </p>
-              {metric.key === 'operatingProfitMinor' && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {dictionary.profitMargin}:{' '}
-                  {new Intl.NumberFormat(moneyLocale, { maximumFractionDigits: 1 }).format(
-                    report.summary.profitMarginBps / 100,
-                  )}
-                  %
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold text-muted-foreground">
+          {dictionary.profitCalculation}
+        </h2>
+        <div className="report-summary-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {calculationMetrics.map(metricCard)}
+        </div>
+        <p className="text-sm text-muted-foreground">{dictionary.salesAfterDirectCostsHelp}</p>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        {[
-          [dictionary.vatCollected, report.summary.vatMinor],
-          [dictionary.payrollPaid, report.summary.payrollPaidMinor],
-          [dictionary.capitalExpenses, report.summary.capitalExpenseMinor],
-          [dictionary.paidBills, report.summary.billPaidMinor],
-          [dictionary.unpaidBills, report.summary.billUnpaidMinor],
-        ].map(([label, value]) => (
-          <Card key={String(label)}>
-            <CardContent className="pt-4">
-              <p className="text-xs text-muted-foreground">{label}</p>
-              <p className="mt-2 text-lg font-semibold tabular-nums">{money(Number(value))}</p>
-            </CardContent>
-          </Card>
-        ))}
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold text-muted-foreground">{dictionary.salesActivity}</h2>
+        <div className="report-summary-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {activityMetrics.map(metricCard)}
+        </div>
       </section>
 
-      <Card>
+      {!isDaily && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold text-muted-foreground">
+            {dictionary.paymentsAndCapital}
+          </h2>
+          <div className="report-summary-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              [dictionary.payrollPaid, report.summary.payrollPaidMinor] as const,
+              [dictionary.capitalExpenses, report.summary.capitalExpenseMinor] as const,
+              [dictionary.paidBills, report.summary.billPaidMinor] as const,
+              [dictionary.unpaidBills, report.summary.billUnpaidMinor] as const,
+            ].map(([label, value]) => (
+              <Card key={String(label)} className="report-avoid-break">
+                <CardContent className="pt-4">
+                  <p className="text-xs text-muted-foreground">{label}</p>
+                  <p className="mt-2 text-lg font-semibold tabular-nums">{money(Number(value))}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <p className="text-sm text-muted-foreground">{dictionary.paymentsAndCapitalHelp}</p>
+        </section>
+      )}
+
+      <Card className="report-chart report-avoid-break">
         <CardHeader>
-          <CardTitle>{dictionary.salesAndProfitTrend}</CardTitle>
+          <CardTitle>
+            {isDaily ? dictionary.salesAndContributionTrend : dictionary.salesAndProfitTrend}
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <BusinessTrendChart dictionary={dictionary} locale={locale} report={report} />
+          <BusinessTrendChart
+            dictionary={dictionary}
+            locale={locale}
+            mode={isDaily ? 'contribution' : 'profit'}
+            report={report}
+          />
         </CardContent>
       </Card>
 
@@ -368,16 +498,27 @@ export function ReportsClient({
         <CardContent className="overflow-x-auto p-0">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>{dictionary.employee}</TableHead>
-                <TableHead className="text-right">{dictionary.salesGenerated}</TableHead>
-                <TableHead className="text-right">{dictionary.salaryConfirmed}</TableHead>
-                <TableHead className="text-right">{dictionary.commissionEarned}</TableHead>
-                <TableHead className="text-right">{dictionary.totalPayable}</TableHead>
-                <TableHead className="text-right">{dictionary.totalPaid}</TableHead>
-                <TableHead className="text-right">{dictionary.outstandingAllTime}</TableHead>
-                <TableHead className="text-right">{dictionary.contribution}</TableHead>
-              </TableRow>
+              {isDaily ? (
+                <TableRow>
+                  <TableHead>{dictionary.employee}</TableHead>
+                  <TableHead className="text-right">{dictionary.invoices}</TableHead>
+                  <TableHead className="text-right">{dictionary.salesGenerated}</TableHead>
+                  <TableHead className="text-right">{dictionary.directCosts}</TableHead>
+                  <TableHead className="text-right">{dictionary.commissionEarned}</TableHead>
+                  <TableHead className="text-right">{dictionary.salesContribution}</TableHead>
+                </TableRow>
+              ) : (
+                <TableRow>
+                  <TableHead>{dictionary.employee}</TableHead>
+                  <TableHead className="text-right">{dictionary.salesGenerated}</TableHead>
+                  <TableHead className="text-right">{dictionary.salaryConfirmed}</TableHead>
+                  <TableHead className="text-right">{dictionary.commissionEarned}</TableHead>
+                  <TableHead className="text-right">{dictionary.totalPayable}</TableHead>
+                  <TableHead className="text-right">{dictionary.totalPaid}</TableHead>
+                  <TableHead className="text-right">{dictionary.outstandingAllTime}</TableHead>
+                  <TableHead className="text-right">{dictionary.contribution}</TableHead>
+                </TableRow>
+              )}
             </TableHeader>
             <TableBody>
               {report.employeeMetrics.map((metric) => (
@@ -385,27 +526,49 @@ export function ReportsClient({
                   <TableCell className="font-medium">
                     {metric.employeeId ? metric.employeeName : dictionary.unassignedEmployee}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {money(metric.salesMinor)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {money(metric.salaryMinor)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {money(metric.commissionMinor)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {money(metric.compensationMinor)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {money(metric.paidMinor)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {money(metric.outstandingMinor)}
-                  </TableCell>
-                  <TableCell className="text-right font-medium tabular-nums">
-                    {money(metric.contributionMinor)}
-                  </TableCell>
+                  {isDaily ? (
+                    <>
+                      <TableCell className="text-right tabular-nums">
+                        {new Intl.NumberFormat(moneyLocale).format(metric.invoiceCount)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {money(metric.salesMinor)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {money(metric.directCostMinor)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {money(metric.commissionMinor)}
+                      </TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">
+                        {money(metric.salesContributionMinor)}
+                      </TableCell>
+                    </>
+                  ) : (
+                    <>
+                      <TableCell className="text-right tabular-nums">
+                        {money(metric.salesMinor)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {money(metric.salaryMinor)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {money(metric.commissionMinor)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {money(metric.compensationMinor)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {money(metric.paidMinor)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {money(metric.outstandingMinor)}
+                      </TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">
+                        {money(metric.contributionMinor)}
+                      </TableCell>
+                    </>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
@@ -418,7 +581,7 @@ export function ReportsClient({
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className={cn('grid gap-4', !isDaily && 'xl:grid-cols-2')}>
         <Card>
           <CardHeader>
             <CardTitle>{dictionary.productProfitability}</CardTitle>
@@ -478,50 +641,57 @@ export function ReportsClient({
                 })}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>{dictionary.expenseBreakdown}</CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-x-auto p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{dictionary.category}</TableHead>
-                  <TableHead className="text-right">{dictionary.fixedExpenses}</TableHead>
-                  <TableHead className="text-right">{dictionary.variableExpenses}</TableHead>
-                  <TableHead className="text-right">{dictionary.capitalExpenses}</TableHead>
-                  <TableHead className="text-right">{dictionary.total}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {report.expenseMetrics.map((metric) => (
-                  <TableRow key={metric.categoryName}>
-                    <TableCell className="font-medium">{metric.categoryName}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {money(metric.fixedMinor)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {money(metric.variableMinor)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {money(metric.capitalMinor)}
-                    </TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">
-                      {money(metric.netMinor)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            {!report.expenseMetrics.length && (
+            {!report.productMetrics.length && (
               <p className="p-8 text-center text-sm text-muted-foreground">
-                {dictionary.noExpensesForPeriod}
+                {dictionary.noReportData}
               </p>
             )}
           </CardContent>
         </Card>
+        {!isDaily && (
+          <Card>
+            <CardHeader>
+              <CardTitle>{dictionary.expenseBreakdown}</CardTitle>
+            </CardHeader>
+            <CardContent className="overflow-x-auto p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{dictionary.category}</TableHead>
+                    <TableHead className="text-right">{dictionary.fixedExpenses}</TableHead>
+                    <TableHead className="text-right">{dictionary.variableExpenses}</TableHead>
+                    <TableHead className="text-right">{dictionary.capitalExpenses}</TableHead>
+                    <TableHead className="text-right">{dictionary.total}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {report.expenseMetrics.map((metric) => (
+                    <TableRow key={metric.categoryName}>
+                      <TableCell className="font-medium">{metric.categoryName}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {money(metric.fixedMinor)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {money(metric.variableMinor)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {money(metric.capitalMinor)}
+                      </TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">
+                        {money(metric.netMinor)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {!report.expenseMetrics.length && (
+                <p className="p-8 text-center text-sm text-muted-foreground">
+                  {dictionary.noExpensesForPeriod}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   )

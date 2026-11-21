@@ -17,6 +17,8 @@ import type {
   EmployeeCommissionRate,
   EmployeePayrollEntry,
   Invoice,
+  InvoiceCostOverride,
+  Product,
 } from '@/payload-types'
 
 import { getEmployee, updateEmployeeCompensation } from './employees'
@@ -87,10 +89,7 @@ export async function getActiveCommissionRateMap(employeeId: string): Promise<Ma
     depth: 0,
     pagination: false,
     where: {
-      and: [
-        { employee: { equals: employeeId } },
-        { active: { equals: true } },
-      ],
+      and: [{ employee: { equals: employeeId } }, { active: { equals: true } }],
     },
   })
   return new Map(
@@ -129,7 +128,8 @@ export async function saveCompensationPlan(
     if (!Number.isInteger(rate.rateBps) || rate.rateBps < 0 || rate.rateBps > 10_000) {
       throw new Error('Commission percentages must be between 0% and 100%.')
     }
-    if (uniqueRates.has(rate.productId)) throw new Error('A service can only have one commission rate.')
+    if (uniqueRates.has(rate.productId))
+      throw new Error('A service can only have one commission rate.')
     const product = await payload.findByID({ collection: 'products', id: rate.productId, depth: 0 })
     if (!product) throw new Error('A selected service no longer exists.')
     uniqueRates.set(rate.productId, rate.rateBps)
@@ -207,7 +207,8 @@ function entryData(
   if (!Number.isSafeInteger(input.amountMinor) || input.amountMinor < 1) {
     throw new Error('Enter an amount greater than zero.')
   }
-  if (input.entryDate > todayDateInput(profile)) throw new Error('Payroll dates cannot be in the future.')
+  if (input.entryDate > todayDateInput(profile))
+    throw new Error('Payroll dates cannot be in the future.')
   return {
     amountMinor: input.amountMinor,
     countryCode: profile.countryCode,
@@ -234,7 +235,9 @@ function monthEndInput(month: string): string {
 }
 
 export async function createMonthlySalary(
-  input: Omit<PayrollEntryInput, 'entryDate'> & { payout?: Omit<PayrollEntryInput, 'employeeId' | 'salaryMonth'> },
+  input: Omit<PayrollEntryInput, 'entryDate'> & {
+    payout?: Omit<PayrollEntryInput, 'employeeId' | 'salaryMonth'>
+  },
 ): Promise<{ payout?: EmployeePayrollEntry; salary: EmployeePayrollEntry }> {
   const duplicate = await existingEntry(input.idempotencyKey)
   if (duplicate) return { salary: duplicate }
@@ -259,7 +262,8 @@ export async function createMonthlySalary(
       ],
     },
   })
-  if (sameMonth.totalDocs) throw new Error('This employee already has a salary entry for that month.')
+  if (sameMonth.totalDocs)
+    throw new Error('This employee already has a salary entry for that month.')
 
   const transactionID = await payload.db.beginTransaction()
   const req = transactionID === null ? undefined : { payload, transactionID }
@@ -295,7 +299,8 @@ export async function createMonthlySalary(
     if (transactionID !== null) await payload.db.commitTransaction(transactionID)
     return { payout, salary }
   } catch (error) {
-    if (transactionID !== null) await payload.db.rollbackTransaction(transactionID).catch(() => undefined)
+    if (transactionID !== null)
+      await payload.db.rollbackTransaction(transactionID).catch(() => undefined)
     throw error
   }
 }
@@ -324,26 +329,34 @@ export async function updatePayrollEntry(
   const payload = await getPayload({ config })
   const current = await payload.findByID({ collection: 'employee-payroll-entries', id, depth: 0 })
   const { employee, profile } = await payrollSnapshot(input.employeeId)
-  if (relationshipId(current.employee) !== employee.id) throw new Error('The employee cannot be changed.')
-  const monthEnd = current.entryType === 'monthlySalary'
-    ? monthEndInput(input.salaryMonth || '')
-    : undefined
+  if (relationshipId(current.employee) !== employee.id)
+    throw new Error('The employee cannot be changed.')
+  const monthEnd =
+    current.entryType === 'monthlySalary' ? monthEndInput(input.salaryMonth || '') : undefined
   if (
     current.entryType === 'monthlySalary' &&
     (input.salaryMonth || '') > todayDateInput(profile).slice(0, 7)
   ) {
     throw new Error('Salary months cannot be in the future.')
   }
-  const entryDate = current.entryType === 'monthlySalary'
-    ? monthEnd! > todayDateInput(profile) ? todayDateInput(profile) : monthEnd!
-    : input.entryDate
-  const data = entryData({ ...input, entryDate, idempotencyKey: current.idempotencyKey }, employee, profile)
+  const entryDate =
+    current.entryType === 'monthlySalary'
+      ? monthEnd! > todayDateInput(profile)
+        ? todayDateInput(profile)
+        : monthEnd!
+      : input.entryDate
+  const data = entryData(
+    { ...input, entryDate, idempotencyKey: current.idempotencyKey },
+    employee,
+    profile,
+  )
   const clauses: Where[] = [
     { employee: { equals: employee.id } },
     { entryType: { equals: current.entryType } },
     { id: { not_equals: id } },
   ]
-  if (current.entryType === 'monthlySalary') clauses.push({ salaryMonth: { equals: input.salaryMonth } })
+  if (current.entryType === 'monthlySalary')
+    clauses.push({ salaryMonth: { equals: input.salaryMonth } })
   if (current.entryType !== 'payout') {
     const conflict = await payload.find({
       collection: 'employee-payroll-entries',
@@ -436,37 +449,59 @@ function periodRange(
 
 function inRange(date: string, range: { end?: number; start?: number }): boolean {
   const value = new Date(date).getTime()
-  return (range.start === undefined || value >= range.start) &&
+  return (
+    (range.start === undefined || value >= range.start) &&
     (range.end === undefined || value < range.end)
+  )
 }
 
 function emptyMetrics(): PayrollMetrics {
   return {
+    businessResultMinor: 0,
     commissionEarnedMinor: 0,
     currentBalanceMinor: 0,
+    directCostMinor: 0,
     fixedEarnedMinor: 0,
     paidMinor: 0,
     periodBalanceMinor: 0,
+    salesGeneratedMinor: 0,
     totalEarnedMinor: 0,
   }
 }
 
 export function buildPayrollDashboard(input: {
   activityLimit?: number | null
+  costOverrides?: InvoiceCostOverride[]
   employees: Employee[]
   entries: EmployeePayrollEntry[]
   filter: PayrollPeriodFilter
   invoices: Invoice[]
   market: ReturnType<typeof marketContextFromSettings>['profile']
   overrides: EmployeeCommissionOverride[]
+  products?: Product[]
 }): PayrollDashboard {
-  const { activityLimit = 50, employees, entries, filter, invoices, market, overrides } = input
+  const {
+    activityLimit = 50,
+    costOverrides = [],
+    employees,
+    entries,
+    filter,
+    invoices,
+    market,
+    overrides,
+    products = [],
+  } = input
   const range = periodRange(filter, market)
   const currentMonth = todayDateInput(market).slice(0, 7)
-  const salaryActionMonth = filter.mode === 'month' && /^\d{4}-\d{2}$/.test(filter.value || '')
-    ? filter.value!
-    : currentMonth
+  const salaryActionMonth =
+    filter.mode === 'month' && /^\d{4}-\d{2}$/.test(filter.value || '')
+      ? filter.value!
+      : currentMonth
   const overrideByItem = new Map(overrides.map((override) => [override.invoiceItemId, override]))
+  const costOverrideByItem = new Map(
+    costOverrides.map((override) => [override.invoiceItemId, override.totalCostMinor]),
+  )
+  const productById = new Map(products.map((product) => [product.id, product]))
   const summaryByEmployee = new Map<string, PayrollEmployeeSummary>()
   const employeeById = new Map(employees.map((employee) => [employee.id, employee]))
   const activities: PayrollActivity[] = []
@@ -480,7 +515,6 @@ export function buildPayrollDashboard(input: {
       employeeId: employee.id,
       employeeName: employee.name,
       salaryConfirmedForActionMonth: false,
-      salesGeneratedMinor: 0,
     })
   }
 
@@ -494,7 +528,6 @@ export function buildPayrollDashboard(input: {
       employeeId,
       employeeName,
       salaryConfirmedForActionMonth: false,
-      salesGeneratedMinor: 0,
     }
     summaryByEmployee.set(employeeId, created)
     return created
@@ -536,7 +569,21 @@ export function buildPayrollDashboard(input: {
     const summary = ensureSummary(employeeId, employeeName)
     const invoiceIsInPeriod = inRange(invoice.issuedAt, range)
     for (const item of invoice.items) {
-      if (invoiceIsInPeriod) summary.salesGeneratedMinor += item.netMinor
+      if (invoiceIsInPeriod) {
+        summary.salesGeneratedMinor += item.netMinor
+        const productId = relationshipId(item.product)
+        const currentUnitCostMinor = productId
+          ? productById.get(productId)?.unitCostMinor
+          : undefined
+        const currentTotalCostMinor =
+          currentUnitCostMinor === undefined || currentUnitCostMinor === null
+            ? 0
+            : Math.round((currentUnitCostMinor * item.quantityMilliunits) / 1_000)
+        summary.directCostMinor +=
+          (item.id ? costOverrideByItem.get(item.id) : undefined) ??
+          item.cost?.totalCostMinor ??
+          currentTotalCostMinor
+      }
       const original = item.commission?.amountMinor
       if (original === undefined || original === null) continue
       const override = item.id ? overrideByItem.get(item.id) : undefined
@@ -565,21 +612,31 @@ export function buildPayrollDashboard(input: {
   for (const summary of summaryByEmployee.values()) {
     summary.totalEarnedMinor = summary.fixedEarnedMinor + summary.commissionEarnedMinor
     summary.periodBalanceMinor = summary.totalEarnedMinor - summary.paidMinor
+    summary.businessResultMinor =
+      summary.salesGeneratedMinor - summary.directCostMinor - summary.totalEarnedMinor
   }
-  const metrics = [...summaryByEmployee.values()].reduce<PayrollMetrics>((total, summary) => ({
-    commissionEarnedMinor: total.commissionEarnedMinor + summary.commissionEarnedMinor,
-    currentBalanceMinor: total.currentBalanceMinor + summary.currentBalanceMinor,
-    fixedEarnedMinor: total.fixedEarnedMinor + summary.fixedEarnedMinor,
-    paidMinor: total.paidMinor + summary.paidMinor,
-    periodBalanceMinor: total.periodBalanceMinor + summary.periodBalanceMinor,
-    totalEarnedMinor: total.totalEarnedMinor + summary.totalEarnedMinor,
-  }), emptyMetrics())
+  const metrics = [...summaryByEmployee.values()].reduce<PayrollMetrics>(
+    (total, summary) => ({
+      businessResultMinor: total.businessResultMinor + summary.businessResultMinor,
+      commissionEarnedMinor: total.commissionEarnedMinor + summary.commissionEarnedMinor,
+      currentBalanceMinor: total.currentBalanceMinor + summary.currentBalanceMinor,
+      directCostMinor: total.directCostMinor + summary.directCostMinor,
+      fixedEarnedMinor: total.fixedEarnedMinor + summary.fixedEarnedMinor,
+      paidMinor: total.paidMinor + summary.paidMinor,
+      periodBalanceMinor: total.periodBalanceMinor + summary.periodBalanceMinor,
+      salesGeneratedMinor: total.salesGeneratedMinor + summary.salesGeneratedMinor,
+      totalEarnedMinor: total.totalEarnedMinor + summary.totalEarnedMinor,
+    }),
+    emptyMetrics(),
+  )
 
-  const sortedActivities = activities
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  const sortedActivities = activities.sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+  )
 
   return {
-    activities: activityLimit === null ? sortedActivities : sortedActivities.slice(0, activityLimit),
+    activities:
+      activityLimit === null ? sortedActivities : sortedActivities.slice(0, activityLimit),
     commissionBreakdown: [...breakdown]
       .map(([serviceName, amountMinor]) => ({ amountMinor, serviceName }))
       .sort((a, b) => b.amountMinor - a.amountMinor || a.serviceName.localeCompare(b.serviceName)),
@@ -598,20 +655,25 @@ export async function getPayrollDashboard(
   activityLimit: number | null = 30,
 ): Promise<PayrollDashboard> {
   const payload = await getPayload({ config })
-  const [employeesResult, entries, invoices, overrides, settings] = await Promise.all([
-    payload.find({ collection: 'employees', pagination: false, sort: 'name' }),
-    allPayrollEntries(),
-    allInvoices(),
-    allCommissionOverrides(),
-    getShopSettings(),
-  ])
+  const [employeesResult, entries, invoices, overrides, costOverrides, products, settings] =
+    await Promise.all([
+      payload.find({ collection: 'employees', pagination: false, sort: 'name' }),
+      allPayrollEntries(),
+      allInvoices(),
+      allCommissionOverrides(),
+      payload.find({ collection: 'invoice-cost-overrides', depth: 0, pagination: false }),
+      payload.find({ collection: 'products', depth: 0, pagination: false }),
+      getShopSettings(),
+    ])
   return buildPayrollDashboard({
     activityLimit,
+    costOverrides: costOverrides.docs,
     employees: employeesResult.docs,
     entries,
     filter,
     invoices,
     market: marketContextFromSettings(settings).profile,
     overrides,
+    products: products.docs,
   })
 }

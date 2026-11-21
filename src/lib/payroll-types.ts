@@ -11,11 +11,14 @@ export type PayrollPeriodFilter = {
 }
 
 export type PayrollMetrics = {
+  businessResultMinor: number
   commissionEarnedMinor: number
   currentBalanceMinor: number
+  directCostMinor: number
   fixedEarnedMinor: number
   paidMinor: number
   periodBalanceMinor: number
+  salesGeneratedMinor: number
   totalEarnedMinor: number
 }
 
@@ -24,7 +27,6 @@ export type PayrollEmployeeSummary = PayrollMetrics & {
   employeeId: string
   employeeName: string
   salaryConfirmedForActionMonth: boolean
-  salesGeneratedMinor: number
 }
 
 export type PayrollCommissionBreakdown = {

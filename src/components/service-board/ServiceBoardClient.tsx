@@ -47,8 +47,13 @@ import { localizedName, marketLocale, normalizedTranslations } from '@/lib/marke
 import { decimalToMinor, formatMoney, formatQuantity, minorToDecimal } from '@/lib/money'
 import type { EmployeeSummary, ProductSummary } from '@/lib/pos-types'
 import { buildServiceCardAccents, type ServiceCardAccent } from '@/lib/service-board-colors'
-import type { SalesDashboard, ServiceBoardCard, ServiceBoardView } from '@/lib/service-board-types'
+import type {
+  SalesPeriodMetric,
+  ServiceBoardCard,
+  ServiceBoardView,
+} from '@/lib/service-board-types'
 import { cn } from '@/lib/utils'
+import { calculateLine } from '@/lib/vat'
 
 type SaleRow = {
   price: string
@@ -208,7 +213,7 @@ export function ServiceBoardClient({
   settingsReady,
   todayDate,
   view,
-  salesDashboard,
+  salesThroughDate,
 }: {
   allProducts: ProductSummary[]
   autoTranslateProducts: boolean
@@ -221,7 +226,7 @@ export function ServiceBoardClient({
   settingsReady: boolean
   todayDate: string
   view: ServiceBoardView
-  salesDashboard: SalesDashboard
+  salesThroughDate: SalesPeriodMetric
 }) {
   const router = useRouter()
   const [manageOpen, setManageOpen] = useState(false)
@@ -229,7 +234,6 @@ export function ServiceBoardClient({
   const [saleOpen, setSaleOpen] = useState(false)
   const [saleRows, setSaleRows] = useState<SaleRow[]>([])
   const [employeeId, setEmployeeId] = useState<string | null>(defaultEmployeeId || null)
-  const [serviceToAdd, setServiceToAdd] = useState<string | null>(null)
   const [idempotencyKey, setIdempotencyKey] = useState('')
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
@@ -282,7 +286,6 @@ export function ServiceBoardClient({
         quantity: '1',
       },
     ])
-    setServiceToAdd(null)
     setIdempotencyKey(crypto.randomUUID())
     setError('')
     setMessage('')
@@ -297,7 +300,6 @@ export function ServiceBoardClient({
       ...rows,
       { price: minorToDecimal(product.priceMinor, view.market), productId, quantity: '1' },
     ])
-    setServiceToAdd(null)
   }
 
   function updateSaleRow(productId: string, changes: Partial<SaleRow>) {
@@ -354,9 +356,28 @@ export function ServiceBoardClient({
   const remainingSaleProducts = visibleProducts.filter(
     (product) => !saleRows.some((row) => row.productId === product.id),
   )
-  const selectedAdditionalService = remainingSaleProducts.find(
-    (product) => product.id === serviceToAdd,
-  )
+  const saleTotalMinor = saleRows.reduce((total, row) => {
+    const product = visibleProducts.find((candidate) => candidate.id === row.productId)
+    const unitPriceMinor = decimalToMinor(row.price, view.market)
+    const quantityMilliunits = Math.round(Number(row.quantity) * 1_000)
+    if (
+      !product ||
+      unitPriceMinor === null ||
+      !Number.isSafeInteger(quantityMilliunits) ||
+      quantityMilliunits <= 0
+    ) {
+      return total
+    }
+    return (
+      total +
+      calculateLine({
+        priceIncludesVat: view.market.taxMode === 'none' ? false : product.priceIncludesVat,
+        quantityMilliunits,
+        unitPriceMinor,
+        vatCategory: view.market.taxMode === 'none' ? 'exempt' : product.vatCategory,
+      }).totalMinor
+    )
+  }, 0)
   const popular = view.summary.mostPopularService
   const popularName = popular?.nameEnglish || '—'
 
@@ -441,8 +462,8 @@ export function ServiceBoardClient({
           ],
           [dictionary.mostPopularService, popularName],
           [
-            dictionary.allTimeSales,
-            formatMoney(salesDashboard.allTime.totalMinor, salesDashboard.market, dateLocale),
+            dictionary.salesThroughSelectedDate,
+            formatMoney(salesThroughDate.totalMinor, view.market, dateLocale),
           ],
         ].map(([label, value]) => (
           <div key={label} className="rounded-lg border bg-card p-4 shadow-sm">
@@ -676,32 +697,14 @@ export function ServiceBoardClient({
             <DialogDescription>{dictionary.serviceBoardDescription}</DialogDescription>
           </DialogHeader>
           <form onSubmit={submitSale} className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Input name="customerName" maxLength={160} placeholder={dictionary.customerName} />
-              <Input name="customerPhone" maxLength={40} placeholder={dictionary.customerPhone} />
-              <Textarea
-                className="sm:col-span-2"
-                name="note"
-                maxLength={500}
-                rows={2}
-                placeholder={dictionary.serviceNote}
-              />
-            </div>
-
-            <EmployeeSelector
-              dictionary={dictionary}
-              employees={employees}
-              onValueChange={setEmployeeId}
-              value={employeeId}
-            />
-
-            <div className="space-y-2">
+            <section className="space-y-2">
+              <h3 className="text-sm font-semibold">{dictionary.services}</h3>
               {saleRows.map((row) => {
                 const product = visibleProducts.find((candidate) => candidate.id === row.productId)!
                 return (
                   <div
                     key={row.productId}
-                    className="grid items-end gap-2 rounded-lg border bg-muted/30 p-3 sm:grid-cols-[1fr_140px_110px_auto]"
+                    className="grid items-end gap-2 rounded-lg bg-muted/40 p-3 sm:grid-cols-[1fr_140px_110px_auto]"
                   >
                     <div>
                       <p className="font-medium">{localizedProductName(product)}</p>
@@ -753,17 +756,11 @@ export function ServiceBoardClient({
                   </div>
                 )
               })}
-            </div>
 
-            {remainingSaleProducts.length > 0 && (
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <Select value={serviceToAdd} onValueChange={setServiceToAdd}>
-                  <SelectTrigger className="w-full bg-background sm:flex-1">
-                    <SelectValue>
-                      {selectedAdditionalService
-                        ? localizedProductName(selectedAdditionalService)
-                        : dictionary.selectService}
-                    </SelectValue>
+              {remainingSaleProducts.length > 0 && (
+                <Select value={null} onValueChange={addSaleRow}>
+                  <SelectTrigger className="w-full bg-background">
+                    <SelectValue>{dictionary.selectService}</SelectValue>
                   </SelectTrigger>
                   <SelectContent align="start">
                     {remainingSaleProducts.map((product) => (
@@ -773,17 +770,37 @@ export function ServiceBoardClient({
                     ))}
                   </SelectContent>
                 </Select>
-                <Button
-                  type="button"
-                  variant="success"
-                  disabled={!serviceToAdd}
-                  onClick={() => addSaleRow(serviceToAdd)}
-                >
-                  <Plus />
-                  {dictionary.addAnotherService}
-                </Button>
+              )}
+
+              <div className="flex items-center justify-between rounded-lg bg-primary/10 px-4 py-3">
+                <span className="font-medium">{dictionary.total}</span>
+                <strong className="text-lg tabular-nums">
+                  {formatMoney(saleTotalMinor, view.market, dateLocale)}
+                </strong>
               </div>
-            )}
+            </section>
+
+            <EmployeeSelector
+              dictionary={dictionary}
+              employees={employees}
+              onValueChange={setEmployeeId}
+              value={employeeId}
+            />
+
+            <section className="space-y-2">
+              <h3 className="text-sm font-semibold">{dictionary.customerInformation}</h3>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Input name="customerName" maxLength={160} placeholder={dictionary.customerName} />
+                <Input name="customerPhone" maxLength={40} placeholder={dictionary.customerPhone} />
+                <Textarea
+                  className="sm:col-span-2"
+                  name="note"
+                  maxLength={500}
+                  rows={2}
+                  placeholder={dictionary.serviceNote}
+                />
+              </div>
+            </section>
 
             {error && (
               <p className="text-sm text-destructive" role="alert">

@@ -47,7 +47,9 @@ export function PrimaryNavigation({
   marketProfile: MarketProfile
 }) {
   const pathname = usePathname()
-  const primaryItems: Array<NavigationItem & { style: 'checkout' | 'neutral' | 'service' | 'voucher' }> = [
+  const primaryItems: Array<
+    NavigationItem & { style: 'checkout' | 'neutral' | 'service' | 'voucher' }
+  > = [
     { href: '/checkout', icon: ShoppingCart, label: dictionary.checkout, style: 'checkout' },
     {
       href: '/service-board',
@@ -63,10 +65,12 @@ export function PrimaryNavigation({
     },
     { href: '/payroll', icon: WalletCards, label: dictionary.payroll, style: 'neutral' },
   ]
-  const manageItems: NavigationItem[] = [
+  const recordsItems: NavigationItem[] = [
+    { href: '/invoices', icon: FileText, label: dictionary.invoices },
     { href: '/reports', icon: ChartNoAxesCombined, label: dictionary.reports },
     { href: '/expenses', icon: ReceiptCent, label: dictionary.expenses },
-    { href: '/invoices', icon: FileText, label: dictionary.invoices },
+  ]
+  const manageItems: NavigationItem[] = [
     { href: '/products', icon: Boxes, label: dictionary.products },
     { href: '/employees', icon: UsersRound, label: dictionary.employees },
     ...(marketSupports(marketProfile, 'historicalSales')
@@ -99,6 +103,7 @@ export function PrimaryNavigation({
     )
   }
 
+  const recordsActive = recordsItems.some((item) => isActivePath(pathname, item.href))
   const manageActive = manageItems.some((item) => isActivePath(pathname, item.href))
 
   return (
@@ -150,6 +155,41 @@ export function PrimaryNavigation({
           <Menu.Positioner sideOffset={6} align="end" className="z-50 outline-none">
             <Menu.Popup className="min-w-56 origin-[var(--transform-origin)] rounded-lg border bg-popover p-1 text-popover-foreground shadow-lg outline-none transition-[scale,opacity] duration-100 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0">
               {manageItems.map(({ href, icon: Icon, label }) => (
+                <Menu.LinkItem
+                  key={href}
+                  closeOnClick
+                  render={<Link href={href} />}
+                  aria-current={isActivePath(pathname, href) ? 'page' : undefined}
+                  className="flex cursor-default items-center gap-2 rounded-md px-3 py-2 text-sm outline-none data-highlighted:bg-muted data-highlighted:text-foreground"
+                >
+                  <Icon className="size-4 text-muted-foreground" aria-hidden="true" />
+                  {label}
+                </Menu.LinkItem>
+              ))}
+            </Menu.Popup>
+          </Menu.Positioner>
+        </Menu.Portal>
+      </Menu.Root>
+
+      <Menu.Root>
+        <Menu.Trigger
+          aria-label={dictionary.records}
+          title={dictionary.records}
+          className={cn(
+            baseLinkClass,
+            recordsActive
+              ? 'bg-muted text-foreground'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+          )}
+        >
+          <Ellipsis className="size-4" aria-hidden="true" />
+          <span className="hidden lg:inline">{dictionary.records}</span>
+          <ChevronDown className="hidden size-3 lg:block" aria-hidden="true" />
+        </Menu.Trigger>
+        <Menu.Portal>
+          <Menu.Positioner sideOffset={6} align="end" className="z-50 outline-none">
+            <Menu.Popup className="min-w-56 origin-[var(--transform-origin)] rounded-lg border bg-popover p-1 text-popover-foreground shadow-lg outline-none transition-[scale,opacity] duration-100 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0">
+              {recordsItems.map(({ href, icon: Icon, label }) => (
                 <Menu.LinkItem
                   key={href}
                   closeOnClick

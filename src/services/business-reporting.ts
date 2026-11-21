@@ -144,9 +144,7 @@ function trendGranularity(
     return Math.max(...dates) - Math.min(...dates) <= 730 * 86_400_000 ? 'month' : 'year'
   }
   const duration =
-    range.start && range.end
-      ? new Date(range.end).getTime() - new Date(range.start).getTime()
-      : 0
+    range.start && range.end ? new Date(range.end).getTime() - new Date(range.start).getTime() : 0
   if (duration <= 2 * 86_400_000) return 'hour'
   if (duration <= 95 * 86_400_000) return 'day'
   if (duration <= 730 * 86_400_000) return 'month'
@@ -463,6 +461,40 @@ function unconfirmedSalaryCount(
   return count
 }
 
+function salesInRange(data: ReportData, range: BusinessReportRange): BusinessReport['sales'] {
+  const employeeNames = new Map(data.employees.map((employee) => [employee.id, employee.name]))
+  return data.invoices
+    .filter(({ issuedAt }) => dateInBusinessRange(issuedAt, range))
+    .map((invoice) => {
+      const employeeId = relationshipId(invoice.employee)
+      return {
+        employeeName:
+          invoice.employeeSnapshot?.name ||
+          (employeeId ? employeeNames.get(employeeId) : undefined) ||
+          undefined,
+        entrySource: invoice.entrySource || 'live',
+        invoiceId: invoice.id || invoice.invoiceNumber || '',
+        invoiceNumber: invoice.invoiceNumber || invoice.id || '',
+        issuedAt: invoice.issuedAt,
+        items: invoice.items.map((item) => ({
+          nameArabic: item.descriptionArabic || undefined,
+          nameBangla: item.descriptionBangla || undefined,
+          nameEnglish: item.descriptionEnglish,
+          quantityMilliunits: item.quantityMilliunits,
+          totalMinor: item.totalMinor ?? item.netMinor,
+        })),
+        netMinor: invoice.items.reduce((total, item) => total + item.netMinor, 0),
+        salesChannel: invoice.salesChannel || 'checkout',
+        totalMinor: invoice.totalMinor,
+        vatMinor: invoice.vatMinor,
+      }
+    })
+    .sort(
+      (a, b) =>
+        a.issuedAt.localeCompare(b.issuedAt) || a.invoiceNumber.localeCompare(b.invoiceNumber),
+    )
+}
+
 export function buildBusinessReport(
   data: ReportData,
   filter: BusinessReportFilter,
@@ -470,19 +502,21 @@ export function buildBusinessReport(
   secondaryLanguage: BusinessReport['secondaryLanguage'],
   now = new Date(),
   displayLocale = market.locale,
+  businessName = 'QuickPOS',
+  includeSales = true,
 ): BusinessReport {
   const ranges = resolveBusinessReportPeriod(filter, market, now)
   const granularity = trendGranularity(data, filter, ranges.selected)
-  const selected = calculatePeriod(data, ranges.selected, market, granularity, undefined, displayLocale)
+  const selected = calculatePeriod(
+    data,
+    ranges.selected,
+    market,
+    granularity,
+    undefined,
+    displayLocale,
+  )
   const detail = filter.employeeId
-    ? calculatePeriod(
-        data,
-        ranges.selected,
-        market,
-        granularity,
-        filter.employeeId,
-        displayLocale,
-      )
+    ? calculatePeriod(data, ranges.selected, market, granularity, filter.employeeId, displayLocale)
     : selected
   const knownRevenue = selected.productMetrics.reduce(
     (total, product) => total + product.knownCostRevenueMinor,
@@ -491,17 +525,32 @@ export function buildBusinessReport(
   const comparison = ranges.comparison
     ? calculatePeriod(data, ranges.comparison, market, granularity, undefined, displayLocale)
     : undefined
+  const isDaily = filter.period === 'today' || filter.period === 'yesterday'
+  const employeeMetrics = isDaily
+    ? detail.employeeMetrics.filter(
+        ({ commissionMinor, invoiceCount, salesMinor }) =>
+          invoiceCount > 0 || salesMinor !== 0 || commissionMinor !== 0,
+      )
+    : detail.employeeMetrics
+  const trend = isDaily
+    ? selected.trend.filter(
+        ({ grossSalesMinor, netSalesMinor }) => grossSalesMinor !== 0 || netSalesMinor !== 0,
+      )
+    : selected.trend
   return {
+    businessName,
     comparison: comparison ? { range: ranges.comparison!, summary: comparison.summary } : undefined,
-    employeeMetrics: detail.employeeMetrics,
+    employeeMetrics,
     expenseMetrics: selected.expenseMetrics,
     filter,
+    generatedAt: now.toISOString(),
     market,
     productMetrics: detail.productMetrics,
     range: ranges.selected,
+    sales: includeSales ? salesInRange(data, ranges.selected) : [],
     secondaryLanguage,
     summary: selected.summary,
-    trend: selected.trend,
+    trend,
     warnings: {
       costCoverageBps: selected.summary.netSalesMinor
         ? Math.round((knownRevenue * 10_000) / selected.summary.netSalesMinor)
@@ -535,6 +584,7 @@ async function allInvoices(): Promise<Invoice[]> {
 export async function getBusinessReport(
   filter: BusinessReportFilter,
   interfaceLocale: 'bn' | 'en' = 'en',
+  includeSales = false,
 ): Promise<BusinessReport> {
   const payload = await getPayload({ config })
   const [
@@ -572,6 +622,8 @@ export async function getBusinessReport(
     market.secondaryLanguage,
     new Date(),
     marketLocale(market.profile, interfaceLocale),
+    settings.sellerNameEnglish || 'QuickPOS',
+    includeSales,
   )
 }
 

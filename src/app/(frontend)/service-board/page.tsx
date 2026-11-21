@@ -6,8 +6,12 @@ import { getDictionary } from '@/lib/localization'
 import { employeeRelationshipId, getEmployees } from '@/services/employees'
 import { getProducts } from '@/services/products'
 import { getServiceBoardView } from '@/services/service-board'
-import { areShopSettingsComplete, getShopSettings, marketContextFromSettings } from '@/services/settings'
-import { getSalesDashboard } from '@/services/sales-reporting'
+import {
+  areShopSettingsComplete,
+  getShopSettings,
+  marketContextFromSettings,
+} from '@/services/settings'
+import { getSalesThroughDate } from '@/services/sales-reporting'
 
 export const metadata: Metadata = { title: 'Service Board' }
 
@@ -16,13 +20,12 @@ export default async function ServiceBoardPage({
 }: {
   searchParams: Promise<{ date?: string }>
 }) {
-  const [{ dictionary, locale }, employees, products, settings, { date }, dashboard] = await Promise.all([
+  const [{ dictionary, locale }, employees, products, settings, { date }] = await Promise.all([
     getDictionary(),
     getEmployees(),
     getProducts(),
     getShopSettings(),
     searchParams,
-    getSalesDashboard(),
   ])
   const market = marketContextFromSettings(settings)
   const today = todayDateInput(market.profile)
@@ -35,9 +38,11 @@ export default async function ServiceBoardPage({
       selectedDate = today
     }
   }
-  const view = await getServiceBoardView(
-    new Date(dateInputToISOString(selectedDate, market.profile)),
-  )
+  const selectedDateStart = new Date(dateInputToISOString(selectedDate, market.profile))
+  const [view, salesThroughDate] = await Promise.all([
+    getServiceBoardView(selectedDateStart),
+    getSalesThroughDate(selectedDateStart),
+  ])
   const configuredDefaultEmployeeId = employeeRelationshipId(settings.defaultEmployee)
   const defaultEmployeeId = employees.some(({ id }) => id === configuredDefaultEmployeeId)
     ? configuredDefaultEmployeeId
@@ -61,7 +66,7 @@ export default async function ServiceBoardPage({
         settingsReady={areShopSettingsComplete(settings)}
         todayDate={today}
         view={view}
-        salesDashboard={dashboard}
+        salesThroughDate={salesThroughDate}
       />
     </div>
   )

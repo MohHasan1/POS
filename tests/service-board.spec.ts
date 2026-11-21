@@ -5,13 +5,11 @@ import { after, before, describe, it } from 'node:test'
 import { getPayload } from 'payload'
 
 import type { ProductSummary } from '@/lib/pos-types'
-import {
-  buildServiceCardAccents,
-  SERVICE_CARD_COLOR_CAPACITY,
-} from '@/lib/service-board-colors'
+import { MARKET_PROFILES } from '@/lib/market'
+import { buildServiceCardAccents, SERVICE_CARD_COLOR_CAPACITY } from '@/lib/service-board-colors'
 import type { Invoice } from '@/payload-types'
 import { finalizeInvoice } from '@/services/invoices'
-import { buildSalesDashboard } from '@/services/sales-reporting'
+import { buildSalesDashboard, buildSalesThroughDate } from '@/services/sales-reporting'
 import {
   addServiceBoardColumn,
   buildServiceBoardView,
@@ -99,7 +97,10 @@ describe('Service Board card colors', () => {
     assert.equal(new Set([...accents.values()].map(({ slot }) => slot)).size, 150)
     assert.equal(new Set([...accents.values()].map(({ light }) => light)).size, 150)
     assert.equal(new Set([...accents.values()].map(({ dark }) => dark)).size, 150)
-    assert.deepEqual(accents.get('invoice-42'), buildServiceCardAccents(invoiceIds).get('invoice-42'))
+    assert.deepEqual(
+      accents.get('invoice-42'),
+      buildServiceCardAccents(invoiceIds).get('invoice-42'),
+    )
   })
 
   it('supports every unique color slot and rejects only when capacity is exceeded', () => {
@@ -194,6 +195,32 @@ describe('sales dashboard aggregation', () => {
     assert.equal(dashboard.today.averageMinor, 1_000)
     assert.equal(dashboard.topServices[0].nameEnglish, 'Massage')
     assert.equal(dashboard.topServices[0].quantityMilliunits, 105_000)
+  })
+
+  it('calculates cumulative sales through the end of the selected market day', () => {
+    const service = productFixture()
+    const saudiInvoices = [
+      invoiceFixture('2026-11-17T20:59:59.000Z', 1_000, [itemFixture(service, 1_000, 1_000)]),
+      invoiceFixture('2026-11-17T21:00:00.000Z', 2_000, [itemFixture(service, 1_000, 2_000)]),
+    ]
+    const bangladeshInvoices = [
+      invoiceFixture('2026-11-17T17:59:59.000Z', 3_000, [itemFixture(service, 1_000, 3_000)]),
+      invoiceFixture('2026-11-17T18:00:00.000Z', 4_000, [itemFixture(service, 1_000, 4_000)]),
+    ]
+
+    const saudi = buildSalesThroughDate(
+      saudiInvoices,
+      new Date('2026-11-17T12:00:00.000Z'),
+      MARKET_PROFILES.SA,
+    )
+    const bangladesh = buildSalesThroughDate(
+      bangladeshInvoices,
+      new Date('2026-11-17T12:00:00.000Z'),
+      MARKET_PROFILES.BD,
+    )
+
+    assert.deepEqual(saudi, { averageMinor: 1_000, invoiceCount: 1, totalMinor: 1_000 })
+    assert.deepEqual(bangladesh, { averageMinor: 3_000, invoiceCount: 1, totalMinor: 3_000 })
   })
 })
 

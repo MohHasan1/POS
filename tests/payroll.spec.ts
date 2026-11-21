@@ -29,7 +29,8 @@ const rateIds: string[] = []
 describe('employee payroll and commission', () => {
   after(async () => {
     const payload = await getPayload({ config })
-    for (const id of overrideIds) await payload.delete({ collection: 'employee-commission-overrides', id })
+    for (const id of overrideIds)
+      await payload.delete({ collection: 'employee-commission-overrides', id })
     for (const id of entryIds) await payload.delete({ collection: 'employee-payroll-entries', id })
     for (const id of invoiceIds) await payload.delete({ collection: 'invoices', id })
     for (const id of rateIds) await payload.delete({ collection: 'employee-commission-rates', id })
@@ -57,6 +58,7 @@ describe('employee payroll and commission', () => {
       priceIncludesVat: true,
       priceMinor: 11_500,
       translations: [{ language: 'ar', name: 'قص شعر' }],
+      unitCostMinor: 2_000,
       vatCategory: 'standard',
     })
     productIds.push(product.id)
@@ -75,11 +77,13 @@ describe('employee payroll and commission', () => {
       employeeId: employee.id,
       idempotencyKey: randomUUID(),
       invoiceType: 'simplified' as const,
-      items: [{
-        productId: product.id,
-        quantityMilliunits: 1_000,
-        unitPriceMinor: 11_500,
-      }],
+      items: [
+        {
+          productId: product.id,
+          quantityMilliunits: 1_000,
+          unitPriceMinor: 11_500,
+        },
+      ],
     }
     const invoice = await finalizeInvoice(input)
     invoiceIds.push(invoice.id)
@@ -123,6 +127,9 @@ describe('employee payroll and commission', () => {
     assert.equal(dashboard.metrics.paidMinor, 2_000)
     assert.equal(dashboard.metrics.currentBalanceMinor, 3_000)
     assert.equal(dashboard.employeeSummaries[0].salesGeneratedMinor, 10_000)
+    assert.equal(dashboard.employeeSummaries[0].directCostMinor, 2_000)
+    assert.equal(dashboard.employeeSummaries[0].businessResultMinor, 3_000)
+    assert.equal(dashboard.metrics.businessResultMinor, 3_000)
     assert.equal(
       dashboard.activities.find(({ kind }) => kind === 'commission')?.correctedAmountMinor,
       5_000,
@@ -173,6 +180,7 @@ describe('employee payroll and commission', () => {
     assert.equal(monthlyDashboard.metrics.fixedEarnedMinor, 55_000)
     assert.equal(monthlyDashboard.metrics.paidMinor, 80_000)
     assert.equal(monthlyDashboard.metrics.currentBalanceMinor, -25_000)
+    assert.equal(monthlyDashboard.metrics.businessResultMinor, -55_000)
 
     const selectedDay = await getPayrollDashboard({
       employeeId: monthly.id,
@@ -182,6 +190,7 @@ describe('employee payroll and commission', () => {
     assert.equal(selectedDay.employeeSummaries[0].totalEarnedMinor, 55_000)
     assert.equal(selectedDay.employeeSummaries[0].paidMinor, 80_000)
     assert.equal(selectedDay.employeeSummaries[0].currentBalanceMinor, -25_000)
+    assert.equal(selectedDay.employeeSummaries[0].businessResultMinor, -55_000)
 
     const priorDate = new Date(`${date}T00:00:00Z`)
     priorDate.setUTCDate(priorDate.getUTCDate() - 1)
@@ -193,6 +202,7 @@ describe('employee payroll and commission', () => {
     assert.equal(priorDay.employeeSummaries[0].totalEarnedMinor, 0)
     assert.equal(priorDay.employeeSummaries[0].paidMinor, 0)
     assert.equal(priorDay.employeeSummaries[0].currentBalanceMinor, -25_000)
+    assert.equal(priorDay.employeeSummaries[0].businessResultMinor, 0)
 
     const selectedMonth = await getPayrollDashboard({
       employeeId: monthly.id,
@@ -247,21 +257,26 @@ describe('employee payroll and commission', () => {
     })
     rateIds.push(...rates.docs.map(({ id }) => id))
 
-    const invoice = await finalizeInvoice({
-      employeeId: employee.id,
-      idempotencyKey: randomUUID(),
-      invoiceType: 'sales',
-      items: [{
-        productId: product.id,
-        quantityMilliunits: 1_500,
-        unitPriceMinor: 10_000,
-      }],
-    }, {
-      entrySource: 'paperBackfill',
-      externalReference: `PAPER-${randomUUID()}`,
-      issuedAt: new Date('2026-11-01T06:00:00.000Z'),
-      issuedAtPrecision: 'dateOnly',
-    })
+    const invoice = await finalizeInvoice(
+      {
+        employeeId: employee.id,
+        idempotencyKey: randomUUID(),
+        invoiceType: 'sales',
+        items: [
+          {
+            productId: product.id,
+            quantityMilliunits: 1_500,
+            unitPriceMinor: 10_000,
+          },
+        ],
+      },
+      {
+        entrySource: 'paperBackfill',
+        externalReference: `PAPER-${randomUUID()}`,
+        issuedAt: new Date('2026-11-01T06:00:00.000Z'),
+        issuedAtPrecision: 'dateOnly',
+      },
+    )
     invoiceIds.push(invoice.id)
     assert.deepEqual(invoice.items[0].commission, {
       amountMinor: 3_750,
@@ -275,6 +290,7 @@ describe('employee payroll and commission', () => {
     })
     assert.equal(originalDay.metrics.commissionEarnedMinor, 3_750)
     assert.equal(originalDay.employeeSummaries[0].salesGeneratedMinor, 15_000)
+    assert.equal(originalDay.employeeSummaries[0].businessResultMinor, 11_250)
 
     await updateShopSettings({
       businessAddress: 'Riyadh, Saudi Arabia',

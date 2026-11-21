@@ -34,6 +34,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -90,11 +91,28 @@ export function PayrollClient({
   const allActivityHref = `/payroll/activity?${activityParams}`
 
   const metricCards = [
-    [dictionary.fixedSalaryEarned, dashboard.metrics.fixedEarnedMinor],
-    [dictionary.commissionEarned, dashboard.metrics.commissionEarnedMinor],
-    [dictionary.totalEarned, dashboard.metrics.totalEarnedMinor],
-    [dictionary.totalPaid, dashboard.metrics.paidMinor],
-    [dictionary.currentBalance, dashboard.metrics.currentBalanceMinor],
+    {
+      key: 'salary',
+      label: dictionary.fixedSalaryEarned,
+      value: dashboard.metrics.fixedEarnedMinor,
+    },
+    {
+      key: 'commission',
+      label: dictionary.commissionEarned,
+      value: dashboard.metrics.commissionEarnedMinor,
+    },
+    { key: 'payable', label: dictionary.totalEarned, value: dashboard.metrics.totalEarnedMinor },
+    { key: 'paid', label: dictionary.totalPaid, value: dashboard.metrics.paidMinor },
+    {
+      key: 'businessResult',
+      label: dictionary.contribution,
+      value: dashboard.metrics.businessResultMinor,
+    },
+    {
+      key: 'balance',
+      label: dictionary.currentBalance,
+      value: dashboard.metrics.currentBalanceMinor,
+    },
   ] as const
 
   function applyFilter(event: FormEvent<HTMLFormElement>) {
@@ -229,16 +247,22 @@ export function PayrollClient({
         </form>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        {metricCards.map(([label, value], index) => (
-          <article key={label} className="rounded-lg border bg-card p-4 shadow-sm">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+        {metricCards.map(({ key, label, value }) => (
+          <article key={key} className="rounded-lg border bg-card p-4 shadow-sm">
             <p className="text-xs font-medium text-muted-foreground">{label}</p>
             <p
-              className={`mt-2 text-xl font-semibold tabular-nums ${index === 4 && value < 0 ? 'text-amber-600 dark:text-amber-400' : ''}`}
+              className={`mt-2 text-xl font-semibold tabular-nums ${
+                key === 'balance' && value < 0
+                  ? 'text-amber-600 dark:text-amber-400'
+                  : key === 'businessResult' && value < 0
+                    ? 'text-red-600 dark:text-red-400'
+                    : ''
+              }`}
             >
               {money(value)}
             </p>
-            {index === 4 && (
+            {key === 'balance' && (
               <p className="mt-1 text-xs text-muted-foreground">
                 {value < 0 ? dictionary.employeeAdvance : dictionary.amountOwed}
               </p>
@@ -251,6 +275,9 @@ export function PayrollClient({
         <section className="overflow-hidden rounded-lg border bg-background">
           <div className="border-b px-4 py-3">
             <h2 className="font-medium">{dictionary.employeeBalances}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {dictionary.payrollBusinessResultHelp}
+            </p>
           </div>
           <div className="overflow-x-auto">
             <Table>
@@ -261,6 +288,7 @@ export function PayrollClient({
                   <TableHead className="text-right">{dictionary.salesGenerated}</TableHead>
                   <TableHead className="text-right">{dictionary.totalEarned}</TableHead>
                   <TableHead className="text-right">{dictionary.totalPaid}</TableHead>
+                  <TableHead className="text-right">{dictionary.contribution}</TableHead>
                   <TableHead className="text-right">{dictionary.currentBalance}</TableHead>
                   <TableHead className="text-right">{dictionary.actions}</TableHead>
                 </TableRow>
@@ -283,6 +311,11 @@ export function PayrollClient({
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {money(summary.paidMinor)}
+                    </TableCell>
+                    <TableCell
+                      className={`text-right font-medium tabular-nums ${summary.businessResultMinor < 0 ? 'text-red-600 dark:text-red-400' : ''}`}
+                    >
+                      {money(summary.businessResultMinor)}
                     </TableCell>
                     <TableCell
                       className={`text-right font-medium tabular-nums ${summary.currentBalanceMinor < 0 ? 'text-amber-600 dark:text-amber-400' : ''}`}
@@ -329,6 +362,30 @@ export function PayrollClient({
                   </TableRow>
                 ))}
               </TableBody>
+              <TableFooter>
+                <TableRow>
+                  <TableCell className="font-semibold">{dictionary.total}</TableCell>
+                  <TableCell>—</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {money(dashboard.metrics.salesGeneratedMinor)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {money(dashboard.metrics.totalEarnedMinor)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {money(dashboard.metrics.paidMinor)}
+                  </TableCell>
+                  <TableCell
+                    className={`text-right font-semibold tabular-nums ${dashboard.metrics.businessResultMinor < 0 ? 'text-red-600 dark:text-red-400' : ''}`}
+                  >
+                    {money(dashboard.metrics.businessResultMinor)}
+                  </TableCell>
+                  <TableCell className="text-right font-semibold tabular-nums">
+                    {money(dashboard.metrics.currentBalanceMinor)}
+                  </TableCell>
+                  <TableCell />
+                </TableRow>
+              </TableFooter>
             </Table>
           </div>
         </section>

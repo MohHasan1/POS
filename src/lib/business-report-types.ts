@@ -101,14 +101,38 @@ export type BusinessReportWarnings = {
   unconfirmedSalaryCount: number
 }
 
+export type BusinessReportSaleItem = {
+  nameArabic?: string
+  nameBangla?: string
+  nameEnglish: string
+  quantityMilliunits: number
+  totalMinor: number
+}
+
+export type BusinessReportSale = {
+  employeeName?: string
+  entrySource: 'live' | 'paperBackfill'
+  invoiceId: string
+  invoiceNumber: string
+  issuedAt: string
+  items: BusinessReportSaleItem[]
+  netMinor: number
+  salesChannel: 'checkout' | 'serviceBoard'
+  totalMinor: number
+  vatMinor: number
+}
+
 export type BusinessReport = {
+  businessName: string
   comparison?: BusinessReportComparison
   employeeMetrics: EmployeeBusinessMetric[]
   expenseMetrics: ExpenseBusinessMetric[]
   filter: BusinessReportFilter
+  generatedAt: string
   market: MarketProfile
   productMetrics: ProductBusinessMetric[]
   range: BusinessReportRange
+  sales: BusinessReportSale[]
   secondaryLanguage: SecondaryLanguage
   summary: BusinessReportSummary
   trend: BusinessTrendPoint[]

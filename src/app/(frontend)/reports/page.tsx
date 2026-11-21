@@ -47,6 +47,7 @@ export default async function ReportsPage({
         <p className="mt-1 text-sm text-muted-foreground">{dictionary.reportsDescription}</p>
       </header>
       <ReportsClient
+        key={`${period}:${filter.employeeId || 'all'}:${filter.startDate || ''}:${filter.endDate || ''}`}
         dictionary={dictionary}
         employees={employees}
         locale={locale}

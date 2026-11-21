@@ -11,13 +11,16 @@ import type { BusinessReport } from '@/lib/business-report-types'
 export function BusinessTrendChart({
   dictionary,
   locale,
+  mode,
   report,
 }: {
   dictionary: Dictionary
   locale: Locale
+  mode: 'contribution' | 'profit'
   report: BusinessReport
 }) {
   const moneyLocale = marketLocale(report.market, locale)
+  const resultKey = mode === 'contribution' ? 'salesContributionMinor' : 'operatingProfitMinor'
 
   if (!report.trend.length) {
     return (
@@ -56,7 +59,9 @@ export function BusinessTrendChart({
                       <span className="text-muted-foreground">
                         {entry.dataKey === 'grossSalesMinor'
                           ? dictionary.grossSales
-                          : dictionary.operatingProfit}
+                          : mode === 'contribution'
+                            ? dictionary.salesContribution
+                            : dictionary.operatingProfit}
                       </span>
                       <span className="font-medium tabular-nums">
                         {formatMoney(Number(entry.value), report.market, moneyLocale)}
@@ -75,9 +80,9 @@ export function BusinessTrendChart({
           radius={[4, 4, 0, 0]}
         />
         <Line
-          dataKey="operatingProfitMinor"
+          dataKey={resultKey}
           dot={false}
-          name={dictionary.operatingProfit}
+          name={mode === 'contribution' ? dictionary.salesContribution : dictionary.operatingProfit}
           stroke="var(--chart-1)"
           strokeWidth={2.5}
           type="monotone"

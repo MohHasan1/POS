@@ -73,6 +73,17 @@ export function buildSalesDashboard(
   }
 }
 
+export function buildSalesThroughDate(
+  invoices: Invoice[],
+  selectedDate = new Date(),
+  market: MarketProfile = DEFAULT_MARKET,
+): SalesPeriodMetric {
+  const { nextDayStart } = getPeriodBounds(market, selectedDate)
+  return periodMetric(
+    invoices.filter((invoice) => new Date(invoice.issuedAt).getTime() < nextDayStart.getTime()),
+  )
+}
+
 async function getAllInvoices(): Promise<Invoice[]> {
   const payload = await getPayload({ config })
   const invoices: Invoice[] = []
@@ -99,4 +110,10 @@ export async function getSalesDashboard(now = new Date()): Promise<SalesDashboar
   const [invoices, settings] = await Promise.all([getAllInvoices(), getShopSettings()])
   const market = marketContextFromSettings(settings)
   return buildSalesDashboard(invoices, now, market.profile, market.secondaryLanguage)
+}
+
+export async function getSalesThroughDate(selectedDate = new Date()): Promise<SalesPeriodMetric> {
+  const [invoices, settings] = await Promise.all([getAllInvoices(), getShopSettings()])
+  const market = marketContextFromSettings(settings)
+  return buildSalesThroughDate(invoices, selectedDate, market.profile)
 }
