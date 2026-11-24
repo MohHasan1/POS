@@ -59,10 +59,15 @@ export function ProfessionalReportDocument({
         [dictionary.paidBills, money(report.summary.billPaidMinor)],
         [dictionary.unpaidBills, money(report.summary.billUnpaidMinor)],
       ]
+  const balanceSummary: Array<[string, string]> = [
+    [dictionary.owedToUsAtPeriodEnd, money(report.summary.owedToUsMinor)],
+    [dictionary.weOweAtPeriodEnd, money(report.summary.weOweMinor)],
+  ]
   const summaryGroups = [
     { items: calculationSummary, title: dictionary.profitCalculation },
     { items: activitySummary, title: dictionary.salesActivity },
     ...(isDaily ? [] : [{ items: paymentSummary, title: dictionary.paymentsAndCapital }]),
+    { items: balanceSummary, title: dictionary.money },
   ]
 
   return (
@@ -117,6 +122,7 @@ export function ProfessionalReportDocument({
             {dictionary.paymentsAndCapitalHelp}
           </p>
         )}
+        <p className="mt-1 text-[8pt] text-muted-foreground">{dictionary.moneyBalancesHelp}</p>
         {(report.warnings.missingCostLines > 0 ||
           (!isDaily && report.warnings.unconfirmedSalaryCount > 0)) && (
           <div className="mt-2 border border-black/30 p-2 text-[8pt]">

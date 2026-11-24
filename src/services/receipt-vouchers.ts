@@ -1,5 +1,5 @@
 import config from '@payload-config'
-import { getPayload, type Where } from 'payload'
+import { getPayload, type PayloadRequest, type Where } from 'payload'
 
 import { createBusinessInformationSnapshot } from '@/lib/business-information'
 import {
@@ -18,21 +18,26 @@ import type { ReceiptVoucher } from '@/payload-types'
 
 import { getShopSettings, marketContextFromSettings } from './settings'
 
-async function findByIdempotencyKey(key: string): Promise<ReceiptVoucher | null> {
+async function findByIdempotencyKey(
+  key: string,
+  req?: Partial<PayloadRequest>,
+): Promise<ReceiptVoucher | null> {
   const payload = await getPayload({ config })
   const result = await payload.find({
     collection: 'receipt-vouchers',
     limit: 1,
+    req,
     where: { idempotencyKey: { equals: key } },
   })
   return result.docs[0] || null
 }
 
-async function allocateVoucherNumber(): Promise<string> {
+async function allocateVoucherNumber(req?: Partial<PayloadRequest>): Promise<string> {
   const payload = await getPayload({ config })
   const result = await payload.find({
     collection: 'receipt-vouchers',
     limit: 1,
+    req,
     sort: '-voucherNumber',
   })
   return nextReceiptVoucherNumber(result.docs[0]?.voucherNumber)
@@ -129,19 +134,20 @@ async function editableVoucherData(input: ReceiptVoucherDetailsInput) {
 
 export async function createReceiptVoucherDraft(
   untrustedInput: CreateReceiptVoucherInput,
+  req?: Partial<PayloadRequest>,
 ): Promise<ReceiptVoucher> {
   const parsed = createReceiptVoucherSchema.safeParse(untrustedInput)
   if (!parsed.success) throw new Error(parsed.error.issues[0].message)
   const input = parsed.data
 
-  const existing = await findByIdempotencyKey(input.idempotencyKey)
+  const existing = await findByIdempotencyKey(input.idempotencyKey, req)
   if (existing) return existing
 
   const data = await editableVoucherData(input)
   const payload = await getPayload({ config })
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const voucherNumber = await allocateVoucherNumber()
+    const voucherNumber = await allocateVoucherNumber(req)
     try {
       return await payload.create({
         collection: 'receipt-vouchers',
@@ -151,9 +157,10 @@ export async function createReceiptVoucherDraft(
           status: 'draft',
           voucherNumber,
         },
+        req,
       })
     } catch (error) {
-      const duplicate = await findByIdempotencyKey(input.idempotencyKey)
+      const duplicate = await findByIdempotencyKey(input.idempotencyKey, req)
       if (duplicate) return duplicate
       if (!isUniqueConstraintError(error) || attempt === 4) throw error
     }
@@ -239,10 +246,36 @@ export async function getReceiptVoucher(id: string): Promise<ReceiptVoucher | nu
   }
 }
 
-export async function voidReceiptVoucher(id: string, reason: string): Promise<ReceiptVoucher> {
+export async function voidReceiptVoucher(
+  id: string,
+  reason: string,
+  req?: Partial<PayloadRequest>,
+  allowLinkedPayment = false,
+): Promise<ReceiptVoucher> {
   const payload = await getPayload({ config })
-  const voucher = await getReceiptVoucher(id)
+  let voucher: ReceiptVoucher | null = null
+  try {
+    voucher = await payload.findByID({ collection: 'receipt-vouchers', id, req })
+  } catch {
+    voucher = null
+  }
   if (!voucher) throw new Error('Receipt voucher not found.')
+  if (!allowLinkedPayment) {
+    const linked = await payload.find({
+      collection: 'money-payments',
+      limit: 1,
+      req,
+      where: {
+        and: [
+          { receiptVoucher: { equals: voucher.id } },
+          { status: { equals: 'confirmed' } },
+        ],
+      },
+    })
+    if (linked.totalDocs) {
+      throw new Error('Void the linked money payment instead of voiding this voucher directly.')
+    }
+  }
   if (voucher.status === 'voided') throw new Error('This receipt voucher is already voided.')
   const normalizedReason = reason.trim()
   if (!normalizedReason) throw new Error('Void reason is required.')
@@ -257,12 +290,21 @@ export async function voidReceiptVoucher(id: string, reason: string): Promise<Re
       voidReason: normalizedReason,
     },
     overrideAccess: true,
+    req,
   })
 }
 
-export async function issueReceiptVoucher(id: string): Promise<ReceiptVoucher> {
+export async function issueReceiptVoucher(
+  id: string,
+  req?: Partial<PayloadRequest>,
+): Promise<ReceiptVoucher> {
   const payload = await getPayload({ config })
-  const voucher = await getReceiptVoucher(id)
+  let voucher: ReceiptVoucher | null = null
+  try {
+    voucher = await payload.findByID({ collection: 'receipt-vouchers', id, req })
+  } catch {
+    voucher = null
+  }
   if (!voucher) throw new Error('Receipt voucher not found.')
   if (voucher.status === 'issued') return voucher
   if (voucher.status === 'voided') throw new Error('A voided receipt voucher cannot be issued.')
@@ -275,5 +317,14 @@ export async function issueReceiptVoucher(id: string): Promise<ReceiptVoucher> {
       status: 'issued',
     },
     overrideAccess: true,
+    req,
   })
+}
+
+export async function createIssuedReceiptVoucher(
+  input: CreateReceiptVoucherInput,
+  req?: Partial<PayloadRequest>,
+): Promise<ReceiptVoucher> {
+  const draft = await createReceiptVoucherDraft(input, req)
+  return issueReceiptVoucher(draft.id, req)
 }

@@ -4,11 +4,10 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 import { createProductAction, type ActionResult, type ProductActionInput } from './products'
-import { finalizeInvoice } from '@/services/invoices'
-import { getMarketContext } from '@/services/settings'
+import { saleSettlementSchema } from '@/lib/sale-settlement-validation'
 import {
   addServiceBoardColumn,
-  getServiceBoardColumnProducts,
+  createServiceBoardSale,
   moveServiceBoardColumn,
   removeServiceBoardColumn,
 } from '@/services/service-board'
@@ -38,6 +37,7 @@ const serviceBoardSaleSchema = z
       .min(1, 'Add at least one service.')
       .max(50),
     note: optionalText(500).optional(),
+    settlement: saleSettlementSchema.optional(),
   })
   .superRefine(({ items }, context) => {
     const seen = new Set<string>()
@@ -63,6 +63,8 @@ function revalidateBoardData() {
   revalidatePath('/service-board')
   revalidatePath('/')
   revalidatePath('/invoices')
+  revalidatePath('/money/owed-to-us')
+  revalidatePath('/reports')
 }
 
 export async function addServiceBoardColumnAction(productId: string): Promise<ActionResult> {
@@ -132,37 +134,7 @@ export async function createServiceBoardSaleAction(
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
 
   try {
-    const [visibleProducts, market] = await Promise.all([
-      getServiceBoardColumnProducts(),
-      getMarketContext(),
-    ])
-    const visibleIds = new Set(visibleProducts.map((product) => product.id))
-    if (parsed.data.items.some((item) => !visibleIds.has(item.productId))) {
-      throw new Error('One or more selected services are no longer available on Service Board.')
-    }
-
-    const details = {
-      customerName: parsed.data.customerName,
-      customerPhone: parsed.data.customerPhone,
-      note: parsed.data.note,
-    }
-    const hasDetails = Object.values(details).some(Boolean)
-    const invoice = await finalizeInvoice(
-      {
-        employeeId: parsed.data.employeeId,
-        idempotencyKey: parsed.data.idempotencyKey,
-        invoiceType: market.profile.taxMode === 'none' ? 'sales' : 'simplified',
-        items: parsed.data.items.map((item) => ({
-          productId: item.productId,
-          quantityMilliunits: item.quantityMilliunits,
-          unitPriceMinor: item.unitPriceMinor,
-        })),
-      },
-      {
-        salesChannel: 'serviceBoard',
-        serviceBoardDetails: hasDetails ? details : undefined,
-      },
-    )
+    const invoice = await createServiceBoardSale(parsed.data)
 
     revalidateBoardData()
     return { ok: true, data: { id: invoice.id } }

@@ -8,6 +8,42 @@ import { MARKET_PROFILES } from '@/lib/market'
 import { buildBusinessReport } from '@/services/business-reporting'
 
 describe('business reporting', () => {
+  it('shows owed balances at the period end without changing profit', () => {
+    const report = buildBusinessReport(
+      {
+        commissionOverrides: [],
+        costOverrides: [],
+        employees: [],
+        expenses: [],
+        invoices: [],
+        moneyAccounts: [
+          {
+            id: 'owed-us', direction: 'owedToUs', status: 'confirmed',
+            recordDate: '2026-01-01T00:00:00.000Z', originalAmountMinor: 10_000,
+          },
+          {
+            id: 'we-owe', direction: 'weOwe', status: 'confirmed',
+            recordDate: '2026-01-02T00:00:00.000Z', originalAmountMinor: 4_000,
+          },
+        ] as never,
+        moneyPayments: [
+          {
+            account: 'owed-us', direction: 'owedToUs', status: 'confirmed',
+            paymentDate: '2026-01-15T00:00:00.000Z', amountMinor: 3_000,
+          },
+        ] as never,
+        payrollEntries: [],
+      },
+      { period: 'custom', startDate: '2026-01-01', endDate: '2026-01-31' },
+      MARKET_PROFILES.SA,
+      'ar',
+      new Date('2026-02-05T00:00:00.000Z'),
+    )
+    assert.equal(report.summary.owedToUsMinor, 7_000)
+    assert.equal(report.summary.weOweMinor, 4_000)
+    assert.equal(report.summary.operatingProfitMinor, 0)
+  })
+
   it('calculates profit without treating payroll payouts as a second expense', () => {
     const employee = {
       active: false,
@@ -90,6 +126,7 @@ describe('business reporting', () => {
       invoiceCount: 1,
       netSalesMinor: 10_000,
       operatingProfitMinor: 0,
+      owedToUsMinor: 0,
       payrollPaidMinor: 1_000,
       profitMarginBps: 0,
       salaryEarnedMinor: 3_000,
@@ -97,6 +134,7 @@ describe('business reporting', () => {
       totalCompensationMinor: 5_000,
       variableExpenseMinor: 0,
       vatMinor: 1_500,
+      weOweMinor: 0,
     })
     assert.equal(report.employeeMetrics[0].outstandingMinor, 4_000)
     assert.equal(report.employeeMetrics[0].contributionMinor, 1_000)

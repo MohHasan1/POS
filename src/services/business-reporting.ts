@@ -15,6 +15,7 @@ import type {
 } from '@/lib/business-report-types'
 import { toMarketDateInput } from '@/lib/calendar'
 import { marketLocale, type MarketProfile } from '@/lib/market'
+import { moneyBalanceAt } from '@/services/money'
 import type {
   Employee,
   EmployeeCommissionOverride,
@@ -22,6 +23,8 @@ import type {
   Expense,
   Invoice,
   InvoiceCostOverride,
+  MoneyAccount,
+  MoneyPayment,
   Product,
 } from '@/payload-types'
 
@@ -33,6 +36,8 @@ type ReportData = {
   employees: Employee[]
   expenses: Expense[]
   invoices: Invoice[]
+  moneyAccounts?: MoneyAccount[]
+  moneyPayments?: MoneyPayment[]
   payrollEntries: EmployeePayrollEntry[]
   products?: Product[]
 }
@@ -67,6 +72,7 @@ function emptySummary(): BusinessReportSummary {
     invoiceCount: 0,
     netSalesMinor: 0,
     operatingProfitMinor: 0,
+    owedToUsMinor: 0,
     payrollPaidMinor: 0,
     profitMarginBps: 0,
     salesContributionMinor: 0,
@@ -74,6 +80,7 @@ function emptySummary(): BusinessReportSummary {
     totalCompensationMinor: 0,
     variableExpenseMinor: 0,
     vatMinor: 0,
+    weOweMinor: 0,
   }
 }
 
@@ -386,6 +393,18 @@ function calculatePeriod(
     : 0
   summary.operatingProfitMinor =
     summary.grossProfitMinor - summary.totalCompensationMinor - summary.expenseMinor
+  summary.owedToUsMinor = moneyBalanceAt(
+    data.moneyAccounts || [],
+    data.moneyPayments || [],
+    'owedToUs',
+    range.end,
+  )
+  summary.weOweMinor = moneyBalanceAt(
+    data.moneyAccounts || [],
+    data.moneyPayments || [],
+    'weOwe',
+    range.end,
+  )
   summary.profitMarginBps = summary.netSalesMinor
     ? Math.round((summary.operatingProfitMinor * 10_000) / summary.netSalesMinor)
     : 0
@@ -595,6 +614,8 @@ export async function getBusinessReport(
     expenses,
     employees,
     products,
+    moneyAccounts,
+    moneyPayments,
     settings,
   ] = await Promise.all([
     allInvoices(),
@@ -604,6 +625,8 @@ export async function getBusinessReport(
     payload.find({ collection: 'expenses', depth: 0, pagination: false }),
     payload.find({ collection: 'employees', depth: 0, pagination: false }),
     payload.find({ collection: 'products', depth: 0, pagination: false }),
+    payload.find({ collection: 'money-accounts', depth: 0, pagination: false }),
+    payload.find({ collection: 'money-payments', depth: 0, pagination: false }),
     getShopSettings(),
   ])
   const market = marketContextFromSettings(settings)
@@ -614,6 +637,8 @@ export async function getBusinessReport(
       employees: employees.docs,
       expenses: expenses.docs,
       invoices,
+      moneyAccounts: moneyAccounts.docs,
+      moneyPayments: moneyPayments.docs,
       payrollEntries: payroll.docs,
       products: products.docs,
     },

@@ -77,6 +77,9 @@ export interface Config {
     'expense-categories': ExpenseCategory;
     'expense-templates': ExpenseTemplate;
     expenses: Expense;
+    'money-people': MoneyPerson;
+    'money-accounts': MoneyAccount;
+    'money-payments': MoneyPayment;
     'invoice-cost-overrides': InvoiceCostOverride;
     'receipt-vouchers': ReceiptVoucher;
     media: Media;
@@ -97,6 +100,9 @@ export interface Config {
     'expense-categories': ExpenseCategoriesSelect<false> | ExpenseCategoriesSelect<true>;
     'expense-templates': ExpenseTemplatesSelect<false> | ExpenseTemplatesSelect<true>;
     expenses: ExpensesSelect<false> | ExpensesSelect<true>;
+    'money-people': MoneyPeopleSelect<false> | MoneyPeopleSelect<true>;
+    'money-accounts': MoneyAccountsSelect<false> | MoneyAccountsSelect<true>;
+    'money-payments': MoneyPaymentsSelect<false> | MoneyPaymentsSelect<true>;
     'invoice-cost-overrides': InvoiceCostOverridesSelect<false> | InvoiceCostOverridesSelect<true>;
     'receipt-vouchers': ReceiptVouchersSelect<false> | ReceiptVouchersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
@@ -438,16 +444,93 @@ export interface Expense {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "invoice-cost-overrides".
+ * via the `definition` "money-people".
  */
-export interface InvoiceCostOverride {
+export interface MoneyPerson {
   id: string;
-  invoice: string | Invoice;
-  invoiceItemId: string;
-  product?: (string | null) | Product;
-  unitCostMinor: number;
-  totalCostMinor: number;
+  name: string;
+  phone?: string | null;
   note?: string | null;
+  active: boolean;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "money-accounts".
+ */
+export interface MoneyAccount {
+  id: string;
+  recordNumber: string;
+  idempotencyKey: string;
+  direction: 'owedToUs' | 'weOwe';
+  kind: 'unpaidInvoice' | 'moneyLent' | 'supplierCredit' | 'borrowedMoney' | 'other';
+  status: 'confirmed' | 'voided';
+  person: string | MoneyPerson;
+  personSnapshot: {
+    name: string;
+    phone?: string | null;
+  };
+  recordDate: string;
+  dueDate?: string | null;
+  invoice?: (string | null) | Invoice;
+  products?:
+    | {
+        product: string | Product;
+        productSnapshot: {
+          name: string;
+        };
+        quantityMilliunits: number;
+        unitPriceMinor?: number | null;
+        id?: string | null;
+      }[]
+    | null;
+  originalAmountMinor: number;
+  reference?: string | null;
+  note?: string | null;
+  countryCode: string;
+  currencyCode: string;
+  currencyMinorUnitDigits: number;
+  timeZone: string;
+  voidReason?: string | null;
+  voidedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "money-payments".
+ */
+export interface MoneyPayment {
+  id: string;
+  idempotencyKey: string;
+  account: string | MoneyAccount;
+  direction: 'owedToUs' | 'weOwe';
+  personSnapshot: {
+    name: string;
+  };
+  status: 'confirmed' | 'voided';
+  paymentDate: string;
+  amountMinor: number;
+  paymentMethod: 'cash' | 'bank_transfer' | 'cheque' | 'other';
+  paymentDetails?: {
+    bankName?: string | null;
+    transactionReference?: string | null;
+    transferDate?: string | null;
+    chequeNumber?: string | null;
+    chequeDate?: string | null;
+    otherDescription?: string | null;
+    otherReference?: string | null;
+  };
+  reference?: string | null;
+  note?: string | null;
+  receiptVoucher?: (string | null) | ReceiptVoucher;
+  countryCode: string;
+  currencyCode: string;
+  currencyMinorUnitDigits: number;
+  timeZone: string;
+  voidReason?: string | null;
+  voidedAt?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -515,6 +598,21 @@ export interface ReceiptVoucher {
   status: 'draft' | 'issued' | 'voided';
   voidReason?: string | null;
   voidedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "invoice-cost-overrides".
+ */
+export interface InvoiceCostOverride {
+  id: string;
+  invoice: string | Invoice;
+  invoiceItemId: string;
+  product?: (string | null) | Product;
+  unitCostMinor: number;
+  totalCostMinor: number;
+  note?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -598,6 +696,18 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'expenses';
         value: string | Expense;
+      } | null)
+    | ({
+        relationTo: 'money-people';
+        value: string | MoneyPerson;
+      } | null)
+    | ({
+        relationTo: 'money-accounts';
+        value: string | MoneyAccount;
+      } | null)
+    | ({
+        relationTo: 'money-payments';
+        value: string | MoneyPayment;
       } | null)
     | ({
         relationTo: 'invoice-cost-overrides';
@@ -949,6 +1059,106 @@ export interface ExpensesSelect<T extends boolean = true> {
   currencyCode?: T;
   currencyMinorUnitDigits?: T;
   timeZone?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "money-people_select".
+ */
+export interface MoneyPeopleSelect<T extends boolean = true> {
+  id?: T;
+  name?: T;
+  phone?: T;
+  note?: T;
+  active?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "money-accounts_select".
+ */
+export interface MoneyAccountsSelect<T extends boolean = true> {
+  id?: T;
+  recordNumber?: T;
+  idempotencyKey?: T;
+  direction?: T;
+  kind?: T;
+  status?: T;
+  person?: T;
+  personSnapshot?:
+    | T
+    | {
+        name?: T;
+        phone?: T;
+      };
+  recordDate?: T;
+  dueDate?: T;
+  invoice?: T;
+  products?:
+    | T
+    | {
+        product?: T;
+        productSnapshot?:
+          | T
+          | {
+              name?: T;
+            };
+        quantityMilliunits?: T;
+        unitPriceMinor?: T;
+        id?: T;
+      };
+  originalAmountMinor?: T;
+  reference?: T;
+  note?: T;
+  countryCode?: T;
+  currencyCode?: T;
+  currencyMinorUnitDigits?: T;
+  timeZone?: T;
+  voidReason?: T;
+  voidedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "money-payments_select".
+ */
+export interface MoneyPaymentsSelect<T extends boolean = true> {
+  id?: T;
+  idempotencyKey?: T;
+  account?: T;
+  direction?: T;
+  personSnapshot?:
+    | T
+    | {
+        name?: T;
+      };
+  status?: T;
+  paymentDate?: T;
+  amountMinor?: T;
+  paymentMethod?: T;
+  paymentDetails?:
+    | T
+    | {
+        bankName?: T;
+        transactionReference?: T;
+        transferDate?: T;
+        chequeNumber?: T;
+        chequeDate?: T;
+        otherDescription?: T;
+        otherReference?: T;
+      };
+  reference?: T;
+  note?: T;
+  receiptVoucher?: T;
+  countryCode?: T;
+  currencyCode?: T;
+  currencyMinorUnitDigits?: T;
+  timeZone?: T;
+  voidReason?: T;
+  voidedAt?: T;
   updatedAt?: T;
   createdAt?: T;
 }

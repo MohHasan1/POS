@@ -20,6 +20,7 @@ import {
   removeServiceBoardColumnAction,
 } from '@/actions/service-board'
 import { EmployeeSelector } from '@/components/employees/EmployeeSelector'
+import { createSaleSettlementDraft, SaleSettlementPanel, saleSettlementInput } from '@/components/money/SaleSettlementPanel'
 import { ProductForm } from '@/components/products/ProductForm'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -54,6 +55,7 @@ import type {
 } from '@/lib/service-board-types'
 import { cn } from '@/lib/utils'
 import { calculateLine } from '@/lib/vat'
+import type { MoneyPerson } from '@/payload-types'
 
 type SaleRow = {
   price: string
@@ -76,6 +78,12 @@ function secondaryProductName(
     }),
     language,
   )
+}
+
+function paymentStatusLabel(status: ServiceBoardCard['paymentStatus'], dictionary: Dictionary) {
+  if (status === 'partial') return dictionary.paymentStatusPartial
+  if (status === 'unpaid') return dictionary.paymentStatusUnpaid
+  return dictionary.paymentStatusPaid
 }
 
 function ServiceCard({
@@ -114,9 +122,15 @@ function ServiceCard({
             </p>
           )}
         </div>
-        <Badge variant="outline" className="shrink-0 bg-background/70 tabular-nums">
-          ×{formatQuantity(card.quantityMilliunits, dateLocale)}
-        </Badge>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <Badge variant="outline" className="bg-background/70 tabular-nums">×{formatQuantity(card.quantityMilliunits, dateLocale)}</Badge>
+          <Badge
+            variant={card.paymentStatus === 'unpaid' ? 'destructive' : 'secondary'}
+            className={card.paymentStatus === 'partial' ? 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100' : card.paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-100' : undefined}
+          >
+            {paymentStatusLabel(card.paymentStatus, dictionary)}
+          </Badge>
+        </div>
       </div>
       <dl className="space-y-1 text-xs">
         <div className="flex justify-between gap-3">
@@ -127,6 +141,12 @@ function ServiceCard({
               : formatMarketDateTime(card.issuedAt, view.market, dateLocale)}
           </dd>
         </div>
+        {card.remainingMinor > 0 && (
+          <div className="flex justify-between gap-3">
+            <dt className="text-muted-foreground">{dictionary.amountRemaining}</dt>
+            <dd className="font-semibold tabular-nums">{formatMoney(card.remainingMinor, view.market, dateLocale)}</dd>
+          </div>
+        )}
         {card.customerPhone && (
           <div className="flex justify-between gap-3">
             <dt className="text-muted-foreground">{dictionary.mobile}</dt>
@@ -209,6 +229,7 @@ export function ServiceBoardClient({
   dictionary,
   employees,
   locale,
+  people,
   selectedDate,
   settingsReady,
   todayDate,
@@ -222,6 +243,7 @@ export function ServiceBoardClient({
   dictionary: Dictionary
   employees: EmployeeSummary[]
   locale: Locale
+  people: MoneyPerson[]
   selectedDate: string
   settingsReady: boolean
   todayDate: string
@@ -235,6 +257,9 @@ export function ServiceBoardClient({
   const [saleRows, setSaleRows] = useState<SaleRow[]>([])
   const [employeeId, setEmployeeId] = useState<string | null>(defaultEmployeeId || null)
   const [idempotencyKey, setIdempotencyKey] = useState('')
+  const [customerName, setCustomerName] = useState('')
+  const [customerPhone, setCustomerPhone] = useState('')
+  const [settlement, setSettlement] = useState(() => createSaleSettlementDraft(todayDate))
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [pending, startTransition] = useTransition()
@@ -287,6 +312,9 @@ export function ServiceBoardClient({
       },
     ])
     setIdempotencyKey(crypto.randomUUID())
+    setCustomerName('')
+    setCustomerPhone('')
+    setSettlement(createSaleSettlementDraft(todayDate))
     setError('')
     setMessage('')
     setSaleOpen(true)
@@ -329,11 +357,22 @@ export function ServiceBoardClient({
       return
     }
 
+    const parsedSettlement = saleSettlementInput(
+      settlement,
+      saleTotalMinor,
+      view.market,
+      dictionary,
+    )
+    if (parsedSettlement.error) {
+      setError(parsedSettlement.error)
+      return
+    }
+
     setError('')
     startTransition(async () => {
       const result = await createServiceBoardSaleAction({
-        customerName: String(formData.get('customerName') || ''),
-        customerPhone: String(formData.get('customerPhone') || ''),
+        customerName,
+        customerPhone,
         employeeId,
         idempotencyKey,
         items: items.map((item) => ({
@@ -342,6 +381,7 @@ export function ServiceBoardClient({
           unitPriceMinor: item.unitPriceMinor!,
         })),
         note: String(formData.get('note') || ''),
+        settlement: parsedSettlement.settlement,
       })
       if (!result.ok) {
         setError(result.error)
@@ -443,34 +483,56 @@ export function ServiceBoardClient({
         </p>
       )}
 
-      <section
-        className="grid gap-3 sm:grid-cols-4 xl:grid-cols-5"
-        aria-label={dictionary.salesDashboard}
-      >
-        {[
-          [
-            dictionary.allSalesForDay,
-            formatMoney(view.summary.allSalesTodayMinor, view.market, dateLocale),
-          ],
-          [
-            dictionary.visibleServiceRevenue,
-            formatMoney(view.summary.visibleServiceRevenueMinor, view.market, dateLocale),
-          ],
-          [
-            dictionary.visitsForDay,
-            new Intl.NumberFormat(dateLocale).format(view.summary.distinctVisits),
-          ],
-          [dictionary.mostPopularService, popularName],
-          [
-            dictionary.salesThroughSelectedDate,
-            formatMoney(salesThroughDate.totalMinor, view.market, dateLocale),
-          ],
-        ].map(([label, value]) => (
-          <div key={label} className="rounded-lg border bg-card p-4 shadow-sm">
-            <p className="text-xs font-medium text-muted-foreground">{label}</p>
-            <p className="mt-2 truncate text-xl font-semibold tabular-nums">{value}</p>
-          </div>
-        ))}
+      <section className="space-y-3" aria-label={dictionary.salesDashboard}>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          {[
+            [
+              dictionary.allSalesForDay,
+              formatMoney(view.summary.allSalesTodayMinor, view.market, dateLocale),
+            ],
+            [
+              dictionary.visibleServiceRevenue,
+              formatMoney(view.summary.visibleServiceRevenueMinor, view.market, dateLocale),
+            ],
+            [
+              dictionary.visitsForDay,
+              new Intl.NumberFormat(dateLocale).format(view.summary.distinctVisits),
+            ],
+            [dictionary.mostPopularService, popularName],
+            [
+              dictionary.salesThroughSelectedDate,
+              formatMoney(salesThroughDate.totalMinor, view.market, dateLocale),
+            ],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-lg border bg-card p-4 shadow-sm">
+              <p className="text-xs font-medium text-muted-foreground">{label}</p>
+              <p className="mt-2 truncate text-xl font-semibold tabular-nums">{value}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[
+            [
+              dictionary.invoiceMoneyToReceive,
+              formatMoney(view.summary.moneyToReceiveMinor, view.market, dateLocale),
+            ],
+            [
+              dictionary.moneyReceivedForDay,
+              formatMoney(view.summary.moneyReceivedMinor, view.market, dateLocale),
+            ],
+          ].map(([label, value]) => (
+            <div
+              key={label}
+              className="rounded-lg bg-amber-50/80 p-4 shadow-sm dark:bg-amber-950/25"
+            >
+              <p className="text-xs font-medium text-amber-900/75 dark:text-amber-100/75">
+                {label}
+              </p>
+              <p className="mt-2 truncate text-xl font-semibold tabular-nums">{value}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
       {!settingsReady && (
@@ -787,11 +849,26 @@ export function ServiceBoardClient({
               value={employeeId}
             />
 
+            <SaleSettlementPanel
+              dictionary={dictionary}
+              idPrefix="service-board-settlement"
+              market={view.market}
+              people={people}
+              today={todayDate}
+              totalMinor={saleTotalMinor}
+              value={settlement}
+              onChange={setSettlement}
+              onPersonSelected={(person) => {
+                setCustomerName(person.name)
+                setCustomerPhone(person.phone || '')
+              }}
+            />
+
             <section className="space-y-2">
               <h3 className="text-sm font-semibold">{dictionary.customerInformation}</h3>
               <div className="grid gap-3 sm:grid-cols-2">
-                <Input name="customerName" maxLength={160} placeholder={dictionary.customerName} />
-                <Input name="customerPhone" maxLength={40} placeholder={dictionary.customerPhone} />
+                <Input name="customerName" maxLength={160} placeholder={dictionary.customerName} value={customerName} onChange={(event) => setCustomerName(event.target.value)} />
+                <Input name="customerPhone" maxLength={40} placeholder={dictionary.customerPhone} value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} />
                 <Textarea
                   className="sm:col-span-2"
                   name="note"

@@ -10,6 +10,9 @@ import {
   Ellipsis,
   FileText,
   History,
+  HandCoins,
+  ArrowDownLeft,
+  ArrowUpRight,
   ReceiptText,
   ReceiptCent,
   Settings,
@@ -70,6 +73,10 @@ export function PrimaryNavigation({
     { href: '/reports', icon: ChartNoAxesCombined, label: dictionary.reports },
     { href: '/expenses', icon: ReceiptCent, label: dictionary.expenses },
   ]
+  const moneyItems: NavigationItem[] = [
+    { href: '/money/owed-to-us', icon: ArrowDownLeft, label: dictionary.owedToUs },
+    { href: '/money/we-owe', icon: ArrowUpRight, label: dictionary.weOwe },
+  ]
   const manageItems: NavigationItem[] = [
     { href: '/products', icon: Boxes, label: dictionary.products },
     { href: '/employees', icon: UsersRound, label: dictionary.employees },
@@ -105,6 +112,7 @@ export function PrimaryNavigation({
 
   const recordsActive = recordsItems.some((item) => isActivePath(pathname, item.href))
   const manageActive = manageItems.some((item) => isActivePath(pathname, item.href))
+  const moneyActive = moneyItems.some((item) => isActivePath(pathname, item.href))
 
   return (
     <nav aria-label="Primary" className="ml-auto flex min-w-0 items-center gap-1">
@@ -135,6 +143,41 @@ export function PrimaryNavigation({
           </Link>
         )
       })}
+
+      <Menu.Root>
+        <Menu.Trigger
+          aria-label={dictionary.money}
+          title={dictionary.money}
+          className={cn(
+            baseLinkClass,
+            moneyActive
+              ? 'bg-muted text-foreground'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+          )}
+        >
+          <HandCoins className="size-4" aria-hidden="true" />
+          <span className="hidden lg:inline">{dictionary.money}</span>
+          <ChevronDown className="hidden size-3 lg:block" aria-hidden="true" />
+        </Menu.Trigger>
+        <Menu.Portal>
+          <Menu.Positioner sideOffset={6} align="end" className="z-50 outline-none">
+            <Menu.Popup className="min-w-56 origin-[var(--transform-origin)] rounded-lg border bg-popover p-1 text-popover-foreground shadow-lg outline-none transition-[scale,opacity] duration-100 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0">
+              {moneyItems.map(({ href, icon: Icon, label }) => (
+                <Menu.LinkItem
+                  key={href}
+                  closeOnClick
+                  render={<Link href={href} />}
+                  aria-current={isActivePath(pathname, href) ? 'page' : undefined}
+                  className="flex cursor-default items-center gap-2 rounded-md px-3 py-2 text-sm outline-none data-highlighted:bg-muted data-highlighted:text-foreground"
+                >
+                  <Icon className="size-4 text-muted-foreground" aria-hidden="true" />
+                  {label}
+                </Menu.LinkItem>
+              ))}
+            </Menu.Popup>
+          </Menu.Positioner>
+        </Menu.Portal>
+      </Menu.Root>
 
       <Menu.Root>
         <Menu.Trigger

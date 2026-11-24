@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 import { buttonVariants } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import {
   Table,
@@ -18,6 +19,7 @@ import { getDocumentMarket, marketLocale } from '@/lib/market'
 import { formatMoney } from '@/lib/money'
 import { cn } from '@/lib/utils'
 import { getInvoices } from '@/services/invoices'
+import { getInvoicePaymentSummaries } from '@/services/money'
 
 export const metadata: Metadata = { title: 'Invoices' }
 
@@ -31,6 +33,7 @@ export default async function InvoicesPage({
     getDictionary(),
     getInvoices(q),
   ])
+  const paymentSummaries = await getInvoicePaymentSummaries(invoices)
 
   return (
     <div className="space-y-5">
@@ -54,6 +57,7 @@ export default async function InvoicesPage({
               <TableHead>{dictionary.type}</TableHead>
               <TableHead>{dictionary.employee}</TableHead>
               <TableHead className="text-right">{dictionary.total}</TableHead>
+              <TableHead>{dictionary.paymentStatus}</TableHead>
               <TableHead className="text-right">{dictionary.actions}</TableHead>
             </TableRow>
           </TableHeader>
@@ -61,6 +65,8 @@ export default async function InvoicesPage({
             {invoices.map((invoice) => {
               const market = getDocumentMarket(invoice)
               const dateLocale = marketLocale(market, locale)
+              const payment = paymentSummaries.get(invoice.id)!
+              const paymentLabel = payment.status === 'partial' ? dictionary.paymentStatusPartial : payment.status === 'unpaid' ? dictionary.paymentStatusUnpaid : dictionary.paymentStatusPaid
               return <TableRow key={invoice.id}>
                 <TableCell>
                   <p className="font-medium">{invoice.invoiceNumber}</p>
@@ -76,13 +82,14 @@ export default async function InvoicesPage({
                 <TableCell>{invoice.entrySource === 'paperBackfill' ? dictionary.historicalPaperSale : invoice.invoiceType === 'sales' ? dictionary.salesInvoice : invoice.invoiceType === 'simplified' ? dictionary.simplifiedInvoice : dictionary.standardInvoice}</TableCell>
                 <TableCell>{invoice.employeeSnapshot?.name || '—'}</TableCell>
                 <TableCell className="text-right tabular-nums">{formatMoney(invoice.totalMinor, market, dateLocale)}</TableCell>
+                <TableCell><Badge variant={payment.status === 'unpaid' ? 'destructive' : 'secondary'} className={payment.status === 'partial' ? 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100' : payment.status === 'paid' ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-100' : undefined}>{paymentLabel}</Badge>{payment.remainingMinor > 0 && <p className="mt-1 text-xs tabular-nums text-muted-foreground">{formatMoney(payment.remainingMinor, market, dateLocale)}</p>}</TableCell>
                 <TableCell className="text-right">
                   <Link href={`/invoices/${invoice.id}`} className={cn(buttonVariants({ size: 'sm', variant: 'outline' }))}>{dictionary.open}</Link>
                 </TableCell>
               </TableRow>
             })}
             {invoices.length === 0 && (
-              <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">{dictionary.noInvoices}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="h-24 text-center text-muted-foreground">{dictionary.noInvoices}</TableCell></TableRow>
             )}
           </TableBody>
         </Table>

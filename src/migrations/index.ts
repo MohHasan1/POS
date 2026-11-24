@@ -11,6 +11,8 @@ import * as migration_20261118_123605_employee_assignments from './20261118_1236
 import * as migration_20261118_130246_historical_sales_backfill from './20261118_130246_historical_sales_backfill';
 import * as migration_20261118_180955_employee_payroll_schema from './20261118_180955_employee_payroll_schema';
 import * as migration_20261119_080747_business_reports_expenses from './20261119_080747_business_reports_expenses';
+import * as migration_20261123_094130_money_owed from './20261123_094130_money_owed';
+import * as migration_20261124_063243_money_product_prices from './20261124_063243_money_product_prices';
 
 export const migrations = [
   {
@@ -76,6 +78,16 @@ export const migrations = [
   {
     up: migration_20261119_080747_business_reports_expenses.up,
     down: migration_20261119_080747_business_reports_expenses.down,
-    name: '20261119_080747_business_reports_expenses'
+    name: '20261119_080747_business_reports_expenses',
+  },
+  {
+    up: migration_20261123_094130_money_owed.up,
+    down: migration_20261123_094130_money_owed.down,
+    name: '20261123_094130_money_owed',
+  },
+  {
+    up: migration_20261124_063243_money_product_prices.up,
+    down: migration_20261124_063243_money_product_prices.down,
+    name: '20261124_063243_money_product_prices'
   },
 ];

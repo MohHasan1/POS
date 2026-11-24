@@ -1,5 +1,6 @@
 import type { ProductSummary } from './pos-types'
 import type { MarketProfile, SecondaryLanguage } from './market'
+import type { InvoicePaymentStatus } from './money-types'
 
 export type ServiceBoardCard = {
   customerName?: string
@@ -12,8 +13,11 @@ export type ServiceBoardCard = {
   issuedAt: string
   issuedAtPrecision?: 'dateOnly' | 'exact' | null
   note?: string
+  paidMinor: number
+  paymentStatus: InvoicePaymentStatus
   productId: string
   quantityMilliunits: number
+  remainingMinor: number
   totalMinor: number
   unitPriceMinor: number
 }
@@ -37,6 +41,8 @@ export type ServiceBoardSummary = {
     productId: string
     quantityMilliunits: number
   }
+  moneyReceivedMinor: number
+  moneyToReceiveMinor: number
   visibleServiceRevenueMinor: number
 }
 

@@ -18,6 +18,7 @@ import { finalizeInvoiceAction } from '@/actions/checkout'
 import { recordHistoricalSaleAction } from '@/actions/historical-sales'
 import { createProductAction } from '@/actions/products'
 import { EmployeeSelector } from '@/components/employees/EmployeeSelector'
+import { createSaleSettlementDraft, SaleSettlementPanel, saleSettlementInput } from '@/components/money/SaleSettlementPanel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -40,7 +41,7 @@ import {
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
-import { dateInputToISOString, formatMarketDate } from '@/lib/calendar'
+import { dateInputToISOString, formatMarketDate, todayDateInput } from '@/lib/calendar'
 import type { Dictionary, Locale } from '@/lib/localization'
 import { localizedName, marketLocale, normalizedTranslations, type MarketProfile, type SecondaryLanguage } from '@/lib/market'
 import { decimalToMinor, formatMoney, minorToDecimal } from '@/lib/money'
@@ -56,6 +57,7 @@ import {
   shouldAutoTranslateProductName,
   translateEnglishProductName,
 } from '@/services/browser-translator'
+import type { MoneyPerson } from '@/payload-types'
 
 type CartItem = {
   key: string
@@ -403,6 +405,7 @@ export function CheckoutClient({
   employees,
   locale,
   market,
+  people = [],
   products,
   saleMode = 'checkout',
   secondaryLanguage,
@@ -416,6 +419,7 @@ export function CheckoutClient({
   employees: EmployeeSummary[]
   locale: Locale
   market: MarketProfile
+  people?: MoneyPerson[]
   products: ProductSummary[]
   saleMode?: 'checkout' | 'historical'
   secondaryLanguage: SecondaryLanguage
@@ -450,6 +454,8 @@ export function CheckoutClient({
   const cartScrollContainer = useRef<HTMLDivElement>(null)
   const cartItemElements = useRef(new Map<string, HTMLDivElement>())
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID())
+  const saleToday = todayDateInput(market)
+  const [settlement, setSettlement] = useState(() => createSaleSettlementDraft(saleToday))
   const [pending, startTransition] = useTransition()
 
   const query = search.trim().toLocaleLowerCase()
@@ -621,6 +627,13 @@ export function CheckoutClient({
   }
 
   function finalize() {
+    const parsedSettlement = historical
+      ? {}
+      : saleSettlementInput(settlement, totals.totalMinor, market, dictionary)
+    if (parsedSettlement.error) {
+      setError(parsedSettlement.error)
+      return
+    }
     setError('')
     setHistoricalSuccess(false)
     startTransition(async () => {
@@ -649,6 +662,7 @@ export function CheckoutClient({
             invoiceType,
             buyer: invoiceType === 'standard' ? buyer : undefined,
             items,
+            settlement: parsedSettlement.settlement,
           })
       if (!result.ok || !result.data) {
         setError(result.ok ? 'Unable to open the saved invoice.' : result.error)
@@ -1089,7 +1103,7 @@ export function CheckoutClient({
           if (!pending) setSaleConfirmationOpen(open)
         }}
       >
-        <DialogContent>
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>
               {historical
@@ -1106,6 +1120,18 @@ export function CheckoutClient({
               ).replace('{amount}', formatMoney(totals.totalMinor, market, moneyLocale))}
             </DialogDescription>
           </DialogHeader>
+          {!historical && (
+            <SaleSettlementPanel
+              dictionary={dictionary}
+              idPrefix="checkout-settlement"
+              market={market}
+              people={people}
+              today={saleToday}
+              totalMinor={totals.totalMinor}
+              value={settlement}
+              onChange={setSettlement}
+            />
+          )}
           {error && (
             <p className="text-sm text-destructive" role="alert">
               {error}

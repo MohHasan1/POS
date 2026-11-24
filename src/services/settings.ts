@@ -97,14 +97,15 @@ export async function getMarketContext(): Promise<MarketContext> {
 
 export async function isCountryLocked(): Promise<boolean> {
   const payload = await getPayload({ config })
-  const [invoices, vouchers, payrollEntries, expenses] = await Promise.all([
+  const [invoices, vouchers, payrollEntries, expenses, moneyAccounts] = await Promise.all([
     payload.count({ collection: 'invoices' }),
     payload.count({ collection: 'receipt-vouchers' }),
     payload.count({ collection: 'employee-payroll-entries' }),
     payload.count({ collection: 'expenses', where: { status: { equals: 'confirmed' } } }),
+    payload.count({ collection: 'money-accounts', where: { status: { equals: 'confirmed' } } }),
   ])
   return invoices.totalDocs > 0 || vouchers.totalDocs > 0 ||
-    payrollEntries.totalDocs > 0 || expenses.totalDocs > 0
+    payrollEntries.totalDocs > 0 || expenses.totalDocs > 0 || moneyAccounts.totalDocs > 0
 }
 
 export function areShopSettingsComplete(settings: Partial<ShopSetting>): boolean {

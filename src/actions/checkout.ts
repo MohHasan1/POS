@@ -1,10 +1,13 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 import type { ActionResult } from './products'
 import type { FinalizeInvoiceInput } from '@/lib/pos-types'
-import { finalizeInvoice } from '@/services/invoices'
+import type { SaleSettlementInput } from '@/lib/money-types'
+import { saleSettlementSchema } from '@/lib/sale-settlement-validation'
+import { finalizeInvoiceWithSettlement } from '@/services/sale-settlement'
 
 const optionalText = z.string().trim().max(500).optional()
 const checkoutSchema = z.object({
@@ -41,16 +44,29 @@ const checkoutSchema = z.object({
       }),
     )
     .min(1, 'Add at least one item.'),
+  settlement: saleSettlementSchema.optional(),
 })
 
+export type CheckoutSaleInput = FinalizeInvoiceInput & { settlement?: SaleSettlementInput }
+
 export async function finalizeInvoiceAction(
-  input: FinalizeInvoiceInput,
+  input: CheckoutSaleInput,
 ): Promise<ActionResult<{ id: string }>> {
   const parsed = checkoutSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
 
   try {
-    const invoice = await finalizeInvoice(parsed.data)
+    const { settlement, ...invoiceInput } = parsed.data
+    const { invoice } = await finalizeInvoiceWithSettlement(
+      invoiceInput as FinalizeInvoiceInput,
+      {},
+      settlement,
+    )
+    revalidatePath('/')
+    revalidatePath('/invoices')
+    revalidatePath('/money/owed-to-us')
+    revalidatePath('/reports')
+    revalidatePath('/service-board')
     return { ok: true, data: { id: invoice.id } }
   } catch (error) {
     return {

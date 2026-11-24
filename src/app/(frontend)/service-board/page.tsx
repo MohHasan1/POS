@@ -5,6 +5,7 @@ import { dateInputToISOString, todayDateInput } from '@/lib/calendar'
 import { getDictionary } from '@/lib/localization'
 import { employeeRelationshipId, getEmployees } from '@/services/employees'
 import { getProducts } from '@/services/products'
+import { getMoneyPeople } from '@/services/money'
 import { getServiceBoardView } from '@/services/service-board'
 import {
   areShopSettingsComplete,
@@ -20,9 +21,10 @@ export default async function ServiceBoardPage({
 }: {
   searchParams: Promise<{ date?: string }>
 }) {
-  const [{ dictionary, locale }, employees, products, settings, { date }] = await Promise.all([
+  const [{ dictionary, locale }, employees, people, products, settings, { date }] = await Promise.all([
     getDictionary(),
     getEmployees(),
+    getMoneyPeople(false),
     getProducts(),
     getShopSettings(),
     searchParams,
@@ -62,6 +64,7 @@ export default async function ServiceBoardPage({
         dictionary={dictionary}
         employees={employees}
         locale={locale}
+        people={people}
         selectedDate={selectedDate}
         settingsReady={areShopSettingsComplete(settings)}
         todayDate={today}

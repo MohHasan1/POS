@@ -1,5 +1,5 @@
 import config from '@payload-config'
-import { getPayload } from 'payload'
+import { getPayload, type PayloadRequest } from 'payload'
 
 import { nextInvoiceNumber } from '@/lib/invoice-number'
 import { marketDateKey } from '@/lib/calendar'
@@ -34,32 +34,45 @@ export type FinalizeInvoiceOptions = {
   }
 }
 
-async function findByExternalReference(reference: string): Promise<Invoice | null> {
+async function findByExternalReference(
+  reference: string,
+  req?: Partial<PayloadRequest>,
+): Promise<Invoice | null> {
   const payload = await getPayload({ config })
   const result = await payload.find({
     collection: 'invoices',
     limit: 1,
+    req,
     where: { externalReference: { equals: reference } },
   })
   return result.docs[0] || null
 }
 
-async function findByIdempotencyKey(key: string): Promise<Invoice | null> {
+async function findByIdempotencyKey(
+  key: string,
+  req?: Partial<PayloadRequest>,
+): Promise<Invoice | null> {
   const payload = await getPayload({ config })
   const result = await payload.find({
     collection: 'invoices',
     limit: 1,
+    req,
     where: { idempotencyKey: { equals: key } },
   })
   return result.docs[0] || null
 }
 
-async function allocateInvoiceNumber(issuedAt: Date, profile: MarketProfile): Promise<string> {
+async function allocateInvoiceNumber(
+  issuedAt: Date,
+  profile: MarketProfile,
+  req?: Partial<PayloadRequest>,
+): Promise<string> {
   const payload = await getPayload({ config })
   const prefix = `INV-${marketDateKey(issuedAt, profile)}-`
   const result = await payload.find({
     collection: 'invoices',
     limit: 1,
+    req,
     sort: '-invoiceNumber',
     where: { invoiceNumber: { like: prefix } },
   })
@@ -75,11 +88,12 @@ async function resolveItem(
   item: FinalizeInvoiceInput['items'][number],
   profile: MarketProfile,
   commissionRates: Map<string, number>,
+  req?: Partial<PayloadRequest>,
 ) {
   let product: Product | null = null
   if (item.productId) {
     const payload = await getPayload({ config })
-    product = await payload.findByID({ collection: 'products', id: item.productId })
+    product = await payload.findByID({ collection: 'products', id: item.productId, req })
   }
 
   const descriptionEnglish = product?.nameEnglish || item.descriptionEnglish?.trim()
@@ -139,12 +153,13 @@ async function resolveItem(
 export async function finalizeInvoice(
   input: FinalizeInvoiceInput,
   options: FinalizeInvoiceOptions = {},
+  req?: Partial<PayloadRequest>,
 ): Promise<Invoice> {
-  const existing = await findByIdempotencyKey(input.idempotencyKey)
+  const existing = await findByIdempotencyKey(input.idempotencyKey, req)
   if (existing) return existing
 
   const externalReference = options.externalReference?.trim()
-  if (externalReference && (await findByExternalReference(externalReference))) {
+  if (externalReference && (await findByExternalReference(externalReference, req))) {
     throw new Error('This paper reference has already been recorded.')
   }
 
@@ -195,7 +210,7 @@ export async function finalizeInvoice(
   if (Number.isNaN(issuedAt.getTime())) throw new Error('Enter a valid sale date.')
   issuedAt.setMilliseconds(0)
   const items = await Promise.all(
-    input.items.map((item) => resolveItem(item, profile, commissionRates)),
+    input.items.map((item) => resolveItem(item, profile, commissionRates, req)),
   )
   const totals = calculateInvoiceTotals(items)
   const seller = {
@@ -219,7 +234,7 @@ export async function finalizeInvoice(
 
   const payload = await getPayload({ config })
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const invoiceNumber = await allocateInvoiceNumber(issuedAt, profile)
+    const invoiceNumber = await allocateInvoiceNumber(issuedAt, profile, req)
     try {
       return await payload.create({
         collection: 'invoices',
@@ -248,11 +263,12 @@ export async function finalizeInvoice(
           ...totals,
           qrPayload,
         },
+        req,
       })
     } catch (error) {
-      const duplicate = await findByIdempotencyKey(input.idempotencyKey)
+      const duplicate = await findByIdempotencyKey(input.idempotencyKey, req)
       if (duplicate) return duplicate
-      if (externalReference && (await findByExternalReference(externalReference))) {
+      if (externalReference && (await findByExternalReference(externalReference, req))) {
         throw new Error('This paper reference has already been recorded.')
       }
       if (!isUniqueConstraintError(error) || attempt === 4) throw error

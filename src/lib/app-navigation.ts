@@ -6,6 +6,7 @@ import {
   FileText,
   History,
   Home,
+  HandCoins,
   ReceiptText,
   ReceiptCent,
   Settings,
@@ -40,6 +41,14 @@ export const appNavigation = [
     homeDescriptionKey: 'homeServiceBoardDescription',
     icon: Columns3,
     primary: true,
+  },
+  {
+    href: '/money/owed-to-us',
+    labelKey: 'money',
+    homeLabelKey: 'money',
+    homeDescriptionKey: 'homeMoneyDescription',
+    icon: HandCoins,
+    primary: false,
   },
   {
     href: '/invoices',

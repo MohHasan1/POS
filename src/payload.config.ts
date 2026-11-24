@@ -14,6 +14,9 @@ import { EmployeeCommissionRates } from './collections/EmployeeCommissionRates'
 import { EmployeePayrollEntries } from './collections/EmployeePayrollEntries'
 import { InvoiceCostOverrides } from './collections/InvoiceCostOverrides'
 import { Media } from './collections/Media'
+import { MoneyAccounts } from './collections/MoneyAccounts'
+import { MoneyPayments } from './collections/MoneyPayments'
+import { MoneyPeople } from './collections/MoneyPeople'
 import { Products } from './collections/Products'
 import { ReceiptVouchers } from './collections/ReceiptVouchers'
 import { Users } from './collections/Users'
@@ -59,6 +62,9 @@ export default buildConfig({
     ExpenseCategories,
     ExpenseTemplates,
     Expenses,
+    MoneyPeople,
+    MoneyAccounts,
+    MoneyPayments,
     InvoiceCostOverrides,
     ReceiptVouchers,
     Media,

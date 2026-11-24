@@ -29,6 +29,7 @@ export type BusinessReportSummary = {
   invoiceCount: number
   netSalesMinor: number
   operatingProfitMinor: number
+  owedToUsMinor: number
   payrollPaidMinor: number
   profitMarginBps: number
   salesContributionMinor: number
@@ -36,6 +37,7 @@ export type BusinessReportSummary = {
   totalCompensationMinor: number
   variableExpenseMinor: number
   vatMinor: number
+  weOweMinor: number
 }
 
 export type BusinessReportComparison = {

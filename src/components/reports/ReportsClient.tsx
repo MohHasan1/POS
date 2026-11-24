@@ -475,6 +475,24 @@ export function ReportsClient({
         </section>
       )}
 
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold text-muted-foreground">{dictionary.money}</h2>
+        <div className="report-summary-grid grid gap-3 sm:grid-cols-2">
+          {[
+            [dictionary.owedToUsAtPeriodEnd, report.summary.owedToUsMinor] as const,
+            [dictionary.weOweAtPeriodEnd, report.summary.weOweMinor] as const,
+          ].map(([label, value]) => (
+            <Card key={label} className="report-avoid-break">
+              <CardContent className="pt-4">
+                <p className="text-xs text-muted-foreground">{label}</p>
+                <p className="mt-2 text-lg font-semibold tabular-nums">{money(value)}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <p className="text-sm text-muted-foreground">{dictionary.moneyBalancesHelp}</p>
+      </section>
+
       <Card className="report-chart report-avoid-break">
         <CardHeader>
           <CardTitle>

@@ -8,10 +8,14 @@ import { PrintButton } from '@/components/invoices/PrintButton'
 import { SimplifiedInvoiceTemplate } from '@/components/invoices/SimplifiedInvoiceTemplate'
 import { StandardInvoiceTemplate } from '@/components/invoices/StandardInvoiceTemplate'
 import { SalesInvoiceTemplate } from '@/components/invoices/SalesInvoiceTemplate'
+import { Badge } from '@/components/ui/badge'
 import { buttonVariants } from '@/components/ui/button'
 import { getDictionary } from '@/lib/localization'
+import { getDocumentMarket, marketLocale } from '@/lib/market'
+import { formatMoney } from '@/lib/money'
 import { cn } from '@/lib/utils'
 import { getInvoice } from '@/services/invoices'
+import { getInvoiceMoneyAccount } from '@/services/money'
 
 const getPageInvoice = cache(getInvoice)
 
@@ -25,7 +29,11 @@ export async function generateMetadata({ params }: InvoicePageProps): Promise<Me
 
 export default async function InvoicePage({ params }: InvoicePageProps) {
   const { id } = await params
-  const [invoice, { dictionary }] = await Promise.all([getPageInvoice(id), getDictionary()])
+  const [invoice, { dictionary, locale }, moneyAccount] = await Promise.all([
+    getPageInvoice(id),
+    getDictionary(),
+    getInvoiceMoneyAccount(id),
+  ])
   if (!invoice) notFound()
 
   const qrDataURL = invoice.qrPayload
@@ -43,6 +51,19 @@ export default async function InvoicePage({ params }: InvoicePageProps) {
     ) : (
       <StandardInvoiceTemplate invoice={invoice} qrDataURL={qrDataURL} />
     )
+  const invoiceMarket = getDocumentMarket(invoice)
+  const paymentStatus = moneyAccount
+    ? moneyAccount.remainingMinor === 0
+      ? 'paid'
+      : moneyAccount.paidMinor > 0
+        ? 'partial'
+        : 'unpaid'
+    : 'paid'
+  const paymentStatusLabel = paymentStatus === 'partial'
+    ? dictionary.paymentStatusPartial
+    : paymentStatus === 'unpaid'
+      ? dictionary.paymentStatusUnpaid
+      : dictionary.paymentStatusPaid
 
   return (
     <div className="space-y-4">
@@ -72,6 +93,22 @@ export default async function InvoicePage({ params }: InvoicePageProps) {
           <p className="mt-1 font-semibold">{invoice.employeeSnapshot.name}</p>
         </section>
       )}
+      <section className="no-print rounded-lg bg-muted/50 px-4 py-3">
+        <div className="flex items-center justify-between gap-3"><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{dictionary.paymentStatus}</p><Badge variant={paymentStatus === 'unpaid' ? 'destructive' : 'secondary'} className={paymentStatus === 'partial' ? 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100' : paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-100' : undefined}>{paymentStatusLabel}</Badge></div>
+        {moneyAccount ? (
+          <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm"><span className="text-muted-foreground">{dictionary.person}</span><span className="font-medium">{moneyAccount.account.personSnapshot.name}</span><span className="text-muted-foreground">{dictionary.amountPaid}</span><span className="font-medium tabular-nums">{formatMoney(moneyAccount.paidMinor, invoiceMarket, marketLocale(invoiceMarket, locale))}</span><span className="text-muted-foreground">{dictionary.amountRemaining}</span><span className="font-semibold tabular-nums">{formatMoney(moneyAccount.remainingMinor, invoiceMarket, marketLocale(invoiceMarket, locale))}</span></div>
+            <Link
+              href={`/money/owed-to-us?record=${encodeURIComponent(moneyAccount.account.recordNumber)}`}
+              className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+            >
+              {dictionary.viewMoneyRecord}
+            </Link>
+          </div>
+        ) : (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2"><p className="text-sm text-muted-foreground">{dictionary.invoiceOwedBalance}: {formatMoney(0, invoiceMarket, marketLocale(invoiceMarket, locale))}</p><Link href={`/money/owed-to-us?invoice=${invoice.id}`} className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>{dictionary.trackAsOwed}</Link></div>
+        )}
+      </section>
       {customerInvoice}
     </div>
   )

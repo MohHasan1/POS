@@ -4,14 +4,16 @@ import { CheckoutClient } from '@/components/checkout/CheckoutClient'
 import { getDictionary } from '@/lib/localization'
 import { employeeRelationshipId, getEmployees } from '@/services/employees'
 import { getProducts } from '@/services/products'
+import { getMoneyPeople } from '@/services/money'
 import { areShopSettingsComplete, getShopSettings, marketContextFromSettings } from '@/services/settings'
 
 export const metadata: Metadata = { title: 'Checkout' }
 
 export default async function CheckoutPage() {
-  const [{ dictionary, locale }, employees, products, settings] = await Promise.all([
+  const [{ dictionary, locale }, employees, people, products, settings] = await Promise.all([
     getDictionary(),
     getEmployees(),
+    getMoneyPeople(false),
     getProducts(),
     getShopSettings(),
   ])
@@ -35,6 +37,7 @@ export default async function CheckoutPage() {
         employees={employees}
         locale={locale}
         market={market.profile}
+        people={people}
         products={products}
         secondaryLanguage={market.secondaryLanguage}
         settingsReady={areShopSettingsComplete(settings)}

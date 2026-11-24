@@ -2,11 +2,25 @@ import config from '@payload-config'
 import { getPayload } from 'payload'
 
 import type { ProductSummary } from '@/lib/pos-types'
+import type { SaleSettlementInput } from '@/lib/money-types'
+import type { InvoicePaymentSummary } from '@/lib/money-types'
 import type { ServiceBoardCard, ServiceBoardView } from '@/lib/service-board-types'
 import { getPeriodBounds } from '@/lib/calendar'
 import { DEFAULT_MARKET, normalizedTranslations, type MarketProfile, type SecondaryLanguage } from '@/lib/market'
 import type { Invoice, Product, ServiceBoardSetting } from '@/payload-types'
-import { getShopSettings, marketContextFromSettings } from './settings'
+import { finalizeInvoiceWithSettlement } from './sale-settlement'
+import { getInvoiceCashMetrics, getInvoicePaymentSummaries } from './money'
+import { getMarketContext, getShopSettings, marketContextFromSettings } from './settings'
+
+export type CreateServiceBoardSaleInput = {
+  customerName?: string
+  customerPhone?: string
+  employeeId?: null | string
+  idempotencyKey: string
+  items: Array<{ productId: string; quantityMilliunits: number; unitPriceMinor: number }>
+  note?: string
+  settlement?: SaleSettlementInput
+}
 
 function relationshipId(value: string | Product | null | undefined): string | undefined {
   if (!value) return undefined
@@ -103,6 +117,36 @@ export async function moveServiceBoardColumn(
   await saveColumnIds(next)
 }
 
+export async function createServiceBoardSale(input: CreateServiceBoardSaleInput): Promise<Invoice> {
+  const [visibleProducts, market] = await Promise.all([
+    getServiceBoardColumnProducts(),
+    getMarketContext(),
+  ])
+  const visibleIds = new Set(visibleProducts.map((product) => product.id))
+  if (input.items.some((item) => !visibleIds.has(item.productId))) {
+    throw new Error('One or more selected services are no longer available on Service Board.')
+  }
+  const details = {
+    customerName: input.customerName,
+    customerPhone: input.customerPhone,
+    note: input.note,
+  }
+  const { invoice } = await finalizeInvoiceWithSettlement(
+    {
+      employeeId: input.employeeId,
+      idempotencyKey: input.idempotencyKey,
+      invoiceType: market.profile.taxMode === 'none' ? 'sales' : 'simplified',
+      items: input.items,
+    },
+    {
+      salesChannel: 'serviceBoard',
+      serviceBoardDetails: Object.values(details).some(Boolean) ? details : undefined,
+    },
+    input.settlement,
+  )
+  return invoice
+}
+
 function findMatchingProduct(
   item: Invoice['items'][number],
   products: ProductSummary[],
@@ -123,6 +167,8 @@ export function buildServiceBoardView(
   invoices: Invoice[],
   market: MarketProfile = DEFAULT_MARKET,
   secondaryLanguage: SecondaryLanguage = market.defaultSecondaryLanguage,
+  paymentSummaries = new Map<string, InvoicePaymentSummary>(),
+  cashMetrics = { moneyReceivedMinor: 0, moneyToReceiveMinor: 0 },
 ): ServiceBoardView {
   const productsById = new Map(products.map((product) => [product.id, product]))
   const cardsByProduct = new Map<string, ServiceBoardCard[]>(
@@ -133,6 +179,11 @@ export function buildServiceBoardView(
   let visibleServiceRevenueMinor = 0
 
   for (const invoice of invoices) {
+    const payment = paymentSummaries.get(invoice.id) || {
+      paidMinor: invoice.totalMinor,
+      remainingMinor: 0,
+      status: 'paid' as const,
+    }
     for (const item of invoice.items) {
       const product = findMatchingProduct(item, products, productsById)
       if (!product) continue
@@ -148,8 +199,11 @@ export function buildServiceBoardView(
         issuedAt: invoice.issuedAt,
         issuedAtPrecision: invoice.issuedAtPrecision,
         note: invoice.serviceBoardDetails?.note || undefined,
+        paidMinor: payment.paidMinor,
+        paymentStatus: payment.status,
         productId: product.id,
         quantityMilliunits: item.quantityMilliunits,
+        remainingMinor: payment.remainingMinor,
         totalMinor: item.totalMinor,
         unitPriceMinor: item.unitPriceMinor,
       })
@@ -203,6 +257,8 @@ export function buildServiceBoardView(
             quantityMilliunits: popularity.get(popularProduct.id)!.quantityMilliunits,
           }
         : undefined,
+      moneyReceivedMinor: cashMetrics.moneyReceivedMinor,
+      moneyToReceiveMinor: cashMetrics.moneyToReceiveMinor,
       visibleServiceRevenueMinor,
     },
   }
@@ -229,5 +285,16 @@ export async function getServiceBoardView(now = new Date()): Promise<ServiceBoar
     }),
   ])
 
-  return buildServiceBoardView(products, result.docs, market.profile, market.secondaryLanguage)
+  const [paymentSummaries, cashMetrics] = await Promise.all([
+    getInvoicePaymentSummaries(result.docs),
+    getInvoiceCashMetrics(result.docs, todayStart, nextDayStart),
+  ])
+  return buildServiceBoardView(
+    products,
+    result.docs,
+    market.profile,
+    market.secondaryLanguage,
+    paymentSummaries,
+    cashMetrics,
+  )
 }
