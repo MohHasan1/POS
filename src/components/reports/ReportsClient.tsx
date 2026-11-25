@@ -133,6 +133,7 @@ export function ReportsClient({
   }
 
   const isDaily = report.filter.period === 'today' || report.filter.period === 'yesterday'
+  const { capitalRecovery } = report
   const showSalaryWarning = !isDaily && report.warnings.unconfirmedSalaryCount > 0
   const hasVisibleWarnings = report.warnings.missingCostLines > 0 || showSalaryWarning
   type ReportMetric = {
@@ -216,6 +217,12 @@ export function ReportsClient({
           warning: showSalaryWarning,
         },
         {
+          key: 'profitBeforeOperatingExpensesMinor',
+          label: dictionary.profitBeforeOperatingExpenses,
+          value: report.summary.profitBeforeOperatingExpensesMinor,
+          warning: report.warnings.missingCostLines > 0 || showSalaryWarning,
+        },
+        {
           key: 'expenseMinor',
           label: dictionary.operatingExpenses,
           lowerIsBetter: true,
@@ -258,7 +265,9 @@ export function ReportsClient({
         key={metric.key}
         className={cn(
           'report-avoid-break',
-          (metric.key === 'operatingProfitMinor' || metric.key === 'salesContributionMinor') &&
+          (metric.key === 'operatingProfitMinor' ||
+            metric.key === 'profitBeforeOperatingExpensesMinor' ||
+            metric.key === 'salesContributionMinor') &&
             'ring-1 ring-primary/20',
         )}
       >
@@ -454,14 +463,14 @@ export function ReportsClient({
       {!isDaily && (
         <section className="space-y-2">
           <h2 className="text-sm font-semibold text-muted-foreground">
-            {dictionary.paymentsAndCapital}
+            {dictionary.paymentsAndExpenses}
           </h2>
           <div className="report-summary-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {[
               [dictionary.payrollPaid, report.summary.payrollPaidMinor] as const,
-              [dictionary.capitalExpenses, report.summary.capitalExpenseMinor] as const,
               [dictionary.paidBills, report.summary.billPaidMinor] as const,
               [dictionary.unpaidBills, report.summary.billUnpaidMinor] as const,
+              [dictionary.totalExpenses, report.summary.totalExpenseMinor] as const,
             ].map(([label, value]) => (
               <Card key={String(label)} className="report-avoid-break">
                 <CardContent className="pt-4">
@@ -471,16 +480,46 @@ export function ReportsClient({
               </Card>
             ))}
           </div>
-          <p className="text-sm text-muted-foreground">{dictionary.paymentsAndCapitalHelp}</p>
+          <p className="text-sm text-muted-foreground">{dictionary.paymentsAndExpensesHelp}</p>
+        </section>
+      )}
+
+      {!isDaily && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold text-muted-foreground">
+            {capitalRecovery ? dictionary.annualCapitalRecovery : dictionary.capitalExpenses}
+          </h2>
+          <div className="report-summary-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              [dictionary.capitalExpenseTotal, report.summary.capitalExpenseMinor] as const,
+              ...(capitalRecovery ? [
+                [dictionary.operatingProfit, report.summary.operatingProfitMinor] as const,
+                [dictionary.profitNeededToBreakEven, capitalRecovery.profitNeededMinor] as const,
+                [dictionary.profitAboveBreakEven, capitalRecovery.profitAboveBreakEvenMinor] as const,
+              ] : []),
+            ].map(([label, value]) => (
+              <Card key={label} className="report-avoid-break">
+                <CardContent className="pt-4">
+                  <p className="text-xs text-muted-foreground">{label}</p>
+                  <p className="mt-2 text-lg font-semibold tabular-nums">{money(value)}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          {capitalRecovery && (
+            <p className="text-sm text-muted-foreground">{dictionary.capitalRecoveryHelp}</p>
+          )}
         </section>
       )}
 
       <section className="space-y-2">
         <h2 className="text-sm font-semibold text-muted-foreground">{dictionary.money}</h2>
-        <div className="report-summary-grid grid gap-3 sm:grid-cols-2">
+        <div className="report-summary-grid grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
             [dictionary.owedToUsAtPeriodEnd, report.summary.owedToUsMinor] as const,
+            [dictionary.moneyReceivedInPeriod, report.summary.moneyReceivedMinor] as const,
             [dictionary.weOweAtPeriodEnd, report.summary.weOweMinor] as const,
+            [dictionary.moneyPaidInPeriod, report.summary.moneyPaidMinor] as const,
           ].map(([label, value]) => (
             <Card key={label} className="report-avoid-break">
               <CardContent className="pt-4">
@@ -496,7 +535,11 @@ export function ReportsClient({
       <Card className="report-chart report-avoid-break">
         <CardHeader>
           <CardTitle>
-            {isDaily ? dictionary.salesAndContributionTrend : dictionary.salesAndProfitTrend}
+            {isDaily
+              ? dictionary.salesAndContributionTrend
+              : report.trendIncludesMonthlySalaries
+                ? dictionary.salesAndProfitTrend
+                : dictionary.salesAndProfitBeforeSalaryTrend}
           </CardTitle>
         </CardHeader>
         <CardContent>

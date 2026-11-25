@@ -54,6 +54,8 @@ export async function getMoneyPeople(includeInactive = true): Promise<MoneyPerso
 }
 
 export async function createMoneyPerson(input: {
+  address?: string
+  email?: string
   name: string
   note?: string
   phone?: string
@@ -63,6 +65,8 @@ export async function createMoneyPerson(input: {
     collection: 'money-people',
     data: {
       active: true,
+      address: optional(input.address),
+      email: optional(input.email),
       name: input.name.trim(),
       note: optional(input.note),
       phone: optional(input.phone),
@@ -72,7 +76,14 @@ export async function createMoneyPerson(input: {
 
 export async function updateMoneyPerson(
   id: string,
-  input: { active: boolean; name: string; note?: string; phone?: string },
+  input: {
+    active: boolean
+    address?: string
+    email?: string
+    name: string
+    note?: string
+    phone?: string
+  },
 ): Promise<MoneyPerson> {
   const payload = await getPayload({ config })
   return payload.update({
@@ -80,9 +91,11 @@ export async function updateMoneyPerson(
     id,
     data: {
       active: input.active,
+      address: optional(input.address) ?? null,
+      email: optional(input.email) ?? null,
       name: input.name.trim(),
-      note: optional(input.note),
-      phone: optional(input.phone),
+      note: optional(input.note) ?? null,
+      phone: optional(input.phone) ?? null,
     },
   })
 }
@@ -686,12 +699,12 @@ export function calculateInvoiceCashMetrics(
   invoices: Invoice[],
   accounts: MoneyAccount[],
   payments: MoneyPayment[],
-  start: Date,
-  end: Date,
+  start: Date | undefined,
+  end: Date | undefined,
   now = new Date(),
 ) {
-  const startTime = start.getTime()
-  const endTime = Math.min(end.getTime(), now.getTime())
+  const startTime = start?.getTime() ?? -Infinity
+  const endTime = Math.min(end?.getTime() ?? Infinity, now.getTime())
   const activeAccounts = accounts.filter(
     (account) =>
       account.status === 'confirmed' &&
@@ -741,6 +754,7 @@ export async function getInvoiceCashMetrics(
   invoices: Invoice[],
   start: Date,
   end: Date,
+  now = new Date(),
 ) {
   const payload = await getPayload({ config })
   const accounts = await payload.find({
@@ -757,35 +771,70 @@ export async function getInvoiceCashMetrics(
         where: { account: { in: accounts.docs.map(({ id }) => id) } },
       })
     : { docs: [] as MoneyPayment[] }
-  return calculateInvoiceCashMetrics(invoices, accounts.docs, payments.docs, start, end)
+  return calculateInvoiceCashMetrics(invoices, accounts.docs, payments.docs, start, end, now)
 }
 
-export function moneyBalanceAt(
+type MoneyLedgerRange = { start?: string; end?: string }
+
+export async function getMoneyLedgerSummary(
+  direction: MoneyDirection,
+  range: MoneyLedgerRange,
+  now = new Date(),
+) {
+  const payload = await getPayload({ config })
+  const [accounts, payments] = await Promise.all([
+    payload.find({
+      collection: 'money-accounts',
+      depth: 0,
+      pagination: false,
+      where: { direction: { equals: direction } },
+    }),
+    payload.find({
+      collection: 'money-payments',
+      depth: 0,
+      pagination: false,
+      where: { direction: { equals: direction } },
+    }),
+  ])
+  return summarizeMoneyLedger(accounts.docs, payments.docs, direction, range, now)
+}
+
+export function summarizeMoneyLedger(
   accounts: MoneyAccount[],
   payments: MoneyPayment[],
   direction: MoneyDirection,
-  end?: string,
-  now = new Date(),
+  range: MoneyLedgerRange,
+  now: Date,
 ) {
-  const cutoff = Math.min(end ? new Date(end).getTime() : now.getTime(), now.getTime())
-  const paid = new Map<string, number>()
+  const start = range.start ? Date.parse(range.start) : -Infinity
+  const end = Math.min(range.end ? Date.parse(range.end) : Infinity, now.getTime())
+  const remainingByAccount = new Map(
+    accounts
+      .filter(
+        (account) =>
+          account.status === 'confirmed' &&
+          account.direction === direction &&
+          Date.parse(account.recordDate) < end,
+      )
+      .map(({ id, originalAmountMinor }) => [id, originalAmountMinor]),
+  )
+  let paidMinor = 0
   for (const payment of payments) {
     if (payment.status !== 'confirmed' || payment.direction !== direction) continue
-    if (new Date(payment.paymentDate).getTime() >= cutoff) continue
+    const paidAt = Date.parse(payment.paymentDate)
+    if (paidAt >= end) continue
     const accountId = relationshipId(payment.account)
-    if (accountId) paid.set(accountId, (paid.get(accountId) || 0) + payment.amountMinor)
+    if (!accountId) continue
+    const remaining = remainingByAccount.get(accountId)
+    if (remaining === undefined) continue
+    remainingByAccount.set(accountId, remaining - payment.amountMinor)
+    if (paidAt >= start) paidMinor += payment.amountMinor
   }
-  return accounts
-    .filter(
-      (account) =>
-        account.status === 'confirmed' &&
-        account.direction === direction &&
-        new Date(account.recordDate).getTime() < cutoff,
-    )
-    .reduce(
-      (sum, account) => sum + Math.max(0, account.originalAmountMinor - (paid.get(account.id) || 0)),
-      0,
-    )
+  const remainingMinor = [...remainingByAccount.values()].reduce(
+    (sum, remaining) => sum + Math.max(0, remaining),
+    0,
+  )
+  return { paidMinor, remainingMinor }
 }
 
 export function moneyProductId(product: string | Product) {

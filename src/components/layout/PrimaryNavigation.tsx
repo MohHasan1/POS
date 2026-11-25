@@ -7,10 +7,11 @@ import {
   ChartNoAxesCombined,
   ChevronDown,
   Columns3,
+  ContactRound,
   Ellipsis,
   FileText,
-  History,
   HandCoins,
+  History,
   ArrowDownLeft,
   ArrowUpRight,
   ReceiptText,
@@ -80,6 +81,7 @@ export function PrimaryNavigation({
   const manageItems: NavigationItem[] = [
     { href: '/products', icon: Boxes, label: dictionary.products },
     { href: '/employees', icon: UsersRound, label: dictionary.employees },
+    { href: '/people', icon: ContactRound, label: dictionary.people },
     ...(marketSupports(marketProfile, 'historicalSales')
       ? [{ href: '/historical-sales', icon: History, label: dictionary.recordPastSale }]
       : []),
@@ -155,7 +157,8 @@ export function PrimaryNavigation({
               : 'text-muted-foreground hover:bg-muted hover:text-foreground',
           )}
         >
-          <HandCoins className="size-4" aria-hidden="true" />
+          <HandCoins className="size-4 lg:hidden" aria-hidden="true" />
+          <Ellipsis className="hidden size-4 lg:block" aria-hidden="true" />
           <span className="hidden lg:inline">{dictionary.money}</span>
           <ChevronDown className="hidden size-3 lg:block" aria-hidden="true" />
         </Menu.Trigger>

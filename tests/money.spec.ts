@@ -13,11 +13,13 @@ import {
   getInvoiceMoneyAccount,
   getMoneyDashboard,
   updateMoneyAccount,
+  updateMoneyPerson,
   voidMoneyPayment,
 } from '@/services/money'
 import { finalizeInvoice } from '@/services/invoices'
 import { createProduct } from '@/services/products'
 import { voidReceiptVoucher } from '@/services/receipt-vouchers'
+import { getSalesDashboard } from '@/services/sales-reporting'
 import { updateShopSettings } from '@/services/settings'
 
 const personIds: string[] = []
@@ -44,6 +46,35 @@ describe('money owed management', () => {
       secondaryLanguage: 'ar',
       vatNumber: '310000000000003',
     })
+  })
+
+  it('stores and updates compact person contact details', async () => {
+    const person = await createMoneyPerson({
+      address: '12 Market Road, Dhaka',
+      email: 'customer@example.com',
+      name: 'Contact Details Customer',
+      note: 'Prefers phone calls',
+      phone: '01700000000',
+    })
+    personIds.push(person.id)
+    assert.equal(person.email, 'customer@example.com')
+    assert.equal(person.address, '12 Market Road, Dhaka')
+
+    const updated = await updateMoneyPerson(person.id, {
+      active: false,
+      address: '15 New Market Road, Dhaka',
+      email: 'updated@example.com',
+      name: person.name,
+      note: person.note || undefined,
+      phone: person.phone || undefined,
+    })
+    assert.equal(updated.active, false)
+    assert.equal(updated.email, 'updated@example.com')
+    assert.equal(updated.address, '15 New Market Road, Dhaka')
+
+    const cleared = await updateMoneyPerson(person.id, { active: false, name: person.name })
+    assert.equal(cleared.email, null)
+    assert.equal(cleared.address, null)
   })
 
   it('tracks partial and full payments without changing the original amount', async () => {
@@ -203,6 +234,7 @@ describe('money owed management', () => {
       sellerNameEnglish: 'Bangladesh Money Shop',
       secondaryLanguage: 'bn',
     })
+    const before = await getSalesDashboard()
     const person = await createMoneyPerson({ name: 'Dhaka Lender' })
     personIds.push(person.id)
     const date = todayDateInput(MARKET_PROFILES.BD)
@@ -228,5 +260,9 @@ describe('money owed management', () => {
     paymentIds.push(payment.id)
     assert.equal(payment.currencyCode, 'BDT')
     assert.equal(payment.timeZone, 'Asia/Dhaka')
+    const after = await getSalesDashboard()
+    assert.equal(after.moneyToPayMinor - before.moneyToPayMinor, 40_000)
+    assert.equal(after.moneyPaidMinor - before.moneyPaidMinor, 10_000)
+    assert.equal(after.today.totalMinor, before.today.totalMinor)
   })
 })

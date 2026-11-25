@@ -8,7 +8,6 @@ import { Fragment, useMemo, useState, useTransition } from 'react'
 import { voidMoneyAccountAction, voidMoneyPaymentAction } from '@/actions/money'
 import { MoneyAccountDialog } from '@/components/money/MoneyAccountDialog'
 import { MoneyPaymentDialog } from '@/components/money/MoneyPaymentDialog'
-import { MoneyPeopleDialog } from '@/components/money/MoneyPeopleDialog'
 import { MoneyTabs } from '@/components/money/MoneyTabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -75,7 +74,6 @@ export function MoneyPageClient({
   const displayLocale = marketLocale(dashboard.market, locale)
   const [accountDialog, setAccountDialog] = useState<MoneyAccountView | null | undefined>(initialInvoiceId ? null : undefined)
   const [paymentDialog, setPaymentDialog] = useState<{ full: boolean; view: MoneyAccountView } | null>(null)
-  const [peopleDialog, setPeopleDialog] = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [search, setSearch] = useState(initialSearch || '')
   const [status, setStatus] = useState(ALL)
@@ -143,7 +141,10 @@ export function MoneyPageClient({
     </header>
     <section className="flex flex-wrap gap-2">
       <Button variant="success" onClick={() => setAccountDialog(null)}><Plus />{direction === 'owedToUs' ? dictionary.addOwedToUs : dictionary.addWeOwe}</Button>
-      <Button variant="outline" onClick={() => setPeopleDialog(true)}><Users />{dictionary.managePeople}</Button>
+      <Button variant="outline" nativeButton={false} render={<Link href="/people" />}>
+        <Users aria-hidden="true" />
+        {dictionary.managePeople}
+      </Button>
     </section>
     <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {[
@@ -196,7 +197,6 @@ export function MoneyPageClient({
     </Card>
     <MoneyAccountDialog key={accountDialog === null ? `new-account-${initialInvoiceId || ''}` : `account-${accountDialog?.account.id || 'closed'}`} dictionary={dictionary} direction={direction} initialInvoiceId={initialInvoiceId} invoices={invoices} market={dashboard.market} onClose={() => setAccountDialog(undefined)} people={dashboard.people} products={products} today={today} view={accountDialog} />
     <MoneyPaymentDialog key={paymentDialog ? `${paymentDialog.view.account.id}:${paymentDialog.full}` : 'closed-payment'} dictionary={dictionary} full={paymentDialog?.full || false} market={dashboard.market} onClose={() => setPaymentDialog(null)} today={today} view={paymentDialog?.view || null} />
-    {peopleDialog && <MoneyPeopleDialog dictionary={dictionary} onClose={() => setPeopleDialog(false)} people={dashboard.people} />}
     <Dialog open={Boolean(voidTarget)} onOpenChange={(open) => !open && setVoidTarget(null)}><DialogContent><DialogHeader><DialogTitle>{voidTarget?.kind === 'payment' ? dictionary.voidPayment : dictionary.voidMoneyRecord}</DialogTitle><DialogDescription>{voidTarget?.kind === 'payment' ? dictionary.voidPaymentWarning : dictionary.voidMoneyRecordWarning}</DialogDescription></DialogHeader><div className="space-y-1.5"><Label htmlFor="void-money-reason">{dictionary.reason} *</Label><Textarea id="void-money-reason" required maxLength={500} value={voidReason} onChange={(event) => setVoidReason(event.target.value)} /></div>{error && <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive" role="alert">{error}</p>}<DialogFooter><Button variant="cancel" onClick={() => setVoidTarget(null)}>{dictionary.cancel}</Button><Button variant="destructive" disabled={pending || !voidReason.trim()} onClick={submitVoid}>{dictionary.void}</Button></DialogFooter></DialogContent></Dialog>
   </div>
 }

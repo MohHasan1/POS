@@ -21,6 +21,11 @@ export function BusinessTrendChart({
 }) {
   const moneyLocale = marketLocale(report.market, locale)
   const resultKey = mode === 'contribution' ? 'salesContributionMinor' : 'operatingProfitMinor'
+  const resultLabel = mode === 'contribution'
+    ? dictionary.salesContribution
+    : report.trendIncludesMonthlySalaries
+      ? dictionary.operatingProfit
+      : dictionary.profitBeforeMonthlySalaries
 
   if (!report.trend.length) {
     return (
@@ -57,11 +62,7 @@ export function BusinessTrendChart({
                       className="flex items-center justify-between gap-4"
                     >
                       <span className="text-muted-foreground">
-                        {entry.dataKey === 'grossSalesMinor'
-                          ? dictionary.grossSales
-                          : mode === 'contribution'
-                            ? dictionary.salesContribution
-                            : dictionary.operatingProfit}
+                        {entry.dataKey === 'grossSalesMinor' ? dictionary.grossSales : resultLabel}
                       </span>
                       <span className="font-medium tabular-nums">
                         {formatMoney(Number(entry.value), report.market, moneyLocale)}
@@ -82,7 +83,7 @@ export function BusinessTrendChart({
         <Line
           dataKey={resultKey}
           dot={false}
-          name={mode === 'contribution' ? dictionary.salesContribution : dictionary.operatingProfit}
+          name={resultLabel}
           stroke="var(--chart-1)"
           strokeWidth={2.5}
           type="monotone"

@@ -27,14 +27,18 @@ export type BusinessReportSummary = {
   grossProfitMinor: number
   grossSalesMinor: number
   invoiceCount: number
+  moneyPaidMinor: number
+  moneyReceivedMinor: number
   netSalesMinor: number
   operatingProfitMinor: number
   owedToUsMinor: number
   payrollPaidMinor: number
+  profitBeforeOperatingExpensesMinor: number
   profitMarginBps: number
   salesContributionMinor: number
   salaryEarnedMinor: number
   totalCompensationMinor: number
+  totalExpenseMinor: number
   variableExpenseMinor: number
   vatMinor: number
   weOweMinor: number
@@ -126,6 +130,10 @@ export type BusinessReportSale = {
 
 export type BusinessReport = {
   businessName: string
+  capitalRecovery?: {
+    profitAboveBreakEvenMinor: number
+    profitNeededMinor: number
+  }
   comparison?: BusinessReportComparison
   employeeMetrics: EmployeeBusinessMetric[]
   expenseMetrics: ExpenseBusinessMetric[]
@@ -138,6 +146,7 @@ export type BusinessReport = {
   secondaryLanguage: SecondaryLanguage
   summary: BusinessReportSummary
   trend: BusinessTrendPoint[]
+  trendIncludesMonthlySalaries: boolean
   warnings: BusinessReportWarnings
 }
 

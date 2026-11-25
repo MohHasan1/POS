@@ -450,6 +450,8 @@ export interface MoneyPerson {
   id: string;
   name: string;
   phone?: string | null;
+  email?: string | null;
+  address?: string | null;
   note?: string | null;
   active: boolean;
   updatedAt: string;
@@ -1070,6 +1072,8 @@ export interface MoneyPeopleSelect<T extends boolean = true> {
   id?: T;
   name?: T;
   phone?: T;
+  email?: T;
+  address?: T;
   note?: T;
   active?: T;
   updatedAt?: T;

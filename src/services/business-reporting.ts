@@ -15,7 +15,7 @@ import type {
 } from '@/lib/business-report-types'
 import { toMarketDateInput } from '@/lib/calendar'
 import { marketLocale, type MarketProfile } from '@/lib/market'
-import { moneyBalanceAt } from '@/services/money'
+import { calculateInvoiceCashMetrics, summarizeMoneyLedger } from '@/services/money'
 import type {
   Employee,
   EmployeeCommissionOverride,
@@ -53,6 +53,10 @@ type CalculatedPeriod = {
 
 type TrendGranularity = 'day' | 'hour' | 'month' | 'year'
 
+function includesMonthlySalaries(granularity: TrendGranularity) {
+  return granularity === 'month' || granularity === 'year'
+}
+
 function relationshipId(value: { id: string } | null | string | undefined): string | undefined {
   return typeof value === 'string' ? value : value?.id
 }
@@ -70,14 +74,18 @@ function emptySummary(): BusinessReportSummary {
     grossProfitMinor: 0,
     grossSalesMinor: 0,
     invoiceCount: 0,
+    moneyPaidMinor: 0,
+    moneyReceivedMinor: 0,
     netSalesMinor: 0,
     operatingProfitMinor: 0,
     owedToUsMinor: 0,
     payrollPaidMinor: 0,
+    profitBeforeOperatingExpensesMinor: 0,
     profitMarginBps: 0,
     salesContributionMinor: 0,
     salaryEarnedMinor: 0,
     totalCompensationMinor: 0,
+    totalExpenseMinor: 0,
     variableExpenseMinor: 0,
     vatMinor: 0,
     weOweMinor: 0,
@@ -163,6 +171,7 @@ function calculatePeriod(
   range: BusinessReportRange,
   market: MarketProfile,
   granularity: TrendGranularity,
+  now: Date,
   employeeFilter?: string,
   displayLocale = market.locale,
 ): CalculatedPeriod {
@@ -301,11 +310,12 @@ function calculatePeriod(
     if (!employeeId || (employeeFilter && employeeId !== employeeFilter)) continue
     if (!dateInBusinessRange(entry.entryDate, range)) continue
     const employee = ensureEmployee(employeeId, entry.employeeSnapshot.name)
-    const point = ensureTrend(entry.entryDate)
     if (entry.entryType === 'monthlySalary') {
       summary.salaryEarnedMinor += entry.amountMinor
       employee.salaryMinor += entry.amountMinor
-      point.payrollMinor += entry.amountMinor
+      if (includesMonthlySalaries(granularity)) {
+        ensureTrend(entry.entryDate).payrollMinor += entry.amountMinor
+      }
     } else {
       summary.payrollPaidMinor += entry.amountMinor
       employee.paidMinor += entry.amountMinor
@@ -314,8 +324,6 @@ function calculatePeriod(
 
   for (const expense of data.expenses) {
     if (expense.status !== 'confirmed' || !dateInBusinessRange(expense.billDate, range)) continue
-    if (expense.paymentStatus === 'paid') summary.billPaidMinor += expense.totalMinor
-    else summary.billUnpaidMinor += expense.totalMinor
     const categoryName = expense.categorySnapshot.name
     const metric = expenseMetrics.get(categoryName) || {
       capitalMinor: 0,
@@ -331,6 +339,8 @@ function calculatePeriod(
       summary.capitalExpenseMinor += expense.netMinor
       metric.capitalMinor += expense.netMinor
     } else {
+      if (expense.paymentStatus === 'paid') summary.billPaidMinor += expense.totalMinor
+      else summary.billUnpaidMinor += expense.totalMinor
       summary.expenseMinor += expense.netMinor
       if (expense.recordType === 'fixed') {
         summary.fixedExpenseMinor += expense.netMinor
@@ -391,20 +401,25 @@ function calculatePeriod(
   summary.averageInvoiceMinor = summary.invoiceCount
     ? Math.round(summary.grossSalesMinor / summary.invoiceCount)
     : 0
-  summary.operatingProfitMinor =
-    summary.grossProfitMinor - summary.totalCompensationMinor - summary.expenseMinor
-  summary.owedToUsMinor = moneyBalanceAt(
-    data.moneyAccounts || [],
-    data.moneyPayments || [],
-    'owedToUs',
-    range.end,
-  )
-  summary.weOweMinor = moneyBalanceAt(
-    data.moneyAccounts || [],
-    data.moneyPayments || [],
-    'weOwe',
-    range.end,
-  )
+  summary.profitBeforeOperatingExpensesMinor =
+    summary.grossProfitMinor - summary.totalCompensationMinor
+  summary.operatingProfitMinor = summary.profitBeforeOperatingExpensesMinor - summary.expenseMinor
+  summary.totalExpenseMinor = summary.expenseMinor + summary.capitalExpenseMinor
+  const moneyAccounts = data.moneyAccounts ?? []
+  const moneyPayments = data.moneyPayments ?? []
+  summary.moneyReceivedMinor = calculateInvoiceCashMetrics(
+    data.invoices,
+    moneyAccounts,
+    moneyPayments,
+    range.start ? new Date(range.start) : undefined,
+    range.end ? new Date(range.end) : undefined,
+    now,
+  ).moneyReceivedMinor
+  summary.owedToUsMinor = summarizeMoneyLedger(moneyAccounts, moneyPayments, 'owedToUs', range, now)
+    .remainingMinor
+  const moneyToPay = summarizeMoneyLedger(moneyAccounts, moneyPayments, 'weOwe', range, now)
+  summary.weOweMinor = moneyToPay.remainingMinor
+  summary.moneyPaidMinor = moneyToPay.paidMinor
   summary.profitMarginBps = summary.netSalesMinor
     ? Math.round((summary.operatingProfitMinor * 10_000) / summary.netSalesMinor)
     : 0
@@ -531,18 +546,19 @@ export function buildBusinessReport(
     ranges.selected,
     market,
     granularity,
+    now,
     undefined,
     displayLocale,
   )
   const detail = filter.employeeId
-    ? calculatePeriod(data, ranges.selected, market, granularity, filter.employeeId, displayLocale)
+    ? calculatePeriod(data, ranges.selected, market, granularity, now, filter.employeeId, displayLocale)
     : selected
   const knownRevenue = selected.productMetrics.reduce(
     (total, product) => total + product.knownCostRevenueMinor,
     0,
   )
   const comparison = ranges.comparison
-    ? calculatePeriod(data, ranges.comparison, market, granularity, undefined, displayLocale)
+    ? calculatePeriod(data, ranges.comparison, market, granularity, now, undefined, displayLocale)
     : undefined
   const isDaily = filter.period === 'today' || filter.period === 'yesterday'
   const employeeMetrics = isDaily
@@ -556,8 +572,16 @@ export function buildBusinessReport(
         ({ grossSalesMinor, netSalesMinor }) => grossSalesMinor !== 0 || netSalesMinor !== 0,
       )
     : selected.trend
+  const annualReport = filter.period === 'year' || filter.period === 'previousYear'
+  const profitAfterCapital = selected.summary.operatingProfitMinor - selected.summary.capitalExpenseMinor
   return {
     businessName,
+    capitalRecovery: annualReport
+      ? {
+          profitAboveBreakEvenMinor: Math.max(0, profitAfterCapital),
+          profitNeededMinor: Math.max(0, -profitAfterCapital),
+        }
+      : undefined,
     comparison: comparison ? { range: ranges.comparison!, summary: comparison.summary } : undefined,
     employeeMetrics,
     expenseMetrics: selected.expenseMetrics,
@@ -570,6 +594,7 @@ export function buildBusinessReport(
     secondaryLanguage,
     summary: selected.summary,
     trend,
+    trendIncludesMonthlySalaries: includesMonthlySalaries(granularity),
     warnings: {
       costCoverageBps: selected.summary.netSalesMinor
         ? Math.round((knownRevenue * 10_000) / selected.summary.netSalesMinor)

@@ -35,6 +35,8 @@ const accountSchema = z.object({
   reference: optionalText(120),
 })
 const personSchema = z.object({
+  address: optionalText(300),
+  email: z.string().trim().max(254).pipe(z.email().or(z.literal(''))).optional(),
   name: z.string().trim().min(1).max(160),
   note: optionalText(500),
   phone: optionalText(40),
@@ -80,6 +82,7 @@ function resultError(error: unknown): ActionResult {
 }
 
 function revalidateMoney(invoiceId?: string) {
+  revalidatePath('/people')
   revalidatePath('/money/owed-to-us')
   revalidatePath('/money/we-owe')
   revalidatePath('/reports')
@@ -89,6 +92,8 @@ function revalidateMoney(invoiceId?: string) {
 }
 
 export async function createMoneyPersonAction(input: {
+  address?: string
+  email?: string
   name: string
   note?: string
   phone?: string
@@ -106,7 +111,14 @@ export async function createMoneyPersonAction(input: {
 
 export async function updateMoneyPersonAction(
   id: string,
-  input: { active: boolean; name: string; note?: string; phone?: string },
+  input: {
+    active: boolean
+    address?: string
+    email?: string
+    name: string
+    note?: string
+    phone?: string
+  },
 ): Promise<ActionResult> {
   const parsed = personSchema.extend({ active: z.boolean(), id: z.uuid() }).safeParse({ id, ...input })
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }

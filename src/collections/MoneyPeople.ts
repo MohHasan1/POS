@@ -6,7 +6,7 @@ const authenticated = ({ req }: { req: { user: unknown } }) => Boolean(req.user)
 export const MoneyPeople: CollectionConfig = {
   slug: 'money-people',
   admin: {
-    defaultColumns: ['name', 'phone', 'active'],
+    defaultColumns: ['name', 'phone', 'email', 'active'],
     useAsTitle: 'name',
   },
   access: {
@@ -19,6 +19,8 @@ export const MoneyPeople: CollectionConfig = {
     { name: 'id', type: 'text', required: true, defaultValue: () => randomUUID() },
     { name: 'name', type: 'text', required: true, maxLength: 160, index: true },
     { name: 'phone', type: 'text', maxLength: 40, index: true },
+    { name: 'email', type: 'email', index: true },
+    { name: 'address', type: 'textarea', maxLength: 300 },
     { name: 'note', type: 'textarea', maxLength: 500 },
     { name: 'active', type: 'checkbox', required: true, defaultValue: true, index: true },
   ],

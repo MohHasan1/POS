@@ -70,6 +70,10 @@ export type TopServiceMetric = {
 export type SalesDashboard = {
   allTime: SalesPeriodMetric
   month: SalesPeriodMetric
+  moneyPaidMinor: number
+  moneyReceivedMinor: number
+  moneyToPayMinor: number
+  moneyToReceiveMinor: number
   today: SalesPeriodMetric
   topServices: TopServiceMetric[]
   year: SalesPeriodMetric

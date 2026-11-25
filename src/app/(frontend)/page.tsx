@@ -1,6 +1,12 @@
 import { ArrowRight, CalendarDays } from 'lucide-react'
+import { cookies } from 'next/headers'
 import Link from 'next/link'
 
+import {
+  SalesOverviewSection,
+  SalesOverviewValue,
+  SalesPrivacyProvider,
+} from '@/components/dashboard/SalesOverviewSection'
 import { buttonVariants } from '@/components/ui/button'
 import { getAppNavigation } from '@/lib/app-navigation'
 import { getBusinessLogo } from '@/lib/business-information'
@@ -14,7 +20,10 @@ import { getInvoices } from '@/services/invoices'
 import { getSalesDashboard } from '@/services/sales-reporting'
 import { getShopSettings } from '@/services/settings'
 
+const salesPrivacyCookie = 'pos-hide-sales-amounts'
+
 export default async function HomePage() {
+  const cookieStore = await cookies()
   const [{ dictionary, locale }, settings, recentInvoices, dashboard] = await Promise.all([
     getDictionary(),
     getShopSettings(),
@@ -41,7 +50,12 @@ export default async function HomePage() {
   ]
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <SalesPrivacyProvider
+      className="mx-auto max-w-6xl space-y-6"
+      cookieName={salesPrivacyCookie}
+      hiddenValueLabel={dictionary.salesValueHidden}
+      initiallyHidden={cookieStore.get(salesPrivacyCookie)?.value !== '0'}
+    >
       <header className="flex flex-wrap items-center gap-4 border-b pb-5">
         {businessLogo?.url && (
           <div className="flex size-16 shrink-0 items-center justify-center rounded-lg border bg-card p-2 shadow-sm">
@@ -112,33 +126,76 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section aria-labelledby="sales-dashboard-heading" className="space-y-3">
-        <h2 id="sales-dashboard-heading" className="text-sm font-medium">
-          {dictionary.salesDashboard}
-        </h2>
+      <SalesOverviewSection
+        heading={dictionary.salesDashboard}
+        hideLabel={dictionary.hideSalesOverview}
+        showLabel={dictionary.showSalesOverview}
+      >
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {periods.map(({ label, metric }) => (
             <article key={label} className="rounded-lg border bg-card p-4 shadow-sm">
               <p className="text-xs font-medium text-muted-foreground">{label}</p>
               <p className="mt-2 text-2xl font-semibold tabular-nums">
-                {formatMoney(metric.totalMinor, dashboard.market, dateLocale)}
+                <SalesOverviewValue>
+                  {formatMoney(metric.totalMinor, dashboard.market, dateLocale)}
+                </SalesOverviewValue>
               </p>
               <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 <span>
-                  {dictionary.invoiceCount.replace(
-                    '{count}',
-                    new Intl.NumberFormat(dateLocale).format(metric.invoiceCount),
-                  )}
+                  <SalesOverviewValue>
+                    {dictionary.invoiceCount.replace(
+                      '{count}',
+                      new Intl.NumberFormat(dateLocale).format(metric.invoiceCount),
+                    )}
+                  </SalesOverviewValue>
                 </span>
                 <span>
-                  {dictionary.averageSale.replace(
-                    '{amount}',
-                    formatMoney(metric.averageMinor, dashboard.market, dateLocale),
-                  )}
+                  <SalesOverviewValue>
+                    {dictionary.averageSale.replace(
+                      '{amount}',
+                      formatMoney(metric.averageMinor, dashboard.market, dateLocale),
+                    )}
+                  </SalesOverviewValue>
                 </span>
               </div>
             </article>
           ))}
+        </div>
+
+        <div className="space-y-2">
+          <h3 className="text-sm font-medium">{dictionary.money}</h3>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              [
+                dictionary.invoiceMoneyToReceive,
+                formatMoney(dashboard.moneyToReceiveMinor, dashboard.market, dateLocale),
+              ],
+              [
+                dictionary.moneyReceivedToday,
+                formatMoney(dashboard.moneyReceivedMinor, dashboard.market, dateLocale),
+              ],
+              [
+                dictionary.weOwe,
+                formatMoney(dashboard.moneyToPayMinor, dashboard.market, dateLocale),
+              ],
+              [
+                dictionary.moneyPaidToday,
+                formatMoney(dashboard.moneyPaidMinor, dashboard.market, dateLocale),
+              ],
+            ].map(([label, value]) => (
+              <article
+                key={label}
+                className="rounded-lg bg-amber-50/80 p-4 shadow-sm dark:bg-amber-950/25"
+              >
+                <p className="text-xs font-medium text-amber-900/75 dark:text-amber-100/75">
+                  {label}
+                </p>
+                <p className="mt-2 text-2xl font-semibold tabular-nums">
+                  <SalesOverviewValue>{value}</SalesOverviewValue>
+                </p>
+              </article>
+            ))}
+          </div>
         </div>
 
         <div className="rounded-lg border bg-background">
@@ -174,10 +231,14 @@ export default async function HomePage() {
                   </span>
                   <span className="text-right text-sm tabular-nums">
                     <span className="block font-medium">
-                      {formatMoney(service.revenueMinor, dashboard.market, dateLocale)}
+                      <SalesOverviewValue>
+                        {formatMoney(service.revenueMinor, dashboard.market, dateLocale)}
+                      </SalesOverviewValue>
                     </span>
                     <span className="block text-xs text-muted-foreground">
-                      ×{formatQuantity(service.quantityMilliunits, dateLocale)}
+                      <SalesOverviewValue>
+                        {`×${formatQuantity(service.quantityMilliunits, dateLocale)}`}
+                      </SalesOverviewValue>
                     </span>
                   </span>
                 </li>
@@ -189,7 +250,7 @@ export default async function HomePage() {
             </p>
           )}
         </div>
-      </section>
+      </SalesOverviewSection>
 
       {recentInvoices.length > 0 && (
         <section aria-labelledby="recent-invoices-heading" className="space-y-3">
@@ -220,13 +281,15 @@ export default async function HomePage() {
                   {formatMarketDateTime(invoice.issuedAt, dashboard.market, dateLocale)}
                 </span>
                 <span className="text-sm font-medium tabular-nums">
-                  {formatMoney(invoice.totalMinor, dashboard.market, dateLocale)}
+                  <SalesOverviewValue>
+                    {formatMoney(invoice.totalMinor, dashboard.market, dateLocale)}
+                  </SalesOverviewValue>
                 </span>
               </Link>
             ))}
           </div>
         </section>
       )}
-    </div>
+    </SalesPrivacyProvider>
   )
 }

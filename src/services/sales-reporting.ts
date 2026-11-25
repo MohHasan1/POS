@@ -5,6 +5,7 @@ import type { SalesDashboard, SalesPeriodMetric, TopServiceMetric } from '@/lib/
 import { getPeriodBounds } from '@/lib/calendar'
 import { DEFAULT_MARKET, type MarketProfile, type SecondaryLanguage } from '@/lib/market'
 import type { Invoice } from '@/payload-types'
+import { getInvoiceCashMetrics, getMoneyLedgerSummary } from './money'
 import { getShopSettings, marketContextFromSettings } from './settings'
 
 function periodMetric(invoices: Invoice[]): SalesPeriodMetric {
@@ -26,6 +27,7 @@ export function buildSalesDashboard(
   now = new Date(),
   market: MarketProfile = DEFAULT_MARKET,
   secondaryLanguage: SecondaryLanguage = market.defaultSecondaryLanguage,
+  cashMetrics = { moneyPaidMinor: 0, moneyReceivedMinor: 0, moneyToPayMinor: 0, moneyToReceiveMinor: 0 },
 ): SalesDashboard {
   const bounds = getPeriodBounds(market, now)
   const today = invoices.filter((invoice) =>
@@ -58,6 +60,10 @@ export function buildSalesDashboard(
   return {
     allTime: periodMetric(invoices),
     month: periodMetric(month),
+    moneyPaidMinor: cashMetrics.moneyPaidMinor,
+    moneyReceivedMinor: cashMetrics.moneyReceivedMinor,
+    moneyToPayMinor: cashMetrics.moneyToPayMinor,
+    moneyToReceiveMinor: cashMetrics.moneyToReceiveMinor,
     today: periodMetric(today),
     topServices: [...topServices.values()]
       .sort(
@@ -109,7 +115,23 @@ async function getAllInvoices(): Promise<Invoice[]> {
 export async function getSalesDashboard(now = new Date()): Promise<SalesDashboard> {
   const [invoices, settings] = await Promise.all([getAllInvoices(), getShopSettings()])
   const market = marketContextFromSettings(settings)
-  return buildSalesDashboard(invoices, now, market.profile, market.secondaryLanguage)
+  const bounds = getPeriodBounds(market.profile, now)
+  const [invoiceCashMetrics, moneyToPay] = await Promise.all([
+    getInvoiceCashMetrics(invoices, bounds.todayStart, bounds.nextDayStart, now),
+    getMoneyLedgerSummary('weOwe', { start: bounds.todayStart.toISOString() }, now),
+  ])
+  const cashMetrics = {
+    ...invoiceCashMetrics,
+    moneyPaidMinor: moneyToPay.paidMinor,
+    moneyToPayMinor: moneyToPay.remainingMinor,
+  }
+  return buildSalesDashboard(
+    invoices,
+    now,
+    market.profile,
+    market.secondaryLanguage,
+    cashMetrics,
+  )
 }
 
 export async function getSalesThroughDate(selectedDate = new Date()): Promise<SalesPeriodMetric> {

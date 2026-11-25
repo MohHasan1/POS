@@ -3,6 +3,7 @@ import {
   Building2,
   ChartNoAxesCombined,
   Columns3,
+  ContactRound,
   FileText,
   History,
   Home,
@@ -81,6 +82,15 @@ export const appNavigation = [
     homeLabelKey: 'employees',
     homeDescriptionKey: 'homeEmployeesDescription',
     icon: UsersRound,
+    primary: false,
+  },
+  {
+    href: '/people',
+    labelKey: 'people',
+    homeLabelKey: 'people',
+    homeDescriptionKey: 'homePeopleDescription',
+    homeVisible: false,
+    icon: ContactRound,
     primary: false,
   },
   {

@@ -20,6 +20,7 @@ import { up as addCountryProfiles } from '@/migrations/20261117_123954_country_p
 import { up as makeProductNamesNullable } from '@/migrations/20261117_132500_nullable_product_names'
 import { up as addEmployeeAssignments } from '@/migrations/20261118_123605_employee_assignments'
 import { up as addHistoricalSalesBackfill } from '@/migrations/20261118_130246_historical_sales_backfill'
+import { up as addPeopleDetails } from '@/migrations/20261124_083113_people_details'
 import { up as addEmployeePayroll } from '@/lib/payroll-migration'
 import { up as addBusinessReports } from '@/lib/business-reports-migration'
 import { up as addMoneyOwed } from '@/lib/money-migration'
@@ -45,6 +46,8 @@ describe('SQLite migration reconciliation', () => {
     await addBusinessReports(args)
     await addMoneyOwed(args)
     await addMoneyOwed(args)
+    await addPeopleDetails(args)
+    await addPeopleDetails(args)
 
     const { rows } = await db.run(sql`PRAGMA table_info('payload_locked_documents_rels');`)
     const columns = new Set(rows.map((row) => String((row as unknown as { name: unknown }).name)))
@@ -72,6 +75,10 @@ describe('SQLite migration reconciliation', () => {
       itemColumns.rows.some((row) => row.name === 'cost_total_cost_minor'),
       true,
     )
+    const personColumns = await db.run(sql`PRAGMA table_info('money_people');`)
+    const personColumnNames = new Set(personColumns.rows.map((row) => String(row.name)))
+    assert.equal(personColumnNames.has('email'), true)
+    assert.equal(personColumnNames.has('address'), true)
   })
 
   it('adds payroll tables and leaves existing employees and invoices unchanged', async () => {

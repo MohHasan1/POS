@@ -13,6 +13,7 @@ import * as migration_20261118_180955_employee_payroll_schema from './20261118_1
 import * as migration_20261119_080747_business_reports_expenses from './20261119_080747_business_reports_expenses';
 import * as migration_20261123_094130_money_owed from './20261123_094130_money_owed';
 import * as migration_20261124_063243_money_product_prices from './20261124_063243_money_product_prices';
+import * as migration_20261124_083113_people_details from './20261124_083113_people_details';
 
 export const migrations = [
   {
@@ -88,6 +89,11 @@ export const migrations = [
   {
     up: migration_20261124_063243_money_product_prices.up,
     down: migration_20261124_063243_money_product_prices.down,
-    name: '20261124_063243_money_product_prices'
+    name: '20261124_063243_money_product_prices',
+  },
+  {
+    up: migration_20261124_083113_people_details.up,
+    down: migration_20261124_083113_people_details.down,
+    name: '20261124_083113_people_details'
   },
 ];

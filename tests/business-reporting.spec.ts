@@ -8,7 +8,7 @@ import { MARKET_PROFILES } from '@/lib/market'
 import { buildBusinessReport } from '@/services/business-reporting'
 
 describe('business reporting', () => {
-  it('shows owed balances at the period end without changing profit', () => {
+  it('shows balances at period end and money received and paid within the period', () => {
     const report = buildBusinessReport(
       {
         commissionOverrides: [],
@@ -18,7 +18,7 @@ describe('business reporting', () => {
         invoices: [],
         moneyAccounts: [
           {
-            id: 'owed-us', direction: 'owedToUs', status: 'confirmed',
+            id: 'owed-us', direction: 'owedToUs', status: 'confirmed', invoice: 'older-invoice',
             recordDate: '2026-01-01T00:00:00.000Z', originalAmountMinor: 10_000,
           },
           {
@@ -31,16 +31,35 @@ describe('business reporting', () => {
             account: 'owed-us', direction: 'owedToUs', status: 'confirmed',
             paymentDate: '2026-01-15T00:00:00.000Z', amountMinor: 3_000,
           },
+          {
+            account: 'we-owe', direction: 'weOwe', status: 'confirmed',
+            paymentDate: '2026-01-05T00:00:00.000Z', amountMinor: 500,
+          },
+          {
+            account: 'we-owe', direction: 'weOwe', status: 'confirmed',
+            paymentDate: '2026-01-15T00:00:00.000Z', amountMinor: 1_000,
+          },
+          {
+            account: 'we-owe', direction: 'weOwe', status: 'voided',
+            paymentDate: '2026-01-16T00:00:00.000Z', amountMinor: 2_000,
+          },
+          {
+            account: 'we-owe', direction: 'weOwe', status: 'confirmed',
+            paymentDate: '2026-02-01T00:00:00.000Z', amountMinor: 1_500,
+          },
         ] as never,
         payrollEntries: [],
       },
-      { period: 'custom', startDate: '2026-01-01', endDate: '2026-01-31' },
+      { period: 'custom', startDate: '2026-01-10', endDate: '2026-01-31' },
       MARKET_PROFILES.SA,
       'ar',
       new Date('2026-02-05T00:00:00.000Z'),
     )
     assert.equal(report.summary.owedToUsMinor, 7_000)
-    assert.equal(report.summary.weOweMinor, 4_000)
+    assert.equal(report.summary.moneyReceivedMinor, 3_000)
+    assert.equal(report.summary.weOweMinor, 2_500)
+    assert.equal(report.summary.moneyPaidMinor, 1_000)
+    assert.equal(report.comparison?.summary.moneyPaidMinor, 500)
     assert.equal(report.summary.operatingProfitMinor, 0)
   })
 
@@ -52,7 +71,7 @@ describe('business reporting', () => {
       id: 'employee-1',
       name: 'Worker',
     }
-    const report = buildBusinessReport(
+    const buildReport = (period: 'month' | 'year') => buildBusinessReport(
       {
         commissionOverrides: [],
         costOverrides: [],
@@ -93,7 +112,7 @@ describe('business reporting', () => {
             amountMinor: 3_000,
             employee: employee.id,
             employeeSnapshot: { name: employee.name },
-            entryDate: '2026-11-10T06:00:00.000Z',
+            entryDate: '2026-11-12T06:00:00.000Z',
             entryType: 'monthlySalary',
             salaryMonth: '2026-11',
           },
@@ -106,12 +125,13 @@ describe('business reporting', () => {
           },
         ],
       } as never,
-      { period: 'all' },
+      { period },
       MARKET_PROFILES.SA,
       'ar',
       new Date('2026-11-19T06:00:00.000Z'),
     )
 
+    const report = buildReport('year')
     assert.deepEqual(report.summary, {
       averageInvoiceMinor: 11_500,
       billPaidMinor: 1_150,
@@ -124,14 +144,18 @@ describe('business reporting', () => {
       grossProfitMinor: 6_000,
       grossSalesMinor: 11_500,
       invoiceCount: 1,
+      moneyPaidMinor: 0,
+      moneyReceivedMinor: 11_500,
       netSalesMinor: 10_000,
       operatingProfitMinor: 0,
       owedToUsMinor: 0,
       payrollPaidMinor: 1_000,
+      profitBeforeOperatingExpensesMinor: 1_000,
       profitMarginBps: 0,
       salaryEarnedMinor: 3_000,
       salesContributionMinor: 4_000,
       totalCompensationMinor: 5_000,
+      totalExpenseMinor: 1_000,
       variableExpenseMinor: 0,
       vatMinor: 1_500,
       weOweMinor: 0,
@@ -139,6 +163,16 @@ describe('business reporting', () => {
     assert.equal(report.employeeMetrics[0].outstandingMinor, 4_000)
     assert.equal(report.employeeMetrics[0].contributionMinor, 1_000)
     assert.equal(report.employeeMetrics[0].salesContributionMinor, 4_000)
+    assert.equal(report.trend[0].operatingProfitMinor, 0)
+    assert.equal(report.trendIncludesMonthlySalaries, true)
+
+    const month = buildReport('month')
+    assert.equal(month.summary.operatingProfitMinor, 0)
+    assert.equal(month.trendIncludesMonthlySalaries, false)
+    assert.deepEqual(
+      month.trend.map(({ key, operatingProfitMinor }) => [key, operatingProfitMinor]),
+      [['2026-11-10', 3_000]],
+    )
   })
 
   it('keeps daily sales contribution separate from salary and operating expenses', () => {
@@ -337,15 +371,21 @@ describe('business reporting', () => {
         invoices: [],
         payrollEntries: [],
       } as never,
-      { period: 'all' },
+      { period: 'year' },
       MARKET_PROFILES.BD,
       'bn',
+      new Date('2026-11-19T06:00:00.000Z'),
     )
 
     assert.equal(report.summary.capitalExpenseMinor, 50_000)
     assert.equal(report.summary.expenseMinor, 0)
     assert.equal(report.summary.operatingProfitMinor, 0)
-    assert.equal(report.summary.billPaidMinor, 50_000)
+    assert.equal(report.summary.billPaidMinor, 0)
+    assert.equal(report.summary.totalExpenseMinor, 50_000)
+    assert.deepEqual(report.capitalRecovery, {
+      profitNeededMinor: 50_000,
+      profitAboveBreakEvenMinor: 0,
+    })
     assert.equal(report.expenseMetrics[0].capitalMinor, 50_000)
     assert.equal(report.trend.length, 0)
   })

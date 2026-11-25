@@ -23,6 +23,7 @@ export function ProfessionalReportDocument({
   const money = (value: number) => formatMoney(value, report.market, displayLocale)
   const number = (value: number) => new Intl.NumberFormat(displayLocale).format(value)
   const isDaily = report.filter.period === 'today' || report.filter.period === 'yesterday'
+  const { capitalRecovery } = report
   const vatSummary: Array<[string, string]> =
     report.market.taxMode === 'saudiVat'
       ? [[dictionary.vatCollected, money(report.summary.vatMinor)]]
@@ -43,6 +44,7 @@ export function ProfessionalReportDocument({
         [dictionary.commissionEarned, money(report.summary.commissionEarnedMinor)],
         [dictionary.salesContribution, money(report.summary.salesContributionMinor)],
         [dictionary.salaryConfirmed, money(report.summary.salaryEarnedMinor)],
+        [dictionary.profitBeforeOperatingExpenses, money(report.summary.profitBeforeOperatingExpensesMinor)],
         [dictionary.operatingExpenses, money(report.summary.expenseMinor)],
         [dictionary.operatingProfit, money(report.summary.operatingProfitMinor)],
       ]
@@ -55,19 +57,37 @@ export function ProfessionalReportDocument({
     ? []
     : [
         [dictionary.payrollPaid, money(report.summary.payrollPaidMinor)],
-        [dictionary.capitalExpenses, money(report.summary.capitalExpenseMinor)],
         [dictionary.paidBills, money(report.summary.billPaidMinor)],
         [dictionary.unpaidBills, money(report.summary.billUnpaidMinor)],
+        [dictionary.totalExpenses, money(report.summary.totalExpenseMinor)],
       ]
-  const balanceSummary: Array<[string, string]> = [
+  const capitalSummary: Array<[string, string]> = [
+    [dictionary.capitalExpenseTotal, money(report.summary.capitalExpenseMinor)],
+  ]
+  if (capitalRecovery) {
+    capitalSummary.push(
+      [dictionary.operatingProfit, money(report.summary.operatingProfitMinor)],
+      [dictionary.profitNeededToBreakEven, money(capitalRecovery.profitNeededMinor)],
+      [dictionary.profitAboveBreakEven, money(capitalRecovery.profitAboveBreakEvenMinor)],
+    )
+  }
+  const moneySummary: Array<[string, string]> = [
     [dictionary.owedToUsAtPeriodEnd, money(report.summary.owedToUsMinor)],
+    [dictionary.moneyReceivedInPeriod, money(report.summary.moneyReceivedMinor)],
     [dictionary.weOweAtPeriodEnd, money(report.summary.weOweMinor)],
+    [dictionary.moneyPaidInPeriod, money(report.summary.moneyPaidMinor)],
   ]
   const summaryGroups = [
     { items: calculationSummary, title: dictionary.profitCalculation },
     { items: activitySummary, title: dictionary.salesActivity },
-    ...(isDaily ? [] : [{ items: paymentSummary, title: dictionary.paymentsAndCapital }]),
-    { items: balanceSummary, title: dictionary.money },
+    ...(isDaily ? [] : [
+      { items: paymentSummary, title: dictionary.paymentsAndExpenses },
+      {
+        items: capitalSummary,
+        title: capitalRecovery ? dictionary.annualCapitalRecovery : dictionary.capitalExpenses,
+      },
+    ]),
+    { items: moneySummary, title: dictionary.money },
   ]
 
   return (
@@ -119,8 +139,11 @@ export function ProfessionalReportDocument({
         </p>
         {!isDaily && (
           <p className="mt-1 text-[8pt] text-muted-foreground">
-            {dictionary.paymentsAndCapitalHelp}
+            {dictionary.paymentsAndExpensesHelp}
           </p>
+        )}
+        {capitalRecovery && (
+          <p className="mt-1 text-[8pt] text-muted-foreground">{dictionary.capitalRecoveryHelp}</p>
         )}
         <p className="mt-1 text-[8pt] text-muted-foreground">{dictionary.moneyBalancesHelp}</p>
         {(report.warnings.missingCostLines > 0 ||
