@@ -17,6 +17,7 @@ export type BusinessReportRange = {
 
 export type BusinessReportSummary = {
   averageInvoiceMinor: number
+  averageInvoicesPerDay: number
   billPaidMinor: number
   billUnpaidMinor: number
   capitalExpenseMinor: number

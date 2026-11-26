@@ -64,6 +64,7 @@ function relationshipId(value: { id: string } | null | string | undefined): stri
 function emptySummary(): BusinessReportSummary {
   return {
     averageInvoiceMinor: 0,
+    averageInvoicesPerDay: 0,
     billPaidMinor: 0,
     billUnpaidMinor: 0,
     capitalExpenseMinor: 0,
@@ -194,6 +195,7 @@ function calculatePeriod(
   const expenseMetrics = new Map<string, ExpenseBusinessMetric>()
   const trend = new Map<string, BusinessTrendPoint>()
   let missingCostLines = 0
+  let firstInvoiceTime = Number.POSITIVE_INFINITY
 
   const ensureEmployee = (employeeId?: string, fallbackName?: string) => {
     const key = employeeId || '__unassigned__'
@@ -241,6 +243,7 @@ function calculatePeriod(
     const employeeId = relationshipId(invoice.employee)
     if (employeeFilter && employeeId !== employeeFilter) continue
     if (!dateInBusinessRange(invoice.issuedAt, range)) continue
+    if (!range.start) firstInvoiceTime = Math.min(firstInvoiceTime, Date.parse(invoice.issuedAt))
     summary.invoiceCount += 1
     summary.grossSalesMinor += invoice.totalMinor
     summary.vatMinor += invoice.vatMinor
@@ -401,6 +404,14 @@ function calculatePeriod(
   summary.averageInvoiceMinor = summary.invoiceCount
     ? Math.round(summary.grossSalesMinor / summary.invoiceCount)
     : 0
+  const startTime = range.start ? Date.parse(range.start) : firstInvoiceTime
+  const lastTime = range.end ? Math.min(Date.parse(range.end) - 1, now.getTime()) : now.getTime()
+  if (summary.invoiceCount > 0 && startTime <= lastTime) {
+    const firstDay = toMarketDateInput(new Date(startTime), market)
+    const lastDay = toMarketDateInput(new Date(lastTime), market)
+    const days = (Date.parse(lastDay) - Date.parse(firstDay)) / 86_400_000 + 1
+    summary.averageInvoicesPerDay = summary.invoiceCount / days
+  }
   summary.profitBeforeOperatingExpensesMinor =
     summary.grossProfitMinor - summary.totalCompensationMinor
   summary.operatingProfitMinor = summary.profitBeforeOperatingExpensesMinor - summary.expenseMinor

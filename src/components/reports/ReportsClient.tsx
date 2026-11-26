@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation'
 import { type FormEvent, useState } from 'react'
 
 import { BusinessTrendChart } from '@/components/reports/BusinessTrendChart'
+import { ReportFigureHelp, ReportFiguresGuide } from '@/components/reports/ReportFiguresGuide'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -55,18 +56,16 @@ function ComparisonBadge({
   current,
   locale,
   lowerIsBetter = false,
-  newLabel,
   previous,
 }: {
   current: number
   locale: string
   lowerIsBetter?: boolean
-  newLabel: string
   previous?: number
 }) {
   if (previous === undefined) return null
   const change = changeBps(current, previous)
-  if (change === null) return <Badge variant="secondary">{newLabel}</Badge>
+  if (change === null) return null
   const improved = lowerIsBetter ? change <= 0 : change >= 0
   return (
     <Badge
@@ -138,7 +137,7 @@ export function ReportsClient({
   const hasVisibleWarnings = report.warnings.missingCostLines > 0 || showSalaryWarning
   type ReportMetric = {
     format?: 'count' | 'money'
-    key: keyof BusinessReportSummary
+    key: keyof BusinessReportSummary & keyof Dictionary['reportFigureDefinitions']
     label: string
     value: number
     lowerIsBetter?: boolean
@@ -244,6 +243,12 @@ export function ReportsClient({
       value: report.summary.invoiceCount,
     },
     {
+      format: 'count',
+      key: 'averageInvoicesPerDay',
+      label: dictionary.averageInvoicesPerDay,
+      value: report.summary.averageInvoicesPerDay,
+    },
+    {
       key: 'averageInvoiceMinor',
       label: dictionary.averageInvoice,
       value: report.summary.averageInvoiceMinor,
@@ -276,13 +281,15 @@ export function ReportsClient({
             {metric.label}
             {metric.warning ? ' *' : ''}
           </CardTitle>
-          <ComparisonBadge
-            current={metric.value}
-            locale={moneyLocale}
-            lowerIsBetter={metric.lowerIsBetter}
-            newLabel={dictionary.reportNewValue}
-            previous={report.comparison?.summary[metric.key]}
-          />
+          <div className="flex shrink-0 items-center gap-1">
+            <ComparisonBadge
+              current={metric.value}
+              locale={moneyLocale}
+              lowerIsBetter={metric.lowerIsBetter}
+              previous={report.comparison?.summary[metric.key]}
+            />
+            <ReportFigureHelp dictionary={dictionary} figure={metric} />
+          </div>
         </CardHeader>
         <CardContent>
           <p
@@ -292,7 +299,7 @@ export function ReportsClient({
             )}
           >
             {metric.format === 'count'
-              ? new Intl.NumberFormat(moneyLocale).format(metric.value)
+              ? new Intl.NumberFormat(moneyLocale, { maximumFractionDigits: 2 }).format(metric.value)
               : money(metric.value)}
           </p>
           {metric.key === 'operatingProfitMinor' && (
@@ -443,6 +450,16 @@ export function ReportsClient({
         </section>
       )}
 
+      <ReportFiguresGuide
+        dictionary={dictionary}
+        hasComparison={Boolean(report.comparison)}
+        figures={[
+          ...calculationMetrics,
+          ...(!isDaily ? [{ key: 'profitMarginBps', label: dictionary.profitMargin }] as const : []),
+          ...activityMetrics,
+        ]}
+      />
+
       <section className="space-y-2">
         <h2 className="text-sm font-semibold text-muted-foreground">
           {dictionary.profitCalculation}
@@ -450,7 +467,6 @@ export function ReportsClient({
         <div className="report-summary-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {calculationMetrics.map(metricCard)}
         </div>
-        <p className="text-sm text-muted-foreground">{dictionary.salesAfterDirectCostsHelp}</p>
       </section>
 
       <section className="space-y-2">

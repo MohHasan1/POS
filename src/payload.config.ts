@@ -20,6 +20,7 @@ import { MoneyPeople } from './collections/MoneyPeople'
 import { PosSecurity, PosSessions } from './collections/PosAccess'
 import { Products } from './collections/Products'
 import { ReceiptVouchers } from './collections/ReceiptVouchers'
+import { Supplies, SupplyUsages } from './collections/Supplies'
 import { Users } from './collections/Users'
 import { ShopSettings } from './globals/ShopSettings'
 import { ServiceBoardSettings } from './globals/ServiceBoardSettings'
@@ -70,6 +71,8 @@ export default buildConfig({
     PosSessions,
     InvoiceCostOverrides,
     ReceiptVouchers,
+    Supplies,
+    SupplyUsages,
     Media,
   ],
   globals: [ShopSettings, ServiceBoardSettings],

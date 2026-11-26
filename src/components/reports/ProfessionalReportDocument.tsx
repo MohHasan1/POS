@@ -21,7 +21,7 @@ export function ProfessionalReportDocument({
 }) {
   const displayLocale = marketLocale(report.market, locale)
   const money = (value: number) => formatMoney(value, report.market, displayLocale)
-  const number = (value: number) => new Intl.NumberFormat(displayLocale).format(value)
+  const number = (value: number) => new Intl.NumberFormat(displayLocale, { maximumFractionDigits: 2 }).format(value)
   const isDaily = report.filter.period === 'today' || report.filter.period === 'yesterday'
   const { capitalRecovery } = report
   const vatSummary: Array<[string, string]> =
@@ -50,6 +50,7 @@ export function ProfessionalReportDocument({
       ]
   const activitySummary: Array<[string, string]> = [
     [dictionary.invoices, number(report.summary.invoiceCount)],
+    [dictionary.averageInvoicesPerDay, number(report.summary.averageInvoicesPerDay)],
     [dictionary.averageInvoice, money(report.summary.averageInvoiceMinor)],
     ...vatSummary,
   ]

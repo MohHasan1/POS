@@ -10,6 +10,7 @@ import {
   FileText,
   HandCoins,
   History,
+  Package,
   ArrowDownLeft,
   ArrowUpRight,
   ReceiptText,
@@ -64,6 +65,7 @@ export function PrimaryNavigation({
     { href: '/reports', icon: ChartNoAxesCombined, label: dictionary.reports },
     { href: '/expenses', icon: ReceiptCent, label: dictionary.expenses },
     { href: '/payroll', icon: WalletCards, label: dictionary.payroll },
+    { href: '/supplies', icon: Package, label: dictionary.supplyTracker.title },
   ]
   const moneyItems: NavigationItem[] = [
     { href: '/money/owed-to-us', icon: ArrowDownLeft, label: dictionary.owedToUs },

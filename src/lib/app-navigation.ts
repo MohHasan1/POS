@@ -8,6 +8,7 @@ import {
   History,
   Home,
   HandCoins,
+  Package,
   ReceiptText,
   ReceiptCent,
   Settings,
@@ -74,6 +75,14 @@ export const appNavigation = [
     homeLabelKey: 'products',
     homeDescriptionKey: 'homeProductsDescription',
     icon: Boxes,
+    primary: false,
+  },
+  {
+    href: '/supplies',
+    labelKey: 'supplies',
+    homeLabelKey: 'supplies',
+    homeDescriptionKey: 'homeSuppliesDescription',
+    icon: Package,
     primary: false,
   },
   {

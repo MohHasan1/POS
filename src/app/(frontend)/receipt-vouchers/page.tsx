@@ -60,7 +60,7 @@ export default async function ReceiptVouchersPage({
             {dictionary.createReceiptVoucher}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {dictionary.createReceiptVoucherDescription}
+            {dictionary.createReceiptVoucherDescription.replace('{currency}', market.profile.currencyCode)}
           </p>
         </div>
         <ReceiptVoucherForm dictionary={dictionary} defaultDate={todayInMarket(market.profile)} market={market.profile} />

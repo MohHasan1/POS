@@ -15,6 +15,9 @@ import * as migration_20261123_094130_money_owed from './20261123_094130_money_o
 import * as migration_20261124_063243_money_product_prices from './20261124_063243_money_product_prices';
 import * as migration_20261124_083113_people_details from './20261124_083113_people_details';
 import * as migration_20261125_174657_pos_access from './20261125_174657_pos_access';
+import * as migration_20261126_064130_supplies from './20261126_064130_supplies';
+import * as migration_20261126_070707_supply_usage_details from './20261126_070707_supply_usage_details';
+import * as migration_20261126_080156_supply_costs from './20261126_080156_supply_costs';
 
 export const migrations = [
   {
@@ -101,5 +104,20 @@ export const migrations = [
     up: migration_20261125_174657_pos_access.up,
     down: migration_20261125_174657_pos_access.down,
     name: '20261125_174657_pos_access',
+  },
+  {
+    up: migration_20261126_064130_supplies.up,
+    down: migration_20261126_064130_supplies.down,
+    name: '20261126_064130_supplies',
+  },
+  {
+    up: migration_20261126_070707_supply_usage_details.up,
+    down: migration_20261126_070707_supply_usage_details.down,
+    name: '20261126_070707_supply_usage_details',
+  },
+  {
+    up: migration_20261126_080156_supply_costs.up,
+    down: migration_20261126_080156_supply_costs.down,
+    name: '20261126_080156_supply_costs',
   },
 ];

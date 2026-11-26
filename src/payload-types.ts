@@ -84,6 +84,8 @@ export interface Config {
     'pos-sessions': PosSession;
     'invoice-cost-overrides': InvoiceCostOverride;
     'receipt-vouchers': ReceiptVoucher;
+    supplies: Supply;
+    'supply-usages': SupplyUsage;
     media: Media;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
@@ -109,6 +111,8 @@ export interface Config {
     'pos-sessions': PosSessionsSelect<false> | PosSessionsSelect<true>;
     'invoice-cost-overrides': InvoiceCostOverridesSelect<false> | InvoiceCostOverridesSelect<true>;
     'receipt-vouchers': ReceiptVouchersSelect<false> | ReceiptVouchersSelect<true>;
+    supplies: SuppliesSelect<false> | SuppliesSelect<true>;
+    'supply-usages': SupplyUsagesSelect<false> | SupplyUsagesSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -653,6 +657,37 @@ export interface InvoiceCostOverride {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "supplies".
+ */
+export interface Supply {
+  id: string;
+  name: string;
+  archived: boolean;
+  expectedLifespanDays?: number | null;
+  defaultUnitCostMinor?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "supply-usages".
+ */
+export interface SupplyUsage {
+  id: string;
+  supply: string | Supply;
+  label?: string | null;
+  startedOn: string;
+  finishedOn?: string | null;
+  vendor?: string | null;
+  notes?: string | null;
+  expectedLifespanDays?: number | null;
+  unitCostMinor?: number | null;
+  costCurrencyCode?: ('SAR' | 'BDT') | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "media".
  */
 export interface Media {
@@ -759,6 +794,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'receipt-vouchers';
         value: string | ReceiptVoucher;
+      } | null)
+    | ({
+        relationTo: 'supplies';
+        value: string | Supply;
+      } | null)
+    | ({
+        relationTo: 'supply-usages';
+        value: string | SupplyUsage;
       } | null)
     | ({
         relationTo: 'media';
@@ -1321,6 +1364,37 @@ export interface ReceiptVouchersSelect<T extends boolean = true> {
   status?: T;
   voidReason?: T;
   voidedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "supplies_select".
+ */
+export interface SuppliesSelect<T extends boolean = true> {
+  id?: T;
+  name?: T;
+  archived?: T;
+  expectedLifespanDays?: T;
+  defaultUnitCostMinor?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "supply-usages_select".
+ */
+export interface SupplyUsagesSelect<T extends boolean = true> {
+  id?: T;
+  supply?: T;
+  label?: T;
+  startedOn?: T;
+  finishedOn?: T;
+  vendor?: T;
+  notes?: T;
+  expectedLifespanDays?: T;
+  unitCostMinor?: T;
+  costCurrencyCode?: T;
   updatedAt?: T;
   createdAt?: T;
 }

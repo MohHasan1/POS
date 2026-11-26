@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowLeft, ArrowRight, EyeOff, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Eye, EyeOff, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -255,6 +255,7 @@ export function ServiceBoardClient({
   const [manageOpen, setManageOpen] = useState(false)
   const [createServiceOpen, setCreateServiceOpen] = useState(false)
   const [saleOpen, setSaleOpen] = useState(false)
+  const [showSalesThroughDate, setShowSalesThroughDate] = useState(false)
   const [saleRows, setSaleRows] = useState<SaleRow[]>([])
   const [employeeId, setEmployeeId] = useState<string | null>(defaultEmployeeId || null)
   const [idempotencyKey, setIdempotencyKey] = useState('')
@@ -502,16 +503,36 @@ export function ServiceBoardClient({
               new Intl.NumberFormat(dateLocale).format(view.summary.distinctVisits),
             ],
             [dictionary.mostPopularService, popularName],
-            [
-              dictionary.salesThroughSelectedDate,
-              formatMoney(salesThroughDate.totalMinor, view.market, dateLocale),
-            ],
           ].map(([label, value]) => (
             <div key={label} className="rounded-lg border bg-card p-4 shadow-sm">
               <p className="text-xs font-medium text-muted-foreground">{label}</p>
               <p className="mt-2 truncate text-xl font-semibold tabular-nums">{value}</p>
             </div>
           ))}
+          <div className="relative rounded-lg border bg-card p-4 shadow-sm">
+            <p className="pr-6 text-xs font-medium text-muted-foreground">
+              {dictionary.salesThroughSelectedDate}
+            </p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="absolute top-2.5 right-2.5 text-muted-foreground"
+              aria-controls="service-board-sales-through-date"
+              aria-label={showSalesThroughDate ? dictionary.hideSalesOverview : dictionary.showSalesOverview}
+              onClick={() => setShowSalesThroughDate((visible) => !visible)}
+            >
+              {showSalesThroughDate ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+            </Button>
+            <p id="service-board-sales-through-date" className="mt-2 truncate text-xl font-semibold tabular-nums">
+              {showSalesThroughDate ? formatMoney(salesThroughDate.totalMinor, view.market, dateLocale) : (
+                <>
+                  <span aria-hidden="true">******</span>
+                  <span className="sr-only">{dictionary.salesValueHidden}</span>
+                </>
+              )}
+            </p>
+          </div>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">

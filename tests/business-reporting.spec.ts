@@ -4,10 +4,38 @@ import path from 'node:path'
 import { describe, it } from 'node:test'
 
 import { resolveBusinessReportPeriod } from '@/lib/business-report-periods'
+import type { BusinessReportFilter } from '@/lib/business-report-types'
 import { MARKET_PROFILES } from '@/lib/market'
 import { buildBusinessReport } from '@/services/business-reporting'
 
 describe('business reporting', () => {
+  it('averages invoices over local calendar days, including days without sales', () => {
+    const invoices = [
+      '2026-12-03T17:59:00.000Z',
+      '2026-11-30T17:59:00.000Z',
+      '2026-11-30T18:01:00.000Z',
+    ].map((issuedAt) => ({ issuedAt, items: [], totalMinor: 0, vatMinor: 0 }))
+    const data = {
+      commissionOverrides: [],
+      costOverrides: [],
+      employees: [],
+      expenses: [],
+      invoices,
+      payrollEntries: [],
+    } as never
+    const report = (filter: BusinessReportFilter) => buildBusinessReport(
+      data, filter, MARKET_PROFILES.BD, 'bn', new Date('2026-12-03T18:30:00.000Z'),
+    )
+
+    assert.equal(report({ period: 'month' }).summary.averageInvoicesPerDay, 2 / 4)
+    assert.equal(report({ period: 'all' }).summary.averageInvoicesPerDay, 3 / 5)
+    assert.equal(report({ period: 'yesterday' }).summary.averageInvoicesPerDay, 1)
+    assert.equal(report({ period: 'today' }).summary.averageInvoicesPerDay, 0)
+    const custom = report({ period: 'custom', startDate: '2026-12-01', endDate: '2026-12-03' })
+    assert.equal(custom.summary.averageInvoicesPerDay, 2 / 3)
+    assert.equal(custom.comparison?.summary.averageInvoicesPerDay, 1 / 3)
+  })
+
   it('shows balances at period end and money received and paid within the period', () => {
     const report = buildBusinessReport(
       {
@@ -134,6 +162,7 @@ describe('business reporting', () => {
     const report = buildReport('year')
     assert.deepEqual(report.summary, {
       averageInvoiceMinor: 11_500,
+      averageInvoicesPerDay: 1 / 323,
       billPaidMinor: 1_150,
       billUnpaidMinor: 0,
       capitalExpenseMinor: 0,

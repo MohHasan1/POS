@@ -22,6 +22,9 @@ import { up as addEmployeeAssignments } from '@/migrations/20261118_123605_emplo
 import { up as addHistoricalSalesBackfill } from '@/migrations/20261118_130246_historical_sales_backfill'
 import { up as addPeopleDetails } from '@/migrations/20261124_083113_people_details'
 import { up as addPosAccess } from '@/migrations/20261125_174657_pos_access'
+import { up as addSupplies } from '@/migrations/20261126_064130_supplies'
+import { up as addSupplyUsageDetails } from '@/migrations/20261126_070707_supply_usage_details'
+import { up as addSupplyCosts } from '@/migrations/20261126_080156_supply_costs'
 import { up as addEmployeePayroll } from '@/lib/payroll-migration'
 import { up as addBusinessReports } from '@/lib/business-reports-migration'
 import { up as addMoneyOwed } from '@/lib/money-migration'
@@ -51,6 +54,12 @@ describe('SQLite migration reconciliation', () => {
     await addPeopleDetails(args)
     await addPosAccess(args)
     await addPosAccess(args)
+    await addSupplies(args)
+    await addSupplies(args)
+    await addSupplyUsageDetails(args)
+    await addSupplyUsageDetails(args)
+    await addSupplyCosts(args)
+    await addSupplyCosts(args)
 
     const { rows } = await db.run(sql`PRAGMA table_info('payload_locked_documents_rels');`)
     const columns = new Set(rows.map((row) => String((row as unknown as { name: unknown }).name)))
@@ -65,6 +74,8 @@ describe('SQLite migration reconciliation', () => {
     assert.equal(columns.has('money_payments_id'), true)
     assert.equal(columns.has('pos_sessions_id'), true)
     assert.equal(columns.has('pos_security_id'), true)
+    assert.equal(columns.has('supplies_id'), true)
+    assert.equal(columns.has('supply_usages_id'), true)
     const invoiceColumns = await db.run(sql`PRAGMA table_info('invoices');`)
     const invoiceColumnNames = new Set(invoiceColumns.rows.map((row) => String(row.name)))
     assert.equal(invoiceColumnNames.has('entry_source'), true)
@@ -84,6 +95,41 @@ describe('SQLite migration reconciliation', () => {
     const personColumnNames = new Set(personColumns.rows.map((row) => String(row.name)))
     assert.equal(personColumnNames.has('email'), true)
     assert.equal(personColumnNames.has('address'), true)
+  })
+
+  it('copies default estimates to existing open supply cards once and preserves finished records', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'quickpos-usage-migration-'))
+    const client = createClient({ url: `file:${path.join(directory, 'legacy.db')}` })
+    const db = drizzle(client) as unknown as MigrateUpArgs['db']
+    const args = { db } as MigrateUpArgs
+    try {
+      await db.run(sql`CREATE TABLE payload_locked_documents_rels (id integer PRIMARY KEY NOT NULL);`)
+      await addSupplies(args)
+      await db.run(sql`INSERT INTO supplies (id, name, expected_lifespan_days) VALUES ('blades', 'Blades', 10);`)
+      await db.run(sql`INSERT INTO supply_usages (id, supply_id, label, started_on, finished_on) VALUES
+        ('open', 'blades', 'Blue pack', '2026-11-20', NULL),
+        ('finished', 'blades', 'Red pack', '2026-11-11', '2026-11-15');`)
+      await addSupplyUsageDetails(args)
+      await addSupplyCosts(args)
+
+      const statement = sql`SELECT label, started_on, finished_on, vendor, notes, expected_lifespan_days
+        FROM supply_usages ORDER BY id;`
+      assert.deepEqual((await db.run(statement)).rows, [
+        { label: 'Red pack', started_on: '2026-11-11', finished_on: '2026-11-15', vendor: null, notes: null, expected_lifespan_days: null },
+        { label: 'Blue pack', started_on: '2026-11-20', finished_on: null, vendor: null, notes: null, expected_lifespan_days: 10 },
+      ])
+      const costs = await db.run(sql`SELECT unit_cost_minor, cost_currency_code FROM supply_usages;`)
+      assert.deepEqual(costs.rows, [
+        { unit_cost_minor: null, cost_currency_code: null },
+        { unit_cost_minor: null, cost_currency_code: null },
+      ])
+      await db.run(sql`UPDATE supply_usages SET expected_lifespan_days = NULL WHERE id = 'open';`)
+      await addSupplyUsageDetails(args)
+      assert.equal((await db.run(statement)).rows[1].expected_lifespan_days, null)
+    } finally {
+      client.close()
+      rmSync(directory, { recursive: true, force: true })
+    }
   })
 
   it('adds payroll tables and leaves existing employees and invoices unchanged', async () => {
