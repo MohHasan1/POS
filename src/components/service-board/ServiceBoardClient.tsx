@@ -20,6 +20,7 @@ import {
   removeServiceBoardColumnAction,
 } from '@/actions/service-board'
 import { EmployeeSelector } from '@/components/employees/EmployeeSelector'
+import { useCanRefreshPos } from '@/components/access/PosAccessBoundary'
 import { createSaleSettlementDraft, SaleSettlementPanel, saleSettlementInput } from '@/components/money/SaleSettlementPanel'
 import { ProductForm } from '@/components/products/ProductForm'
 import { Badge } from '@/components/ui/badge'
@@ -281,13 +282,15 @@ export function ServiceBoardClient({
   const anyDialogOpen = manageOpen || createServiceOpen || saleOpen
   const viewingToday = selectedDate === todayDate
 
+  const canRefreshPos = useCanRefreshPos()
   useEffect(() => {
     if (anyDialogOpen) return
     const interval = window.setInterval(() => {
+      if (document.hidden || !canRefreshPos()) return
       startRefreshTransition(() => router.refresh())
     }, 30_000)
     return () => window.clearInterval(interval)
-  }, [anyDialogOpen, router])
+  }, [anyDialogOpen, canRefreshPos, router])
 
   function runColumnAction(action: () => Promise<{ ok: boolean; error?: string }>) {
     setError('')

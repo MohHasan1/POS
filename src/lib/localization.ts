@@ -6,12 +6,28 @@ import en from '@/messages/en.json'
 export type Locale = 'bn' | 'en'
 export type Dictionary = typeof en
 
+const localeCookieName = 'pos-locale'
+
 export async function getLocale(): Promise<Locale> {
   const cookieStore = await cookies()
-  return cookieStore.get('pos-locale')?.value === 'bn' ? 'bn' : 'en'
+  return cookieStore.get(localeCookieName)?.value === 'bn' ? 'bn' : 'en'
+}
+
+export async function saveLocale(locale: Locale) {
+  const cookieStore = await cookies()
+  cookieStore.set(localeCookieName, locale, {
+    httpOnly: true,
+    maxAge: 60 * 60 * 24 * 365,
+    path: '/',
+    sameSite: 'lax',
+  })
+}
+
+export function dictionaryForLocale(locale: Locale): Dictionary {
+  return locale === 'bn' ? bn : en
 }
 
 export async function getDictionary(): Promise<{ dictionary: Dictionary; locale: Locale }> {
   const locale = await getLocale()
-  return { dictionary: locale === 'bn' ? bn : en, locale }
+  return { dictionary: dictionaryForLocale(locale), locale }
 }

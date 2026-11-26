@@ -8,15 +8,20 @@ import { setLocaleAction } from '@/actions/locale'
 import { useTheme } from '@/components/layout/ThemeProvider'
 import { Button } from '@/components/ui/button'
 import type { Dictionary, Locale } from '@/lib/localization'
+import { cn } from '@/lib/utils'
 
 const subscribeToHydration = () => () => undefined
 
 export function NavQuickPreferences({
   dictionary,
   locale,
+  className,
+  onLocaleChange,
 }: {
   dictionary: Dictionary
   locale: Locale
+  className?: string
+  onLocaleChange?: (locale: Locale) => Promise<void>
 }) {
   const router = useRouter()
   const { resolvedTheme, setTheme } = useTheme()
@@ -33,13 +38,17 @@ export function NavQuickPreferences({
 
   function toggleLanguage() {
     startLanguageTransition(async () => {
+      if (onLocaleChange) {
+        await onLocaleChange(nextLocale)
+        return
+      }
       await setLocaleAction(nextLocale)
       router.refresh()
     })
   }
 
   return (
-    <div className="flex shrink-0 items-center gap-1 border-l pl-2">
+    <div className={cn('flex shrink-0 items-center gap-1 border-l pl-2', className)}>
       <Button
         type="button"
         size="icon-sm"

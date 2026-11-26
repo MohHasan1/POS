@@ -80,6 +80,8 @@ export interface Config {
     'money-people': MoneyPerson;
     'money-accounts': MoneyAccount;
     'money-payments': MoneyPayment;
+    'pos-security': PosSecurity;
+    'pos-sessions': PosSession;
     'invoice-cost-overrides': InvoiceCostOverride;
     'receipt-vouchers': ReceiptVoucher;
     media: Media;
@@ -103,6 +105,8 @@ export interface Config {
     'money-people': MoneyPeopleSelect<false> | MoneyPeopleSelect<true>;
     'money-accounts': MoneyAccountsSelect<false> | MoneyAccountsSelect<true>;
     'money-payments': MoneyPaymentsSelect<false> | MoneyPaymentsSelect<true>;
+    'pos-security': PosSecuritySelect<false> | PosSecuritySelect<true>;
+    'pos-sessions': PosSessionsSelect<false> | PosSessionsSelect<true>;
     'invoice-cost-overrides': InvoiceCostOverridesSelect<false> | InvoiceCostOverridesSelect<true>;
     'receipt-vouchers': ReceiptVouchersSelect<false> | ReceiptVouchersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
@@ -605,6 +609,35 @@ export interface ReceiptVoucher {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "pos-security".
+ */
+export interface PosSecurity {
+  id: string;
+  passwordHash: string;
+  recoveryHash: string;
+  generation: string;
+  timeoutMinutes: number;
+  failedUnlocks: number;
+  unlockBlockedUntil?: string | null;
+  failedRecoveries: number;
+  recoveryBlockedUntil?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "pos-sessions".
+ */
+export interface PosSession {
+  id: string;
+  generation: string;
+  lastActivityAt: string;
+  expiresAt: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "invoice-cost-overrides".
  */
 export interface InvoiceCostOverride {
@@ -710,6 +743,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'money-payments';
         value: string | MoneyPayment;
+      } | null)
+    | ({
+        relationTo: 'pos-security';
+        value: string | PosSecurity;
+      } | null)
+    | ({
+        relationTo: 'pos-sessions';
+        value: string | PosSession;
       } | null)
     | ({
         relationTo: 'invoice-cost-overrides';
@@ -1163,6 +1204,35 @@ export interface MoneyPaymentsSelect<T extends boolean = true> {
   timeZone?: T;
   voidReason?: T;
   voidedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "pos-security_select".
+ */
+export interface PosSecuritySelect<T extends boolean = true> {
+  id?: T;
+  passwordHash?: T;
+  recoveryHash?: T;
+  generation?: T;
+  timeoutMinutes?: T;
+  failedUnlocks?: T;
+  unlockBlockedUntil?: T;
+  failedRecoveries?: T;
+  recoveryBlockedUntil?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "pos-sessions_select".
+ */
+export interface PosSessionsSelect<T extends boolean = true> {
+  id?: T;
+  generation?: T;
+  lastActivityAt?: T;
+  expiresAt?: T;
   updatedAt?: T;
   createdAt?: T;
 }

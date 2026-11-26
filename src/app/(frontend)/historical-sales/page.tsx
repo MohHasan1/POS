@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { CheckoutClient } from '@/components/checkout/CheckoutClient'
 import { todayDateInput } from '@/lib/calendar'
 import { getDictionary } from '@/lib/localization'
+import { requirePosAccess } from '@/lib/require-pos-access'
 import { marketSupports } from '@/lib/market'
 import { employeeRelationshipId, getEmployees } from '@/services/employees'
 import { getProducts } from '@/services/products'
@@ -12,6 +13,7 @@ import { areShopSettingsComplete, getShopSettings, marketContextFromSettings } f
 export const metadata: Metadata = { title: 'Record Past Sale' }
 
 export default async function HistoricalSalesPage() {
+  await requirePosAccess('/historical-sales')
   const [{ dictionary, locale }, employees, products, settings] = await Promise.all([
     getDictionary(),
     getEmployees(),

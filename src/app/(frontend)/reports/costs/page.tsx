@@ -2,12 +2,14 @@ import type { Metadata } from 'next'
 
 import { MissingCostsClient } from '@/components/reports/MissingCostsClient'
 import { getDictionary } from '@/lib/localization'
+import { requirePosAccess } from '@/lib/require-pos-access'
 import { getMissingCostLines } from '@/services/business-reporting'
 import { getShopSettings, marketContextFromSettings } from '@/services/settings'
 
 export const metadata: Metadata = { title: 'Missing costs' }
 
 export default async function MissingCostsPage() {
+  await requirePosAccess('/reports/costs')
   const [{ dictionary, locale }, lines, settings] = await Promise.all([
     getDictionary(),
     getMissingCostLines(),

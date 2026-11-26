@@ -14,6 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { getDictionary } from '@/lib/localization'
+import { requirePosAccess } from '@/lib/require-pos-access'
 import { formatMarketDate, formatMarketDateTime } from '@/lib/calendar'
 import { getDocumentMarket, marketLocale } from '@/lib/market'
 import { formatMoney } from '@/lib/money'
@@ -28,6 +29,7 @@ export default async function InvoicesPage({
 }: {
   searchParams: Promise<{ q?: string }>
 }) {
+  await requirePosAccess('/invoices', await searchParams)
   const { q = '' } = await searchParams
   const [{ dictionary, locale }, invoices] = await Promise.all([
     getDictionary(),

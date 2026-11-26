@@ -1,5 +1,7 @@
 'use server'
 
+import { requirePosAccess } from '@/lib/require-pos-access'
+
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -21,6 +23,7 @@ export type LanguageSettingsActionInput = z.input<typeof languageSettingsSchema>
 export async function updateInvoicingPreferencesAction(
   input: SettingsActionInput,
 ): Promise<ActionResult> {
+  await requirePosAccess()
   const parsed = settingsSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
 
@@ -39,6 +42,7 @@ export async function updateInvoicingPreferencesAction(
 export async function updateLanguagePreferencesAction(
   input: LanguageSettingsActionInput,
 ): Promise<ActionResult> {
+  await requirePosAccess()
   const parsed = languageSettingsSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
 

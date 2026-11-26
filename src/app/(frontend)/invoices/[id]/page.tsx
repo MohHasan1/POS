@@ -11,6 +11,7 @@ import { SalesInvoiceTemplate } from '@/components/invoices/SalesInvoiceTemplate
 import { Badge } from '@/components/ui/badge'
 import { buttonVariants } from '@/components/ui/button'
 import { getDictionary } from '@/lib/localization'
+import { readPosAccess, requirePosAccess } from '@/lib/require-pos-access'
 import { getDocumentMarket, marketLocale } from '@/lib/market'
 import { formatMoney } from '@/lib/money'
 import { cn } from '@/lib/utils'
@@ -22,6 +23,7 @@ const getPageInvoice = cache(getInvoice)
 type InvoicePageProps = { params: Promise<{ id: string }> }
 
 export async function generateMetadata({ params }: InvoicePageProps): Promise<Metadata> {
+  if (!(await readPosAccess()).unlocked) return { title: 'Invoice' }
   const { id } = await params
   const invoice = await getPageInvoice(id)
   return { title: { absolute: invoice?.invoiceNumber || 'Invoice' } }
@@ -29,6 +31,7 @@ export async function generateMetadata({ params }: InvoicePageProps): Promise<Me
 
 export default async function InvoicePage({ params }: InvoicePageProps) {
   const { id } = await params
+  await requirePosAccess(`/invoices/${encodeURIComponent(id)}`)
   const [invoice, { dictionary, locale }, moneyAccount] = await Promise.all([
     getPageInvoice(id),
     getDictionary(),

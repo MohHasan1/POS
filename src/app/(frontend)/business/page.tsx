@@ -2,11 +2,13 @@ import type { Metadata } from 'next'
 
 import { BusinessInformationForm } from '@/components/business/BusinessInformationForm'
 import { getDictionary } from '@/lib/localization'
+import { requirePosAccess } from '@/lib/require-pos-access'
 import { getShopSettings, isCountryLocked } from '@/services/settings'
 
 export const metadata: Metadata = { title: 'Business Information' }
 
 export default async function BusinessPage() {
+  await requirePosAccess('/business')
   const [{ dictionary }, settings, countryLocked] = await Promise.all([
     getDictionary(),
     getShopSettings(),

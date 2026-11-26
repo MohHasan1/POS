@@ -5,10 +5,12 @@ import Link from 'next/link'
 import { ProductImportExport } from '@/components/products/ProductImportExport'
 import { buttonVariants } from '@/components/ui/button'
 import { getDictionary } from '@/lib/localization'
+import { requirePosAccess } from '@/lib/require-pos-access'
 
 export const metadata: Metadata = { title: 'Import / Export Products' }
 
 export default async function ProductImportExportPage() {
+  await requirePosAccess('/products/import-export')
   const { dictionary } = await getDictionary()
 
   return (

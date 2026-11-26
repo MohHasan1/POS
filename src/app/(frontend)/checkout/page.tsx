@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 
 import { CheckoutClient } from '@/components/checkout/CheckoutClient'
 import { getDictionary } from '@/lib/localization'
+import { requirePosAccess } from '@/lib/require-pos-access'
 import { employeeRelationshipId, getEmployees } from '@/services/employees'
 import { getProducts } from '@/services/products'
 import { getMoneyPeople } from '@/services/money'
@@ -10,6 +11,7 @@ import { areShopSettingsComplete, getShopSettings, marketContextFromSettings } f
 export const metadata: Metadata = { title: 'Checkout' }
 
 export default async function CheckoutPage() {
+  await requirePosAccess('/checkout')
   const [{ dictionary, locale }, employees, people, products, settings] = await Promise.all([
     getDictionary(),
     getEmployees(),

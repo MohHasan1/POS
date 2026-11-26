@@ -21,6 +21,7 @@ import { up as makeProductNamesNullable } from '@/migrations/20261117_132500_nul
 import { up as addEmployeeAssignments } from '@/migrations/20261118_123605_employee_assignments'
 import { up as addHistoricalSalesBackfill } from '@/migrations/20261118_130246_historical_sales_backfill'
 import { up as addPeopleDetails } from '@/migrations/20261124_083113_people_details'
+import { up as addPosAccess } from '@/migrations/20261125_174657_pos_access'
 import { up as addEmployeePayroll } from '@/lib/payroll-migration'
 import { up as addBusinessReports } from '@/lib/business-reports-migration'
 import { up as addMoneyOwed } from '@/lib/money-migration'
@@ -48,6 +49,8 @@ describe('SQLite migration reconciliation', () => {
     await addMoneyOwed(args)
     await addPeopleDetails(args)
     await addPeopleDetails(args)
+    await addPosAccess(args)
+    await addPosAccess(args)
 
     const { rows } = await db.run(sql`PRAGMA table_info('payload_locked_documents_rels');`)
     const columns = new Set(rows.map((row) => String((row as unknown as { name: unknown }).name)))
@@ -60,6 +63,8 @@ describe('SQLite migration reconciliation', () => {
     assert.equal(columns.has('money_people_id'), true)
     assert.equal(columns.has('money_accounts_id'), true)
     assert.equal(columns.has('money_payments_id'), true)
+    assert.equal(columns.has('pos_sessions_id'), true)
+    assert.equal(columns.has('pos_security_id'), true)
     const invoiceColumns = await db.run(sql`PRAGMA table_info('invoices');`)
     const invoiceColumnNames = new Set(invoiceColumns.rows.map((row) => String(row.name)))
     assert.equal(invoiceColumnNames.has('entry_source'), true)

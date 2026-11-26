@@ -1,15 +1,10 @@
 'use server'
 
-import { cookies } from 'next/headers'
+import { requirePosAccess } from '@/lib/require-pos-access'
 
-import type { Locale } from '@/lib/localization'
+import { saveLocale, type Locale } from '@/lib/localization'
 
 export async function setLocaleAction(locale: Locale): Promise<void> {
-  const cookieStore = await cookies()
-  cookieStore.set('pos-locale', locale, {
-    httpOnly: true,
-    maxAge: 60 * 60 * 24 * 365,
-    path: '/',
-    sameSite: 'lax',
-  })
+  await requirePosAccess()
+  await saveLocale(locale)
 }

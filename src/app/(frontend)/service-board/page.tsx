@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { ServiceBoardClient } from '@/components/service-board/ServiceBoardClient'
 import { dateInputToISOString, todayDateInput } from '@/lib/calendar'
 import { getDictionary } from '@/lib/localization'
+import { requirePosAccess } from '@/lib/require-pos-access'
 import { employeeRelationshipId, getEmployees } from '@/services/employees'
 import { getProducts } from '@/services/products'
 import { getMoneyPeople } from '@/services/money'
@@ -21,6 +22,7 @@ export default async function ServiceBoardPage({
 }: {
   searchParams: Promise<{ date?: string }>
 }) {
+  await requirePosAccess('/service-board', await searchParams)
   const [{ dictionary, locale }, employees, people, products, settings, { date }] = await Promise.all([
     getDictionary(),
     getEmployees(),

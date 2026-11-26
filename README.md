@@ -7,13 +7,14 @@ A compact multi-country retail and service POS PWA built with Next.js, Payload C
 1. Install Node.js 20.18.1 or newer and pnpm 9–11.
 2. Copy `.env.example` to `.env` and replace `PAYLOAD_SECRET`.
 3. Install dependencies with `pnpm install`.
-4. Start the app with `pnpm dev`.
-5. Open `http://localhost:3000/admin` once to create the first Payload administrator.
-6. Configure seller details at `http://localhost:3000/business` before issuing an invoice.
+4. Apply the SQLite migrations with `pnpm migrate`.
+5. Start the app with `pnpm dev`.
+6. Open `http://localhost:3000/admin` once to create the first Payload administrator.
+7. Configure seller details at `http://localhost:3000/business` before issuing an invoice.
 
-SQLite is the default local database. The cashier UI is intentionally a trusted-device MVP without its own login gate.
+SQLite is the default local database. Enable the optional QuickPOS password and inactivity lock under **Settings → Admin access**. Save the one-time recovery code during setup. The Payload `/admin` account uses separate credentials.
 
-Payload automatically synchronizes the SQLite schema during `pnpm dev`. Before serving a production build against SQLite, run `pnpm migrate` once, followed by `pnpm build` and `pnpm start`.
+Before upgrading an existing SQLite installation, back up the database and run `pnpm migrate` against the same `DATABASE_URL` the app uses. For a production build, follow with `pnpm build` and `pnpm start`.
 
 ## Testing the Bangladesh profile locally
 

@@ -3,6 +3,7 @@ import type { MigrateDownArgs, MigrateUpArgs } from '@payloadcms/db-sqlite'
 import { getPayload, type Migration } from 'payload'
 
 import { migrations } from '@/migrations'
+import { getPosAccessStatus } from '@/services/pos-access'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,9 +42,10 @@ export async function GET() {
 
   try {
     const details = await readiness
+    const { configured } = await getPosAccessStatus()
 
     return Response.json(
-      { app: 'QuickPOS', database: 'ready', status: 'ok', ...details },
+      { app: 'QuickPOS', database: 'ready', status: 'ok', ...(configured ? {} : details) },
       { headers: { 'Cache-Control': 'no-store' } },
     )
   } catch (error) {

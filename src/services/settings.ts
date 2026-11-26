@@ -5,9 +5,12 @@ import type { ShopSetting } from '@/payload-types'
 import {
   getMarketProfile,
   isCountryCode,
+  marketLocale,
   type MarketProfile,
   type SecondaryLanguage,
 } from '@/lib/market'
+import type { Locale } from '@/lib/localization'
+import type { LockScreenIdentity } from '@/lib/pos-access'
 
 export type BusinessLogoFile = {
   data: Buffer
@@ -51,6 +54,29 @@ export type MarketContext = {
 export async function getShopSettings(): Promise<ShopSetting> {
   const payload = await getPayload({ config })
   return payload.findGlobal({ slug: 'shop-settings', depth: 1 })
+}
+
+export function lockScreenIdentity(
+  settings: Partial<Pick<ShopSetting, 'countryCode' | 'displayName' | 'sellerNameEnglish'>>,
+  locale: Locale,
+  fallbackName: string,
+): LockScreenIdentity {
+  const profile = getMarketProfile(settings.countryCode)
+  return {
+    shopName: settings.displayName?.trim() || settings.sellerNameEnglish?.trim() || fallbackName,
+    dateLocale: marketLocale(profile, locale),
+    timeZone: profile.timeZone,
+  }
+}
+
+export async function getLockScreenIdentity(locale: Locale, fallbackName: string) {
+  const payload = await getPayload({ config })
+  const settings = await payload.findGlobal({
+    slug: 'shop-settings',
+    depth: 0,
+    select: { countryCode: true, displayName: true, sellerNameEnglish: true },
+  })
+  return lockScreenIdentity(settings, locale, fallbackName)
 }
 
 export async function updateShopSettings(data: Partial<ShopSettingsInput>): Promise<ShopSetting> {

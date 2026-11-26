@@ -1,5 +1,7 @@
 'use server'
 
+import { requirePosAccess } from '@/lib/require-pos-access'
+
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -73,6 +75,7 @@ export async function createExpenseCategoryAction(input: {
   description?: string
   name: string
 }): Promise<ActionResult<{ id: string; name: string }>> {
+  await requirePosAccess()
   const parsed = z
     .object({
       description: optionalText(300),
@@ -93,6 +96,7 @@ export async function setExpenseCategoryActiveAction(
   id: string,
   active: boolean,
 ): Promise<ActionResult> {
+  await requirePosAccess()
   const parsed = z.uuid().safeParse(id)
   if (!parsed.success) return { ok: false, error: 'Choose a valid expense category.' }
   try {
@@ -107,6 +111,7 @@ export async function setExpenseCategoryActiveAction(
 export async function createExpenseTemplateAction(
   input: ExpenseTemplateInput,
 ): Promise<ActionResult> {
+  await requirePosAccess()
   const parsed = templateSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
   try {
@@ -122,6 +127,7 @@ export async function updateExpenseTemplateAction(
   id: string,
   input: ExpenseTemplateInput,
 ): Promise<ActionResult> {
+  await requirePosAccess()
   const [parsedId, parsed] = [z.uuid().safeParse(id), templateSchema.safeParse(input)]
   if (!parsedId.success || !parsed.success) {
     return {
@@ -141,6 +147,7 @@ export async function updateExpenseTemplateAction(
 export async function createManualExpenseAction(
   input: ManualExpenseRecordInput,
 ): Promise<ActionResult> {
+  await requirePosAccess()
   const parsed = recordSchema
     .extend({ recordType: z.enum(['variable', 'capital']) })
     .safeParse(input)
@@ -160,6 +167,7 @@ export async function confirmExpenseOccurrenceAction(input: {
   record: Omit<ExpenseRecordInput, 'billDate' | 'categoryId' | 'name'>
   templateId: string
 }): Promise<ActionResult> {
+  await requirePosAccess()
   const parsed = z
     .object({
       dueDate: z.iso.date(),
@@ -183,6 +191,7 @@ export async function skipExpenseOccurrenceAction(input: {
   note?: string
   templateId: string
 }): Promise<ActionResult> {
+  await requirePosAccess()
   const parsed = z
     .object({
       dueDate: z.iso.date(),
@@ -212,6 +221,7 @@ export async function updateExpenseAction(
     recordType?: ManualExpenseRecordInput['recordType']
   },
 ): Promise<ActionResult> {
+  await requirePosAccess()
   const [parsedId, parsed] = [
     z.uuid().safeParse(id),
     recordSchema

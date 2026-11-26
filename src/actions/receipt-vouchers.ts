@@ -1,5 +1,7 @@
 'use server'
 
+import { requirePosAccess } from '@/lib/require-pos-access'
+
 import { revalidatePath } from 'next/cache'
 
 import type { ActionResult } from '@/actions/products'
@@ -20,6 +22,7 @@ import {
 export async function createReceiptVoucherDraftAction(
   input: CreateReceiptVoucherInput,
 ): Promise<ActionResult<{ id: string }>> {
+  await requirePosAccess()
   const parsed = createReceiptVoucherSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
 
@@ -39,6 +42,7 @@ export async function updateReceiptVoucherDraftAction(
   id: string,
   input: ReceiptVoucherDetailsInput,
 ): Promise<ActionResult<{ id: string }>> {
+  await requirePosAccess()
   const parsed = receiptVoucherDetailsSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
 
@@ -56,6 +60,7 @@ export async function updateReceiptVoucherDraftAction(
 }
 
 export async function issueReceiptVoucherAction(id: string): Promise<ActionResult> {
+  await requirePosAccess()
   try {
     await issueReceiptVoucher(id)
     revalidatePath('/receipt-vouchers')
@@ -73,6 +78,7 @@ export async function voidReceiptVoucherAction(input: {
   id: string
   reason: string
 }): Promise<ActionResult> {
+  await requirePosAccess()
   const parsed = voidReceiptVoucherSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
 

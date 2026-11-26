@@ -1,5 +1,7 @@
 'use server'
 
+import { requirePosAccess } from '@/lib/require-pos-access'
+
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -68,6 +70,7 @@ function revalidateBoardData() {
 }
 
 export async function addServiceBoardColumnAction(productId: string): Promise<ActionResult> {
+  await requirePosAccess()
   const parsed = productIdSchema.safeParse(productId)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
 
@@ -83,6 +86,7 @@ export async function addServiceBoardColumnAction(productId: string): Promise<Ac
 export async function createServiceBoardProductAction(
   input: ProductActionInput,
 ): Promise<ActionResult> {
+  await requirePosAccess()
   const result = await createProductAction(input)
   if (!result.ok) return result
   if (!result.data) return { ok: false, error: 'Unable to create the service.' }
@@ -97,6 +101,7 @@ export async function createServiceBoardProductAction(
 }
 
 export async function removeServiceBoardColumnAction(productId: string): Promise<ActionResult> {
+  await requirePosAccess()
   const parsed = productIdSchema.safeParse(productId)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
 
@@ -113,6 +118,7 @@ export async function moveServiceBoardColumnAction(
   productId: string,
   direction: 'left' | 'right',
 ): Promise<ActionResult> {
+  await requirePosAccess()
   const parsed = z
     .object({ productId: productIdSchema, direction: z.enum(['left', 'right']) })
     .safeParse({ productId, direction })
@@ -130,6 +136,7 @@ export async function moveServiceBoardColumnAction(
 export async function createServiceBoardSaleAction(
   input: ServiceBoardSaleInput,
 ): Promise<ActionResult<{ id: string }>> {
+  await requirePosAccess()
   const parsed = serviceBoardSaleSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
 

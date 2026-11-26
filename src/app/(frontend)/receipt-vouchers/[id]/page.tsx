@@ -12,6 +12,7 @@ import { BangladeshReceiptVoucherTemplate } from '@/components/receipt-vouchers/
 import { VoidReceiptVoucherForm } from '@/components/receipt-vouchers/VoidReceiptVoucherForm'
 import { buttonVariants } from '@/components/ui/button'
 import { getDictionary } from '@/lib/localization'
+import { readPosAccess, requirePosAccess } from '@/lib/require-pos-access'
 import { getDocumentMarket } from '@/lib/market'
 import { toMarketDateInputValue } from '@/lib/receipt-voucher'
 import { cn } from '@/lib/utils'
@@ -25,6 +26,7 @@ type ReceiptVoucherPageProps = {
 }
 
 export async function generateMetadata({ params }: ReceiptVoucherPageProps): Promise<Metadata> {
+  if (!(await readPosAccess()).unlocked) return { title: 'Receipt Voucher' }
   const { id } = await params
   const voucher = await getPageVoucher(id)
   return { title: { absolute: voucher?.voucherNumber || 'Receipt Voucher' } }
@@ -35,6 +37,7 @@ export default async function ReceiptVoucherPage({
   searchParams,
 }: ReceiptVoucherPageProps) {
   const { id } = await params
+  await requirePosAccess(`/receipt-vouchers/${encodeURIComponent(id)}`, await searchParams)
   const [{ edit }, voucher, { dictionary }] = await Promise.all([
     searchParams,
     getPageVoucher(id),

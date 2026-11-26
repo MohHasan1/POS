@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { ExpensesClient } from '@/components/expenses/ExpensesClient'
 import { todayDateInput } from '@/lib/calendar'
 import { getDictionary } from '@/lib/localization'
+import { requirePosAccess } from '@/lib/require-pos-access'
 import {
   getDueExpenseOccurrences,
   getExpenseCategories,
@@ -14,6 +15,7 @@ import { getShopSettings, marketContextFromSettings } from '@/services/settings'
 export const metadata: Metadata = { title: 'Expenses' }
 
 export default async function ExpensesPage() {
+  await requirePosAccess('/expenses')
   const [{ dictionary, locale }, categories, templates, due, expenses, settings] =
     await Promise.all([
       getDictionary(),

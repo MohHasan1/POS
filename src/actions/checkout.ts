@@ -1,5 +1,7 @@
 'use server'
 
+import { requirePosAccess } from '@/lib/require-pos-access'
+
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -52,6 +54,7 @@ export type CheckoutSaleInput = FinalizeInvoiceInput & { settlement?: SaleSettle
 export async function finalizeInvoiceAction(
   input: CheckoutSaleInput,
 ): Promise<ActionResult<{ id: string }>> {
+  await requirePosAccess()
   const parsed = checkoutSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
 

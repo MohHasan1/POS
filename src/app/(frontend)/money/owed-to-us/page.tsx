@@ -3,11 +3,13 @@ import type { Metadata } from 'next'
 import { MoneyPageClient } from '@/components/money/MoneyPageClient'
 import { todayDateInput } from '@/lib/calendar'
 import { getDictionary } from '@/lib/localization'
+import { requirePosAccess } from '@/lib/require-pos-access'
 import { getAvailableMoneyInvoices, getMoneyDashboard } from '@/services/money'
 
 export const metadata: Metadata = { title: 'Money to Receive' }
 
 export default async function OwedToUsPage({ searchParams }: { searchParams: Promise<{ invoice?: string; record?: string }> }) {
+  await requirePosAccess('/money/owed-to-us', await searchParams)
   const params = await searchParams
   const [{ dictionary, locale }, dashboard, invoices] = await Promise.all([
     getDictionary(),

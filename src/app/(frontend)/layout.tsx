@@ -1,11 +1,13 @@
 import type { Metadata } from 'next'
 import React from 'react'
 
+import { PosAccessBoundary } from '@/components/access/PosAccessBoundary'
 import { AppShell } from '@/components/layout/AppShell'
 import { PwaRegistration } from '@/components/layout/PwaRegistration'
 import { ThemeProvider } from '@/components/layout/ThemeProvider'
 import { getDictionary } from '@/lib/localization'
-import { getShopSettings, marketContextFromSettings } from '@/services/settings'
+import { readPosAccess } from '@/lib/require-pos-access'
+import { getShopSettings, lockScreenIdentity, marketContextFromSettings } from '@/services/settings'
 
 import './styles.css'
 
@@ -19,11 +21,12 @@ export const metadata: Metadata = {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [{ dictionary, locale }, settings] = await Promise.all([
+  const [access, { dictionary, locale }] = await Promise.all([
+    readPosAccess(),
     getDictionary(),
-    getShopSettings(),
   ])
-  const market = marketContextFromSettings(settings)
+  const settings = access.unlocked ? await getShopSettings() : undefined
+  const market = settings ? marketContextFromSettings(settings) : undefined
 
   return (
     <html lang={locale} suppressHydrationWarning>
@@ -33,14 +36,23 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           disableTransitionOnChange
           storageKey="counter-pos-theme"
         >
-          <AppShell
-            dictionary={dictionary}
-            locale={locale}
-            marketConfigured={market.configured}
-            marketProfile={market.profile}
-          >
-            {children}
-          </AppShell>
+          {market && settings ? (
+            <PosAccessBoundary
+              dictionary={dictionary}
+              identity={lockScreenIdentity(settings, locale, dictionary.defaultShopName)}
+              initialAccess={access}
+              locale={locale}
+            >
+              <AppShell
+                dictionary={dictionary}
+                locale={locale}
+                marketConfigured={market.configured}
+                marketProfile={market.profile}
+              >
+                {children}
+              </AppShell>
+            </PosAccessBoundary>
+          ) : children}
           <PwaRegistration />
         </ThemeProvider>
       </body>

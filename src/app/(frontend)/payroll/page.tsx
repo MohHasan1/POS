@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { PayrollClient } from '@/components/payroll/PayrollClient'
 import { todayDateInput } from '@/lib/calendar'
 import { getDictionary } from '@/lib/localization'
+import { requirePosAccess } from '@/lib/require-pos-access'
 import type { PayrollPeriodFilter, PayrollPeriodMode } from '@/lib/payroll-types'
 import { getEmployees } from '@/services/employees'
 import { getPayrollDashboard } from '@/services/payroll'
@@ -15,6 +16,7 @@ export default async function PayrollPage({
 }: {
   searchParams: Promise<{ employee?: string; mode?: string; value?: string }>
 }) {
+  await requirePosAccess('/payroll', await searchParams)
   const [{ dictionary, locale }, employees, settings, params] = await Promise.all([
     getDictionary(),
     getEmployees(true),

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 
 import { ReportsClient } from '@/components/reports/ReportsClient'
 import { getDictionary } from '@/lib/localization'
+import { requirePosAccess } from '@/lib/require-pos-access'
 import type { BusinessReportFilter, BusinessReportPeriod } from '@/lib/business-report-types'
 import { getBusinessReport } from '@/services/business-reporting'
 import { getEmployees } from '@/services/employees'
@@ -24,6 +25,7 @@ export default async function ReportsPage({
 }: {
   searchParams: Promise<{ employee?: string; end?: string; period?: string; start?: string }>
 }) {
+  await requirePosAccess('/reports', await searchParams)
   const [{ dictionary, locale }, employees, params] = await Promise.all([
     getDictionary(),
     getEmployees(true),

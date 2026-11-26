@@ -1,5 +1,7 @@
 'use server'
 
+import { requirePosAccess } from '@/lib/require-pos-access'
+
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -46,6 +48,7 @@ function messageFrom(error: unknown): string {
 export async function createProductAction(
   input: ProductActionInput,
 ): Promise<ActionResult<ProductSummary>> {
+  await requirePosAccess()
   const parsed = productSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
 
@@ -71,6 +74,7 @@ export async function updateProductAction(
   id: string,
   input: ProductActionInput,
 ): Promise<ActionResult<ProductSummary>> {
+  await requirePosAccess()
   const parsed = productSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
 
@@ -86,6 +90,7 @@ export async function updateProductAction(
 }
 
 export async function setProductActiveAction(id: string, active: boolean): Promise<ActionResult> {
+  await requirePosAccess()
   try {
     await setProductActive(id, active)
     revalidatePath('/products')

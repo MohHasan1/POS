@@ -16,6 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { getDictionary } from '@/lib/localization'
+import { requirePosAccess } from '@/lib/require-pos-access'
 import { formatMarketDate } from '@/lib/calendar'
 import { getDocumentMarket, marketLocale } from '@/lib/market'
 import { formatMoney } from '@/lib/money'
@@ -31,6 +32,7 @@ export default async function ReceiptVouchersPage({
 }: {
   searchParams: Promise<{ from?: string; q?: string; to?: string }>
 }) {
+  await requirePosAccess('/receipt-vouchers', await searchParams)
   const { from = '', q = '', to = '' } = await searchParams
   const [{ dictionary, locale }, vouchers, settings] = await Promise.all([
     getDictionary(),

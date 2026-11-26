@@ -1,5 +1,7 @@
 'use server'
 
+import { requirePosAccess } from '@/lib/require-pos-access'
+
 import { revalidatePath } from 'next/cache'
 
 import { parseProductsCsv, ProductCsvError } from '@/lib/product-csv'
@@ -12,6 +14,7 @@ type ProductImportActionResult =
 const maximumCsvBytes = 750_000
 
 export async function importProductsAction(csv: string): Promise<ProductImportActionResult> {
+  await requirePosAccess()
   if (new TextEncoder().encode(csv).byteLength > maximumCsvBytes) {
     return { ok: false, error: 'The CSV file must be 750 KB or smaller.' }
   }

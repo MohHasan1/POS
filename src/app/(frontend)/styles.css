@@ -134,6 +134,15 @@ body {
   font-family: Arial, 'Noto Sans Bengali', 'Noto Sans Arabic', sans-serif;
 }
 
+.pos-lock-screen {
+  background-color: var(--background);
+  background-image: linear-gradient(150deg, #dde6ee, var(--background) 72%);
+}
+
+.dark .pos-lock-screen {
+  background-image: linear-gradient(150deg, #202c3a, var(--background) 72%);
+}
+
 button,
 a,
 input,

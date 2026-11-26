@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 
 import { EmployeesManager } from '@/components/employees/EmployeesManager'
 import { getDictionary } from '@/lib/localization'
+import { requirePosAccess } from '@/lib/require-pos-access'
 import { employeeRelationshipId, getEmployees } from '@/services/employees'
 import { getProducts } from '@/services/products'
 import { getShopSettings, marketContextFromSettings } from '@/services/settings'
@@ -13,6 +14,7 @@ export default async function EmployeesPage({
 }: {
   searchParams: Promise<{ compensation?: string }>
 }) {
+  await requirePosAccess('/employees', await searchParams)
   const [{ dictionary }, employees, products, settings, params] = await Promise.all([
     getDictionary(),
     getEmployees(true),

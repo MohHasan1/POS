@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 
 import type { Dictionary, Locale } from '@/lib/localization'
 import type { MarketProfile } from '@/lib/market'
+import { LockNowButton } from '@/components/access/PosAccessBoundary'
 import { NavQuickPreferences } from './NavQuickPreferences'
 import { PrimaryNavigation } from './PrimaryNavigation'
 import { SetupGuard } from './SetupGuard'
@@ -46,6 +47,7 @@ export function AppShell({
             marketProfile={marketProfile}
           />
           <NavQuickPreferences dictionary={dictionary} locale={locale} />
+          <LockNowButton dictionary={dictionary} />
         </div>
       </header>
       <main className="mx-auto max-w-[1600px] p-4 sm:p-6">

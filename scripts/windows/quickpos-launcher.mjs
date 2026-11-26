@@ -461,9 +461,10 @@ async function main() {
 
   try {
     const health = await waitForReady(baseURL, STARTUP_TIMEOUT_MS, serverProcess)
-    log(
-      `QuickPOS ${readRelease().version} is ready at ${baseURL} (${health.products} products, ${health.invoices} invoices).`,
-    )
+    const counts = Number.isInteger(health.products) && Number.isInteger(health.invoices)
+      ? ` (${health.products} products, ${health.invoices} invoices)`
+      : ''
+    log(`QuickPOS ${readRelease().version} is ready at ${baseURL}${counts}.`)
     openBrowser(baseURL)
     const exitCode = await new Promise((resolve) => serverProcess.once('exit', resolve))
     log(`QuickPOS server stopped with exit code ${exitCode ?? 0}.`)

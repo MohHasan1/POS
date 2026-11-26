@@ -1,5 +1,7 @@
 'use server'
 
+import { requirePosAccess } from '@/lib/require-pos-access'
+
 import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
@@ -51,6 +53,7 @@ const businessInformationSchema = z
 export type BusinessInformationActionInput = z.input<typeof businessInformationSchema>
 
 export async function updateBusinessInformationAction(formData: FormData): Promise<ActionResult> {
+  await requirePosAccess()
   const parsed = businessInformationSchema.safeParse({
     countryCode: String(formData.get('countryCode') || ''),
     displayName: String(formData.get('displayName') || ''),

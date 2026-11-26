@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select'
 import { todayDateInput } from '@/lib/calendar'
 import { getDictionary } from '@/lib/localization'
+import { requirePosAccess } from '@/lib/require-pos-access'
 import type { PayrollActivity, PayrollPeriodFilter, PayrollPeriodMode } from '@/lib/payroll-types'
 import { cn } from '@/lib/utils'
 import { getEmployees } from '@/services/employees'
@@ -39,6 +40,7 @@ export default async function PayrollActivityPage({
     value?: string
   }>
 }) {
+  await requirePosAccess('/payroll/activity', await searchParams)
   const [{ dictionary, locale }, employees, settings, params] = await Promise.all([
     getDictionary(),
     getEmployees(true),

@@ -1,5 +1,7 @@
 'use server'
 
+import { requirePosAccess } from '@/lib/require-pos-access'
+
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -49,6 +51,7 @@ export type HistoricalSaleInput = z.input<typeof historicalSaleSchema>
 export async function recordHistoricalSaleAction(
   input: HistoricalSaleInput,
 ): Promise<ActionResult<{ id: string }>> {
+  await requirePosAccess()
   const parsed = historicalSaleSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
 

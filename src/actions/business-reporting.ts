@@ -1,5 +1,7 @@
 'use server'
 
+import { requirePosAccess } from '@/lib/require-pos-access'
+
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -12,6 +14,7 @@ export async function correctInvoiceCostAction(input: {
   note?: string
   unitCostMinor: number
 }): Promise<ActionResult> {
+  await requirePosAccess()
   const parsed = z
     .object({
       invoiceId: z.uuid(),

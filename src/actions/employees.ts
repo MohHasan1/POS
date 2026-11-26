@@ -1,5 +1,7 @@
 'use server'
 
+import { requirePosAccess } from '@/lib/require-pos-access'
+
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -56,6 +58,7 @@ function revalidateEmployeeData() {
 export async function createEmployeeAction(
   input: EmployeeActionInput,
 ): Promise<ActionResult<EmployeeSummary>> {
+  await requirePosAccess()
   const parsed = employeeSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
   try {
@@ -70,6 +73,7 @@ export async function createEmployeeAction(
 export async function quickCreateEmployeeAction(
   input: QuickEmployeeActionInput,
 ): Promise<ActionResult<EmployeeSummary>> {
+  await requirePosAccess()
   const parsed = quickEmployeeSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
   try {
@@ -91,6 +95,7 @@ export async function updateEmployeeAction(
   id: string,
   input: EmployeeActionInput,
 ): Promise<ActionResult<EmployeeSummary>> {
+  await requirePosAccess()
   const parsed = z.uuid().safeParse(id)
   const data = employeeSchema.safeParse(input)
   if (!parsed.success || !data.success) {
@@ -109,6 +114,7 @@ export async function setEmployeeActiveAction(
   id: string,
   active: boolean,
 ): Promise<ActionResult> {
+  await requirePosAccess()
   const parsed = z.uuid().safeParse(id)
   if (!parsed.success) return { ok: false, error: 'Select a valid employee.' }
   try {
@@ -123,6 +129,7 @@ export async function setEmployeeActiveAction(
 export async function setDefaultEmployeeAction(
   employeeId: null | string,
 ): Promise<ActionResult> {
+  await requirePosAccess()
   const parsed = z.uuid().nullable().safeParse(employeeId)
   if (!parsed.success) return { ok: false, error: 'Select a valid employee.' }
   try {

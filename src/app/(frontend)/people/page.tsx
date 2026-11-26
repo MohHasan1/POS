@@ -2,11 +2,13 @@ import type { Metadata } from 'next'
 
 import { PeoplePageClient } from '@/components/money/PeoplePageClient'
 import { getDictionary } from '@/lib/localization'
+import { requirePosAccess } from '@/lib/require-pos-access'
 import { getMoneyPeople } from '@/services/money'
 
 export const metadata: Metadata = { title: 'People' }
 
 export default async function PeoplePage() {
+  await requirePosAccess('/people')
   const [{ dictionary }, people] = await Promise.all([getDictionary(), getMoneyPeople(true)])
 
   return (

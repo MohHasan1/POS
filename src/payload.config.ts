@@ -17,6 +17,7 @@ import { Media } from './collections/Media'
 import { MoneyAccounts } from './collections/MoneyAccounts'
 import { MoneyPayments } from './collections/MoneyPayments'
 import { MoneyPeople } from './collections/MoneyPeople'
+import { PosSecurity, PosSessions } from './collections/PosAccess'
 import { Products } from './collections/Products'
 import { ReceiptVouchers } from './collections/ReceiptVouchers'
 import { Users } from './collections/Users'
@@ -65,6 +66,8 @@ export default buildConfig({
     MoneyPeople,
     MoneyAccounts,
     MoneyPayments,
+    PosSecurity,
+    PosSessions,
     InvoiceCostOverrides,
     ReceiptVouchers,
     Media,

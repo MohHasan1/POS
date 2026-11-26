@@ -7,6 +7,7 @@ import { buttonVariants } from '@/components/ui/button'
 import type { BusinessReportFilter, BusinessReportPeriod } from '@/lib/business-report-types'
 import { formatMarketDate } from '@/lib/calendar'
 import { getDictionary } from '@/lib/localization'
+import { requirePosAccess } from '@/lib/require-pos-access'
 import { marketLocale } from '@/lib/market'
 import { getBusinessReport } from '@/services/business-reporting'
 import { getEmployees } from '@/services/employees'
@@ -29,6 +30,7 @@ export default async function ReportPrintPage({
 }: {
   searchParams: Promise<{ employee?: string; end?: string; period?: string; start?: string }>
 }) {
+  await requirePosAccess('/reports/print', await searchParams)
   const [{ dictionary, locale }, employees, params] = await Promise.all([
     getDictionary(),
     getEmployees(true),

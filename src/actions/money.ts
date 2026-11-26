@@ -1,5 +1,7 @@
 'use server'
 
+import { requirePosAccess } from '@/lib/require-pos-access'
+
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -98,6 +100,7 @@ export async function createMoneyPersonAction(input: {
   note?: string
   phone?: string
 }): Promise<ActionResult<{ id: string; name: string }>> {
+  await requirePosAccess()
   const parsed = personSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
   try {
@@ -120,6 +123,7 @@ export async function updateMoneyPersonAction(
     phone?: string
   },
 ): Promise<ActionResult> {
+  await requirePosAccess()
   const parsed = personSchema.extend({ active: z.boolean(), id: z.uuid() }).safeParse({ id, ...input })
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
   try {
@@ -134,6 +138,7 @@ export async function updateMoneyPersonAction(
 export async function createMoneyAccountAction(
   input: MoneyAccountInput,
 ): Promise<ActionResult<{ id: string }>> {
+  await requirePosAccess()
   const parsed = accountSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
   try {
@@ -149,6 +154,7 @@ export async function updateMoneyAccountAction(
   id: string,
   input: MoneyAccountUpdateInput,
 ): Promise<ActionResult> {
+  await requirePosAccess()
   const parsed = accountSchema
     .omit({ direction: true, idempotencyKey: true, invoiceId: true })
     .extend({ id: z.uuid() })
@@ -165,6 +171,7 @@ export async function updateMoneyAccountAction(
 }
 
 export async function voidMoneyAccountAction(id: string, reason: string): Promise<ActionResult> {
+  await requirePosAccess()
   const parsed = z.object({ id: z.uuid(), reason: z.string().trim().min(1).max(500) }).safeParse({ id, reason })
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
   try {
@@ -179,6 +186,7 @@ export async function voidMoneyAccountAction(id: string, reason: string): Promis
 export async function createMoneyPaymentAction(
   input: MoneyPaymentInput,
 ): Promise<ActionResult<{ id: string }>> {
+  await requirePosAccess()
   const parsed = paymentSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
   try {
@@ -191,6 +199,7 @@ export async function createMoneyPaymentAction(
 }
 
 export async function voidMoneyPaymentAction(id: string, reason: string): Promise<ActionResult> {
+  await requirePosAccess()
   const parsed = z.object({ id: z.uuid(), reason: z.string().trim().min(1).max(500) }).safeParse({ id, reason })
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
   try {

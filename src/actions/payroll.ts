@@ -1,5 +1,7 @@
 'use server'
 
+import { requirePosAccess } from '@/lib/require-pos-access'
+
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -59,6 +61,7 @@ function revalidatePayroll() {
 export async function getEmployeeCommissionRatesAction(
   employeeId: string,
 ): Promise<ActionResult<Array<{ productId: string; rateBps: number }>>> {
+  await requirePosAccess()
   const parsed = z.uuid().safeParse(employeeId)
   if (!parsed.success) return { ok: false, error: 'Select a valid employee.' }
   try {
@@ -82,6 +85,7 @@ export async function saveCompensationPlanAction(input: {
   monthlySalaryMinor: number | null
   rates: Array<{ productId: string; rateBps: number }>
 }): Promise<ActionResult> {
+  await requirePosAccess()
   const parsed = compensationSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
   try {
@@ -110,6 +114,7 @@ export type PayrollEntryActionInput = {
 }
 
 export async function recordPayoutAction(input: PayrollEntryActionInput): Promise<ActionResult> {
+  await requirePosAccess()
   const parsed = entrySchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
   try {
@@ -129,6 +134,7 @@ export async function recordMonthlySalaryAction(input: {
   payout?: Omit<PayrollEntryActionInput, 'employeeId' | 'salaryMonth'>
   salaryMonth: string
 }): Promise<ActionResult> {
+  await requirePosAccess()
   const parsed = monthlySchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
   try {
@@ -144,6 +150,7 @@ export async function updatePayrollEntryAction(
   id: string,
   input: Omit<PayrollEntryActionInput, 'idempotencyKey'>,
 ): Promise<ActionResult> {
+  await requirePosAccess()
   const parsedId = z.uuid().safeParse(id)
   const parsed = entrySchema.omit({ idempotencyKey: true }).safeParse(input)
   if (!parsedId.success || !parsed.success) {
@@ -164,6 +171,7 @@ export async function correctCommissionAction(input: {
   invoiceItemId: string
   note?: string
 }): Promise<ActionResult> {
+  await requirePosAccess()
   const parsed = z.object({
     correctedAmountMinor: z.number().int().min(0),
     invoiceId: z.uuid(),

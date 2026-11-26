@@ -11,6 +11,7 @@ import { buttonVariants } from '@/components/ui/button'
 import { getAppNavigation } from '@/lib/app-navigation'
 import { getBusinessLogo } from '@/lib/business-information'
 import { getDictionary } from '@/lib/localization'
+import { requirePosAccess } from '@/lib/require-pos-access'
 import { formatMarketDateTime } from '@/lib/calendar'
 import { localizedName, marketLocale, normalizedTranslations } from '@/lib/market'
 import { formatMoney, formatQuantity } from '@/lib/money'
@@ -23,6 +24,7 @@ import { getShopSettings } from '@/services/settings'
 const salesPrivacyCookie = 'pos-hide-sales-amounts'
 
 export default async function HomePage() {
+  await requirePosAccess('/')
   const cookieStore = await cookies()
   const [{ dictionary, locale }, settings, recentInvoices, dashboard] = await Promise.all([
     getDictionary(),

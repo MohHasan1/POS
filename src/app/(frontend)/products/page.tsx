@@ -5,12 +5,14 @@ import Link from 'next/link'
 import { ProductsManager } from '@/components/products/ProductsManager'
 import { buttonVariants } from '@/components/ui/button'
 import { getDictionary } from '@/lib/localization'
+import { requirePosAccess } from '@/lib/require-pos-access'
 import { getProducts } from '@/services/products'
 import { getShopSettings, marketContextFromSettings } from '@/services/settings'
 
 export const metadata: Metadata = { title: 'Products' }
 
 export default async function ProductsPage() {
+  await requirePosAccess('/products')
   const [{ dictionary }, products, settings] = await Promise.all([
     getDictionary(),
     getProducts(true),
