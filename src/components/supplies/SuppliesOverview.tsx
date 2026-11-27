@@ -3,16 +3,19 @@ import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { Dictionary, Locale } from '@/lib/localization'
 import type { MarketProfile } from '@/lib/market'
+import type { SupplyStockCount } from '@/lib/supply-stock'
 import type { SupplyOverview } from '@/lib/supplies'
 
 import { supplyCostTotalsLabel, supplyNumber } from './format'
 import { SupplyFinishedByMonthChart } from './SupplyFinishedByMonthChart'
+import { SupplyStockChart } from './SupplyStockChart'
 
-export function SuppliesOverview({ overview, dictionary, locale, market }: {
+export function SuppliesOverview({ overview, dictionary, locale, market, currentStock }: {
   overview: SupplyOverview
   dictionary: Dictionary
   locale: Locale
   market: MarketProfile
+  currentStock: SupplyStockCount[]
 }) {
   const labels = dictionary.supplyTracker
   const metrics = [
@@ -50,6 +53,7 @@ export function SuppliesOverview({ overview, dictionary, locale, market }: {
           )}
         </Card>
       </dl>
+      <SupplyStockChart counts={currentStock} dictionary={dictionary} locale={locale} />
       <div className="grid gap-3 md:grid-cols-2">
         <SupplyFinishedByMonthChart monthly={overview.monthly} labels={labels} locale={locale} />
         <Card className="min-w-0">

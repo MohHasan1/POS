@@ -25,6 +25,7 @@ import { up as addPosAccess } from '@/migrations/20261125_174657_pos_access'
 import { up as addSupplies } from '@/migrations/20261126_064130_supplies'
 import { up as addSupplyUsageDetails } from '@/migrations/20261126_070707_supply_usage_details'
 import { up as addSupplyCosts } from '@/migrations/20261126_080156_supply_costs'
+import { up as addSupplyStock } from '@/migrations/20261127_055314_supply_stock'
 import { up as addEmployeePayroll } from '@/lib/payroll-migration'
 import { up as addBusinessReports } from '@/lib/business-reports-migration'
 import { up as addMoneyOwed } from '@/lib/money-migration'
@@ -60,6 +61,8 @@ describe('SQLite migration reconciliation', () => {
     await addSupplyUsageDetails(args)
     await addSupplyCosts(args)
     await addSupplyCosts(args)
+    await addSupplyStock(args)
+    await addSupplyStock(args)
 
     const { rows } = await db.run(sql`PRAGMA table_info('payload_locked_documents_rels');`)
     const columns = new Set(rows.map((row) => String((row as unknown as { name: unknown }).name)))
@@ -76,6 +79,7 @@ describe('SQLite migration reconciliation', () => {
     assert.equal(columns.has('pos_security_id'), true)
     assert.equal(columns.has('supplies_id'), true)
     assert.equal(columns.has('supply_usages_id'), true)
+    assert.equal(columns.has('supply_purchases_id'), true)
     const invoiceColumns = await db.run(sql`PRAGMA table_info('invoices');`)
     const invoiceColumnNames = new Set(invoiceColumns.rows.map((row) => String(row.name)))
     assert.equal(invoiceColumnNames.has('entry_source'), true)

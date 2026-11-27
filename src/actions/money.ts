@@ -87,6 +87,7 @@ function revalidateMoney(invoiceId?: string) {
   revalidatePath('/people')
   revalidatePath('/money/owed-to-us')
   revalidatePath('/money/we-owe')
+  revalidatePath('/service-board')
   revalidatePath('/reports')
   revalidatePath('/reports/print')
   revalidatePath('/')

@@ -8,7 +8,8 @@ import { z } from 'zod'
 import type { ActionResult } from './products'
 import { dateInputToISOString, todayDateInput } from '@/lib/calendar'
 import { marketSupports } from '@/lib/market'
-import { finalizeInvoice } from '@/services/invoices'
+import { saleSettlementSchema } from '@/lib/sale-settlement-validation'
+import { finalizeInvoiceWithSettlement } from '@/services/sale-settlement'
 import { getMarketContext } from '@/services/settings'
 
 const optionalText = z.string().trim().max(500).optional()
@@ -44,6 +45,7 @@ const historicalSaleSchema = z.object({
       }),
     )
     .min(1, 'Add at least one item.'),
+  settlement: saleSettlementSchema.optional(),
 })
 
 export type HistoricalSaleInput = z.input<typeof historicalSaleSchema>
@@ -64,7 +66,7 @@ export async function recordHistoricalSaleAction(
       throw new Error('The original sale date cannot be in the future.')
     }
     const issuedAt = new Date(dateInputToISOString(parsed.data.saleDate, market.profile))
-    const invoice = await finalizeInvoice(
+    const { invoice } = await finalizeInvoiceWithSettlement(
       {
         employeeId: parsed.data.employeeId,
         idempotencyKey: parsed.data.idempotencyKey,
@@ -79,11 +81,15 @@ export async function recordHistoricalSaleAction(
         issuedAtPrecision: 'dateOnly',
         salesChannel: 'checkout',
       },
+      parsed.data.settlement,
     )
 
     revalidatePath('/')
     revalidatePath('/historical-sales')
     revalidatePath('/invoices')
+    revalidatePath('/money/owed-to-us')
+    revalidatePath('/reports')
+    revalidatePath('/reports/print')
     revalidatePath('/service-board')
     return { ok: true, data: { id: invoice.id } }
   } catch (error) {

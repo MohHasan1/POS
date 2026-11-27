@@ -4,8 +4,12 @@ import { randomUUID } from 'node:crypto'
 import { after, describe, it } from 'node:test'
 import { getPayload } from 'payload'
 
+import { todayDateInput } from '@/lib/calendar'
+import { MARKET_PROFILES } from '@/lib/market'
+import { getBusinessReport } from '@/services/business-reporting'
+import { createMoneyAccount, createMoneyPayment, createMoneyPerson, getInvoiceMoneyAccount, getMoneyDashboard } from '@/services/money'
 import { createProduct } from '@/services/products'
-import { createMoneyPerson, getInvoiceMoneyAccount } from '@/services/money'
+import { getSalesDashboard } from '@/services/sales-reporting'
 import {
   addServiceBoardColumn,
   createServiceBoardSale,
@@ -111,5 +115,46 @@ describe('Bangladesh Service Board flow', () => {
     assert.equal(view.summary.allSalesTodayMinor, 10_000)
     assert.equal(view.summary.moneyReceivedMinor, 2_000)
     assert.equal(view.summary.moneyToReceiveMinor, 8_000)
+
+    const paidSale = await createServiceBoardSale({
+      idempotencyKey: randomUUID(),
+      items: [{ productId: product.id, quantityMilliunits: 1_000, unitPriceMinor: 5_000 }],
+    })
+    invoiceIds.push(paidSale.id)
+    const recordDate = todayDateInput(MARKET_PROFILES.BD)
+    const loan = await createMoneyAccount({
+      direction: 'owedToUs',
+      idempotencyKey: randomUUID(),
+      kind: 'moneyLent',
+      originalAmountMinor: 3_000,
+      personId: person.id,
+      recordDate,
+    })
+    accountIds.push(loan.id)
+    const collection = await createMoneyPayment({
+      accountId: loan.id,
+      amountMinor: 1_000,
+      idempotencyKey: randomUUID(),
+      paymentDate: recordDate,
+      paymentMethod: 'cash',
+    })
+    paymentIds.push(collection.id)
+
+    const [updatedBoard, dashboard, report, ledger] = await Promise.all([
+      getServiceBoardView(),
+      getSalesDashboard(),
+      getBusinessReport({ period: 'today' }),
+      getMoneyDashboard('owedToUs'),
+    ])
+    assert.equal(updatedBoard.summary.allSalesTodayMinor, 15_000)
+    assert.equal(dashboard.today.totalMinor, 15_000)
+    assert.equal(report.summary.grossSalesMinor, 15_000)
+    assert.equal(ledger.summary.paidMinor, 3_000)
+    assert.equal(updatedBoard.summary.moneyReceivedMinor, ledger.summary.paidMinor)
+    assert.equal(dashboard.moneyReceivedMinor, ledger.summary.paidMinor)
+    assert.equal(report.summary.moneyReceivedMinor, ledger.summary.paidMinor)
+    assert.equal(updatedBoard.summary.moneyToReceiveMinor, 8_000)
+    assert.equal(dashboard.moneyToReceiveMinor, 8_000)
+    assert.equal(report.summary.owedToUsMinor, 10_000)
   })
 })

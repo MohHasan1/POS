@@ -695,85 +695,6 @@ export async function getInvoicePaymentSummaries(
   return summaries
 }
 
-export function calculateInvoiceCashMetrics(
-  invoices: Invoice[],
-  accounts: MoneyAccount[],
-  payments: MoneyPayment[],
-  start: Date | undefined,
-  end: Date | undefined,
-  now = new Date(),
-) {
-  const startTime = start?.getTime() ?? -Infinity
-  const endTime = Math.min(end?.getTime() ?? Infinity, now.getTime())
-  const activeAccounts = accounts.filter(
-    (account) =>
-      account.status === 'confirmed' &&
-      account.direction === 'owedToUs' &&
-      Boolean(relationshipId(account.invoice)),
-  )
-  const accountByInvoice = new Map(
-    activeAccounts.flatMap((account) => {
-      const invoiceId = relationshipId(account.invoice)
-      return invoiceId ? [[invoiceId, account] as const] : []
-    }),
-  )
-  const activeAccountIds = new Set(activeAccounts.map(({ id }) => id))
-  const paidBeforeEnd = new Map<string, number>()
-  let moneyReceivedMinor = 0
-  for (const payment of payments) {
-    if (payment.status !== 'confirmed') continue
-    const accountId = relationshipId(payment.account)
-    if (!accountId || !activeAccountIds.has(accountId)) continue
-    const paymentTime = new Date(payment.paymentDate).getTime()
-    if (paymentTime < endTime) {
-      paidBeforeEnd.set(accountId, (paidBeforeEnd.get(accountId) || 0) + payment.amountMinor)
-    }
-    if (paymentTime >= startTime && paymentTime < endTime) moneyReceivedMinor += payment.amountMinor
-  }
-  for (const invoice of invoices) {
-    const issuedTime = new Date(invoice.issuedAt).getTime()
-    if (
-      issuedTime >= startTime &&
-      issuedTime < endTime &&
-      !accountByInvoice.has(invoice.id)
-    ) {
-      moneyReceivedMinor += invoice.totalMinor
-    }
-  }
-  const moneyToReceiveMinor = activeAccounts
-    .filter((account) => new Date(account.recordDate).getTime() < endTime)
-    .reduce(
-      (sum, account) =>
-        sum + Math.max(0, account.originalAmountMinor - (paidBeforeEnd.get(account.id) || 0)),
-      0,
-    )
-  return { moneyReceivedMinor, moneyToReceiveMinor }
-}
-
-export async function getInvoiceCashMetrics(
-  invoices: Invoice[],
-  start: Date,
-  end: Date,
-  now = new Date(),
-) {
-  const payload = await getPayload({ config })
-  const accounts = await payload.find({
-    collection: 'money-accounts',
-    depth: 0,
-    pagination: false,
-    where: { and: [{ direction: { equals: 'owedToUs' } }, { invoice: { exists: true } }] },
-  })
-  const payments = accounts.docs.length
-    ? await payload.find({
-        collection: 'money-payments',
-        depth: 0,
-        pagination: false,
-        where: { account: { in: accounts.docs.map(({ id }) => id) } },
-      })
-    : { docs: [] as MoneyPayment[] }
-  return calculateInvoiceCashMetrics(invoices, accounts.docs, payments.docs, start, end, now)
-}
-
 type MoneyLedgerRange = { start?: string; end?: string }
 
 export async function getMoneyLedgerSummary(
@@ -808,15 +729,14 @@ export function summarizeMoneyLedger(
 ) {
   const start = range.start ? Date.parse(range.start) : -Infinity
   const end = Math.min(range.end ? Date.parse(range.end) : Infinity, now.getTime())
+  const confirmedAccounts = accounts.filter(
+    (account) =>
+      account.status === 'confirmed' &&
+      account.direction === direction &&
+      Date.parse(account.recordDate) < end,
+  )
   const remainingByAccount = new Map(
-    accounts
-      .filter(
-        (account) =>
-          account.status === 'confirmed' &&
-          account.direction === direction &&
-          Date.parse(account.recordDate) < end,
-      )
-      .map(({ id, originalAmountMinor }) => [id, originalAmountMinor]),
+    confirmedAccounts.map(({ id, originalAmountMinor }) => [id, originalAmountMinor]),
   )
   let paidMinor = 0
   for (const payment of payments) {
@@ -830,11 +750,14 @@ export function summarizeMoneyLedger(
     remainingByAccount.set(accountId, remaining - payment.amountMinor)
     if (paidAt >= start) paidMinor += payment.amountMinor
   }
-  const remainingMinor = [...remainingByAccount.values()].reduce(
-    (sum, remaining) => sum + Math.max(0, remaining),
-    0,
-  )
-  return { paidMinor, remainingMinor }
+  let remainingMinor = 0
+  let invoiceRemainingMinor = 0
+  for (const account of confirmedAccounts) {
+    const remaining = Math.max(0, remainingByAccount.get(account.id) ?? 0)
+    remainingMinor += remaining
+    if (account.invoice) invoiceRemainingMinor += remaining
+  }
+  return { paidMinor, remainingMinor, invoiceRemainingMinor }
 }
 
 export function moneyProductId(product: string | Product) {

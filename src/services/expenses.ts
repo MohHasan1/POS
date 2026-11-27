@@ -1,5 +1,5 @@
 import config from '@payload-config'
-import { getPayload } from 'payload'
+import { getPayload, type PayloadRequest } from 'payload'
 
 import { dateInputToISOString, todayDateInput, toMarketDateInput } from '@/lib/calendar'
 import { expenseOccurrenceKey, recurringOccurrenceDates } from '@/lib/expense-recurrence'
@@ -31,8 +31,10 @@ function normalizeOptional(value: null | string | undefined): string | undefined
   return value?.trim() || undefined
 }
 
-async function expenseMarket() {
-  const settings = await getShopSettings()
+async function expenseMarket(req?: Partial<PayloadRequest>) {
+  const settings = req?.payload
+    ? await req.payload.findGlobal({ slug: 'shop-settings', depth: 0, req })
+    : await getShopSettings()
   if (!areShopSettingsComplete(settings)) {
     throw new Error('Complete business setup before recording expenses.')
   }
@@ -79,9 +81,9 @@ export async function setExpenseCategoryActive(
   return payload.update({ collection: 'expense-categories', id, data: { active } })
 }
 
-async function activeCategory(id: string): Promise<ExpenseCategory> {
-  const payload = await getPayload({ config })
-  const category = await payload.findByID({ collection: 'expense-categories', id })
+async function activeCategory(id: string, req?: Partial<PayloadRequest>): Promise<ExpenseCategory> {
+  const payload = req?.payload ?? await getPayload({ config })
+  const category = await payload.findByID({ collection: 'expense-categories', id, req })
   if (!category.active) throw new Error('Choose an active expense category.')
   return category
 }
@@ -183,9 +185,9 @@ function validateRecordAmounts(input: ExpenseRecordInput, taxMode: string) {
   return { netMinor: input.totalMinor - vatMinor, vatMinor }
 }
 
-async function recordData(input: ExpenseRecordInput) {
-  const profile = await expenseMarket()
-  const category = await activeCategory(input.categoryId)
+async function recordData(input: ExpenseRecordInput, req?: Partial<PayloadRequest>) {
+  const profile = await expenseMarket(req)
+  const category = await activeCategory(input.categoryId, req)
   const amounts = validateRecordAmounts(input, profile.taxMode)
   return {
     ...amounts,
@@ -215,17 +217,20 @@ async function recordData(input: ExpenseRecordInput) {
 export async function createManualExpense(
   input: ExpenseRecordInput,
   recordType: ManualExpenseRecordType,
+  req?: Partial<PayloadRequest>,
 ): Promise<Expense> {
-  const payload = await getPayload({ config })
+  const payload = req?.payload ?? await getPayload({ config })
   const duplicate = await payload.find({
     collection: 'expenses',
     limit: 1,
+    req,
     where: { idempotencyKey: { equals: input.idempotencyKey } },
   })
   if (duplicate.docs[0]) return duplicate.docs[0]
   return payload.create({
     collection: 'expenses',
-    data: { ...(await recordData(input)), recordType },
+    data: { ...(await recordData(input, req)), recordType },
+    req,
   })
 }
 

@@ -1,13 +1,11 @@
 'use client'
 
-import { useMemo } from 'react'
 import { Bar, BarChart, CartesianGrid, Legend, XAxis, YAxis } from 'recharts'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer, ChartTooltip } from '@/components/ui/chart'
 import type { Dictionary, Locale } from '@/lib/localization'
-import { getSupplyUsageTrends } from '@/lib/supplies'
-import type { SupplyUsage } from '@/payload-types'
+import type { getSupplyUsageTrends } from '@/lib/supplies'
 
 import { supplyDateLabel, supplyDayLabel, supplyLifespanLabel, supplyNumber } from './format'
 import { SupplyFinishedByMonthChart } from './SupplyFinishedByMonthChart'
@@ -15,16 +13,14 @@ import { SupplyFinishedByMonthChart } from './SupplyFinishedByMonthChart'
 export function SupplyUsageCharts({
   dictionary,
   locale,
-  today,
-  usages,
+  trends,
 }: {
   dictionary: Dictionary
   locale: Locale
-  today: string
-  usages: SupplyUsage[]
+  trends: ReturnType<typeof getSupplyUsageTrends>
 }) {
   const labels = dictionary.supplyTracker
-  const { recent, monthly } = useMemo(() => getSupplyUsageTrends(usages, today), [usages, today])
+  const { recent, monthly } = trends
   const shortDate = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', timeZone: 'UTC' })
   const shortDates = new Map(recent.map((point) => [point.id, shortDate.format(new Date(point.finishedOn))]))
   const formatNumber = (value: number) => supplyNumber(value, locale)

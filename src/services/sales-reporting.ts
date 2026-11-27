@@ -5,7 +5,7 @@ import type { SalesDashboard, SalesPeriodMetric, TopServiceMetric } from '@/lib/
 import { getPeriodBounds } from '@/lib/calendar'
 import { DEFAULT_MARKET, type MarketProfile, type SecondaryLanguage } from '@/lib/market'
 import type { Invoice } from '@/payload-types'
-import { getInvoiceCashMetrics, getMoneyLedgerSummary } from './money'
+import { getMoneyLedgerSummary } from './money'
 import { getShopSettings, marketContextFromSettings } from './settings'
 
 function periodMetric(invoices: Invoice[]): SalesPeriodMetric {
@@ -116,12 +116,14 @@ export async function getSalesDashboard(now = new Date()): Promise<SalesDashboar
   const [invoices, settings] = await Promise.all([getAllInvoices(), getShopSettings()])
   const market = marketContextFromSettings(settings)
   const bounds = getPeriodBounds(market.profile, now)
-  const [invoiceCashMetrics, moneyToPay] = await Promise.all([
-    getInvoiceCashMetrics(invoices, bounds.todayStart, bounds.nextDayStart, now),
-    getMoneyLedgerSummary('weOwe', { start: bounds.todayStart.toISOString() }, now),
+  const range = { start: bounds.todayStart.toISOString(), end: bounds.nextDayStart.toISOString() }
+  const [moneyToReceive, moneyToPay] = await Promise.all([
+    getMoneyLedgerSummary('owedToUs', range, now),
+    getMoneyLedgerSummary('weOwe', range, now),
   ])
   const cashMetrics = {
-    ...invoiceCashMetrics,
+    moneyReceivedMinor: moneyToReceive.paidMinor,
+    moneyToReceiveMinor: moneyToReceive.invoiceRemainingMinor,
     moneyPaidMinor: moneyToPay.paidMinor,
     moneyToPayMinor: moneyToPay.remainingMinor,
   }

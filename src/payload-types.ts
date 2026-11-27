@@ -85,6 +85,7 @@ export interface Config {
     'invoice-cost-overrides': InvoiceCostOverride;
     'receipt-vouchers': ReceiptVoucher;
     supplies: Supply;
+    'supply-purchases': SupplyPurchase;
     'supply-usages': SupplyUsage;
     media: Media;
     'payload-kv': PayloadKv;
@@ -112,6 +113,7 @@ export interface Config {
     'invoice-cost-overrides': InvoiceCostOverridesSelect<false> | InvoiceCostOverridesSelect<true>;
     'receipt-vouchers': ReceiptVouchersSelect<false> | ReceiptVouchersSelect<true>;
     supplies: SuppliesSelect<false> | SuppliesSelect<true>;
+    'supply-purchases': SupplyPurchasesSelect<false> | SupplyPurchasesSelect<true>;
     'supply-usages': SupplyUsagesSelect<false> | SupplyUsagesSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -670,11 +672,31 @@ export interface Supply {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "supply-purchases".
+ */
+export interface SupplyPurchase {
+  id: string;
+  supply: string | Supply;
+  name: string;
+  purchasedOn: string;
+  quantity: number;
+  remainingQuantity: number;
+  unitCostMinor?: number | null;
+  costCurrencyCode?: ('SAR' | 'BDT') | null;
+  vendor?: string | null;
+  notes?: string | null;
+  expense?: (string | null) | Expense;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "supply-usages".
  */
 export interface SupplyUsage {
   id: string;
   supply: string | Supply;
+  purchase?: (string | null) | SupplyPurchase;
   label?: string | null;
   startedOn: string;
   finishedOn?: string | null;
@@ -798,6 +820,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'supplies';
         value: string | Supply;
+      } | null)
+    | ({
+        relationTo: 'supply-purchases';
+        value: string | SupplyPurchase;
       } | null)
     | ({
         relationTo: 'supply-usages';
@@ -1382,11 +1408,31 @@ export interface SuppliesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "supply-purchases_select".
+ */
+export interface SupplyPurchasesSelect<T extends boolean = true> {
+  id?: T;
+  supply?: T;
+  name?: T;
+  purchasedOn?: T;
+  quantity?: T;
+  remainingQuantity?: T;
+  unitCostMinor?: T;
+  costCurrencyCode?: T;
+  vendor?: T;
+  notes?: T;
+  expense?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "supply-usages_select".
  */
 export interface SupplyUsagesSelect<T extends boolean = true> {
   id?: T;
   supply?: T;
+  purchase?: T;
   label?: T;
   startedOn?: T;
   finishedOn?: T;

@@ -9,10 +9,10 @@ import { MARKET_PROFILES } from '@/lib/market'
 import { buildBusinessReport } from '@/services/business-reporting'
 import { finalizeInvoiceWithSettlement } from '@/services/sale-settlement'
 import {
-  calculateInvoiceCashMetrics,
   createMoneyPayment,
   createMoneyPerson,
   getInvoicePaymentSummaries,
+  summarizeMoneyLedger,
 } from '@/services/money'
 import { createProduct } from '@/services/products'
 import { updateShopSettings } from '@/services/settings'
@@ -119,14 +119,15 @@ describe('invoice settlement tracking', () => {
     assert.equal(report.summary.grossProfitMinor, 8_000)
 
     const bounds = getPeriodBounds(MARKET_PROFILES.SA, new Date(created.invoice.issuedAt))
-    const cashBeforeFinal = calculateInvoiceCashMetrics(
-      [created.invoice],
+    const cashBeforeFinal = summarizeMoneyLedger(
       [created.account!],
       [created.initialPayment!],
-      bounds.todayStart,
-      bounds.nextDayStart,
+      'owedToUs',
+      { start: bounds.todayStart.toISOString(), end: bounds.nextDayStart.toISOString() },
+      new Date(),
     )
-    assert.deepEqual(cashBeforeFinal, { moneyReceivedMinor: 2_500, moneyToReceiveMinor: 9_000 })
+    assert.equal(cashBeforeFinal.paidMinor, 2_500)
+    assert.equal(cashBeforeFinal.invoiceRemainingMinor, 9_000)
 
     const finalPayment = await createMoneyPayment({
       accountId: created.account!.id,

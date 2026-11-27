@@ -23,9 +23,9 @@ export function SupplyUsageList({
   finished,
   locale,
   market,
+  pagination,
   today,
   usages,
-  action,
   onEdit,
   onFinish,
 }: {
@@ -33,19 +33,17 @@ export function SupplyUsageList({
   finished: boolean
   locale: Locale
   market: MarketProfile
+  pagination?: ReactNode
   today: string
   usages: SupplyUsage[]
-  action?: ReactNode
   onEdit: (usage: SupplyUsage) => void
   onFinish: (usage: SupplyUsage) => void
 }) {
   const labels = dictionary.supplyTracker
   return (
     <section className="space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-semibold">{finished ? labels.finished : labels.inUse}</h2>
-        {action}
-      </div>
+      <h2 className="font-semibold">{finished ? labels.finished : labels.inUse}</h2>
+      {pagination}
       {usages.length ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {usages.map((usage) => {
@@ -136,6 +134,7 @@ export function SupplyUsageList({
           {finished ? labels.noFinished : labels.noOpen}
         </p>
       )}
+      {pagination}
     </section>
   )
 }

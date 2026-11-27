@@ -7,6 +7,7 @@ import { getDictionary } from '@/lib/localization'
 import { requirePosAccess } from '@/lib/require-pos-access'
 import { marketSupports } from '@/lib/market'
 import { employeeRelationshipId, getEmployees } from '@/services/employees'
+import { getMoneyPeople } from '@/services/money'
 import { getProducts } from '@/services/products'
 import { areShopSettingsComplete, getShopSettings, marketContextFromSettings } from '@/services/settings'
 
@@ -14,9 +15,10 @@ export const metadata: Metadata = { title: 'Record Past Sale' }
 
 export default async function HistoricalSalesPage() {
   await requirePosAccess('/historical-sales')
-  const [{ dictionary, locale }, employees, products, settings] = await Promise.all([
+  const [{ dictionary, locale }, employees, people, products, settings] = await Promise.all([
     getDictionary(),
     getEmployees(),
+    getMoneyPeople(false),
     getProducts(),
     getShopSettings(),
   ])
@@ -44,6 +46,7 @@ export default async function HistoricalSalesPage() {
         employees={employees}
         locale={locale}
         market={market.profile}
+        people={people}
         products={products}
         saleMode="historical"
         secondaryLanguage={market.secondaryLanguage}

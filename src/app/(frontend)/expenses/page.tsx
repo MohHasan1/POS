@@ -14,8 +14,9 @@ import { getShopSettings, marketContextFromSettings } from '@/services/settings'
 
 export const metadata: Metadata = { title: 'Expenses' }
 
-export default async function ExpensesPage() {
-  await requirePosAccess('/expenses')
+export default async function ExpensesPage({ searchParams }: { searchParams: Promise<{ expense?: string }> }) {
+  const query = await searchParams
+  await requirePosAccess('/expenses', query)
   const [{ dictionary, locale }, categories, templates, due, expenses, settings] =
     await Promise.all([
       getDictionary(),
@@ -26,6 +27,7 @@ export default async function ExpensesPage() {
       getShopSettings(),
     ])
   const market = marketContextFromSettings(settings).profile
+  const selectedExpenseId = expenses.find(({ id }) => id === query.expense)?.id
 
   return (
     <div className="mx-auto max-w-7xl space-y-5">
@@ -34,12 +36,14 @@ export default async function ExpensesPage() {
         <p className="mt-1 text-sm text-muted-foreground">{dictionary.expensesDescription}</p>
       </header>
       <ExpensesClient
+        key={selectedExpenseId ?? 'all'}
         categories={categories}
         dictionary={dictionary}
         dueOccurrences={due}
         expenses={expenses}
         locale={locale}
         market={market}
+        selectedExpenseId={selectedExpenseId}
         templates={templates}
         today={todayDateInput(market)}
       />

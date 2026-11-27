@@ -455,7 +455,7 @@ export function CheckoutClient({
   const cartItemElements = useRef(new Map<string, HTMLDivElement>())
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID())
   const saleToday = todayDateInput(market)
-  const [settlement, setSettlement] = useState(() => createSaleSettlementDraft(saleToday))
+  const [settlement, setSettlement] = useState(() => createSaleSettlementDraft(defaultSaleDate || saleToday))
   const [pending, startTransition] = useTransition()
 
   const query = search.trim().toLocaleLowerCase()
@@ -626,10 +626,20 @@ export function CheckoutClient({
     })
   }
 
+  function updateHistoricalSaleDate(date: string) {
+    setSaleDate(date)
+    setSettlement((current) => ({
+      ...current,
+      payment: {
+        ...current.payment,
+        transferDate: current.payment.transferDate === saleDate ? date : current.payment.transferDate,
+        chequeDate: current.payment.chequeDate === saleDate ? date : current.payment.chequeDate,
+      },
+    }))
+  }
+
   function finalize() {
-    const parsedSettlement = historical
-      ? {}
-      : saleSettlementInput(settlement, totals.totalMinor, market, dictionary)
+    const parsedSettlement = saleSettlementInput(settlement, totals.totalMinor, market, dictionary)
     if (parsedSettlement.error) {
       setError(parsedSettlement.error)
       return
@@ -655,6 +665,7 @@ export function CheckoutClient({
             idempotencyKey,
             items,
             saleDate,
+            settlement: parsedSettlement.settlement,
           })
         : await finalizeInvoiceAction({
             employeeId,
@@ -674,6 +685,7 @@ export function CheckoutClient({
         setQuantityInputs({})
         setExternalReference('')
         setIdempotencyKey(crypto.randomUUID())
+        setSettlement(createSaleSettlementDraft(saleDate))
         setSaleConfirmationOpen(false)
         setHistoricalSuccess(true)
         return
@@ -1024,7 +1036,7 @@ export function CheckoutClient({
                   max={defaultSaleDate}
                   required
                   value={saleDate}
-                  onChange={(event) => setSaleDate(event.target.value)}
+                  onChange={(event) => updateHistoricalSaleDate(event.target.value)}
                 />
               </div>
               <div className="space-y-1.5">
@@ -1120,18 +1132,17 @@ export function CheckoutClient({
               ).replace('{amount}', formatMoney(totals.totalMinor, market, moneyLocale))}
             </DialogDescription>
           </DialogHeader>
-          {!historical && (
-            <SaleSettlementPanel
-              dictionary={dictionary}
-              idPrefix="checkout-settlement"
-              market={market}
-              people={people}
-              today={saleToday}
-              totalMinor={totals.totalMinor}
-              value={settlement}
-              onChange={setSettlement}
-            />
-          )}
+          <SaleSettlementPanel
+            dictionary={dictionary}
+            idPrefix="checkout-settlement"
+            market={market}
+            paidAmountLabel={historical ? dictionary.paidOnSaleDateOptional : undefined}
+            people={people}
+            today={saleToday}
+            totalMinor={totals.totalMinor}
+            value={settlement}
+            onChange={setSettlement}
+          />
           {error && (
             <p className="text-sm text-destructive" role="alert">
               {error}

@@ -9,7 +9,7 @@ import { getPeriodBounds } from '@/lib/calendar'
 import { DEFAULT_MARKET, normalizedTranslations, type MarketProfile, type SecondaryLanguage } from '@/lib/market'
 import type { Invoice, Product, ServiceBoardSetting } from '@/payload-types'
 import { finalizeInvoiceWithSettlement } from './sale-settlement'
-import { getInvoiceCashMetrics, getInvoicePaymentSummaries } from './money'
+import { getInvoicePaymentSummaries, getMoneyLedgerSummary } from './money'
 import { getMarketContext, getShopSettings, marketContextFromSettings } from './settings'
 
 export type CreateServiceBoardSaleInput = {
@@ -285,9 +285,9 @@ export async function getServiceBoardView(now = new Date()): Promise<ServiceBoar
     }),
   ])
 
-  const [paymentSummaries, cashMetrics] = await Promise.all([
+  const [paymentSummaries, receipts] = await Promise.all([
     getInvoicePaymentSummaries(result.docs),
-    getInvoiceCashMetrics(result.docs, todayStart, nextDayStart),
+    getMoneyLedgerSummary('owedToUs', { start: todayStart.toISOString(), end: nextDayStart.toISOString() }),
   ])
   return buildServiceBoardView(
     products,
@@ -295,6 +295,6 @@ export async function getServiceBoardView(now = new Date()): Promise<ServiceBoar
     market.profile,
     market.secondaryLanguage,
     paymentSummaries,
-    cashMetrics,
+    { moneyReceivedMinor: receipts.paidMinor, moneyToReceiveMinor: receipts.invoiceRemainingMinor },
   )
 }

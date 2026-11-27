@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { useId, useState, useTransition, type FormEvent, type ReactNode } from 'react'
 
 import {
@@ -25,6 +26,7 @@ import { Textarea } from '@/components/ui/textarea'
 import type { Dictionary, Locale } from '@/lib/localization'
 import type { MarketProfile } from '@/lib/market'
 import { decimalToMinor, minorToDecimal } from '@/lib/money'
+import type { AvailableSupplyPurchase } from '@/lib/supply-stock'
 import {
   SUPPLY_LABEL_LIMIT,
   SUPPLY_NAME_LIMIT,
@@ -34,7 +36,8 @@ import {
 } from '@/lib/supplies'
 import type { Supply, SupplyUsage } from '@/payload-types'
 
-import { supplyCostMarket, supplyLifespanLabel } from './format'
+import { supplyCostLabel, supplyCostMarket, supplyLifespanLabel } from './format'
+import { MANUAL_SUPPLY_ENTRY, SupplyPurchaseSelector } from './SupplyPurchaseSelector'
 
 type DialogProps = {
   dictionary: Dictionary
@@ -42,7 +45,7 @@ type DialogProps = {
   onSaved?: () => void
 }
 
-function SupplyDialog({
+export function SupplyDialog({
   dictionary,
   onClose,
   onSaved,
@@ -58,6 +61,7 @@ function SupplyDialog({
   action: (data: FormData) => Promise<SupplyActionResult>
   children?: ReactNode
 }) {
+  const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
 
@@ -73,6 +77,7 @@ function SupplyDialog({
       }
       onSaved?.()
       onClose()
+      router.refresh()
     })
   }
 
@@ -191,20 +196,37 @@ export function SupplyArchiveDialog({ supply, ...props }: DialogProps & { supply
 }
 
 export type UsageEditor =
-  | { kind: 'start'; requestId: string }
+  | { kind: 'start'; requestId: string; purchaseId?: string }
   | { kind: 'finish' | 'correct'; usage: SupplyUsage }
 
 export function SupplyUsageDialog({
+  availablePurchases,
   editor,
   locale,
   market,
+  onFinished,
+  onSaved,
   supply,
   today,
   ...props
-}: DialogProps & { editor: UsageEditor; locale: Locale; market: MarketProfile; supply: Supply; today: string }) {
+}: DialogProps & {
+  availablePurchases: AvailableSupplyPurchase[]
+  editor: UsageEditor
+  locale: Locale
+  market: MarketProfile
+  onFinished: (days: number) => void
+  supply: Supply
+  today: string
+}) {
   const id = useId()
   const labels = props.dictionary.supplyTracker
   const usage = editor.kind === 'start' ? undefined : editor.usage
+  const chooseStock = editor.kind === 'start' && availablePurchases.length > 0
+  const [source, setSource] = useState<string | null>(
+    editor.kind === 'start' ? editor.purchaseId ?? (chooseStock ? null : MANUAL_SUPPLY_ENTRY) : MANUAL_SUPPLY_ENTRY,
+  )
+  const purchase = availablePurchases.find(({ id }) => id === source)
+  const hasRecordedCost = Boolean(usage?.purchase || purchase)
   const initialEstimate = editor.kind === 'start' ? supply.expectedLifespanDays : usage?.expectedLifespanDays
   const initialCost = editor.kind === 'start' ? supply.defaultUnitCostMinor : usage?.unitCostMinor
   const costMarket = supplyCostMarket(usage?.costCurrencyCode, market)
@@ -219,9 +241,12 @@ export function SupplyUsageDialog({
 
   async function save(data: FormData): Promise<SupplyActionResult> {
     if (editor.kind === 'finish') return finishSupplyUsageAction(supply.id, editor.usage.id, finishedOn)
+    if ((chooseStock || source !== null) && !purchase && source !== MANUAL_SUPPLY_ENTRY) {
+      return { ok: false, error: 'stockUnavailable' }
+    }
     const estimate = data.get('estimate')
-    const unitCostMinor = readSupplyCost(data, costMarket)
-    if (unitCostMinor === undefined) return { ok: false, error: 'invalidCost' }
+    const unitCostMinor = hasRecordedCost ? undefined : readSupplyCost(data, costMarket)
+    if (!hasRecordedCost && unitCostMinor === undefined) return { ok: false, error: 'invalidCost' }
     const details = {
       startedOn,
       label: String(data.get('label') ?? '') || null,
@@ -230,7 +255,7 @@ export function SupplyUsageDialog({
       expectedLifespanDays: estimate ? Number(estimate) : null,
       unitCostMinor,
     }
-    if (editor.kind === 'start') return startSupplyUsageAction(supply.id, editor.requestId, details)
+    if (editor.kind === 'start') return startSupplyUsageAction(supply.id, editor.requestId, { ...details, purchaseId: purchase?.id })
     return correctSupplyUsageAction(supply.id, editor.usage.id, { ...details, finishedOn: finishedOn || null })
   }
 
@@ -240,36 +265,56 @@ export function SupplyUsageDialog({
       title={title}
       submitLabel={editor.kind === 'correct' ? props.dictionary.save : title}
       action={save}
+      onSaved={() => {
+        if (editor.kind === 'finish' && lifespan !== null) onFinished(lifespan)
+        onSaved?.()
+      }}
     >
+      {chooseStock && (
+        <SupplyPurchaseSelector
+          dictionary={props.dictionary} id={`${id}-stock`} locale={locale}
+          onChange={setSource} purchases={availablePurchases} value={source}
+        />
+      )}
       {editor.kind !== 'finish' && (
         <>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor={`${id}-label`}>{labels.labelOptional}</Label>
-              <Input
-                id={`${id}-label`}
-                name="label"
-                defaultValue={usage?.label ?? ''}
-                placeholder={labels.labelPlaceholder}
-                maxLength={SUPPLY_LABEL_LIMIT}
-              />
+          {purchase ? (
+            <p className="rounded-md bg-muted px-3 py-2 text-sm">
+              {[
+                purchase.vendor,
+                purchase.unitCostMinor == null ? null : supplyCostLabel(purchase.unitCostMinor, purchase.costCurrencyCode, market, locale),
+              ].filter(Boolean).join(' · ') || labels.unopenedCount.replace('{count}', String(purchase.remainingQuantity))}
+            </p>
+          ) : (!chooseStock || source === MANUAL_SUPPLY_ENTRY) && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor={`${id}-label`}>{labels.labelOptional}</Label>
+                <Input
+                  id={`${id}-label`}
+                  name="label"
+                  defaultValue={usage?.label ?? ''}
+                  placeholder={labels.labelPlaceholder}
+                  maxLength={SUPPLY_LABEL_LIMIT}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor={`${id}-vendor`}>{labels.vendorOptional}</Label>
+                <Input
+                  id={`${id}-vendor`}
+                  name="vendor"
+                  defaultValue={usage?.vendor ?? ''}
+                  maxLength={SUPPLY_VENDOR_LIMIT}
+                />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor={`${id}-vendor`}>{labels.vendorOptional}</Label>
-              <Input
-                id={`${id}-vendor`}
-                name="vendor"
-                defaultValue={usage?.vendor ?? ''}
-                maxLength={SUPPLY_VENDOR_LIMIT}
-              />
-            </div>
-          </div>
+          )}
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor={`${id}-started`}>{labels.startedOn}</Label>
               <Input
                 id={`${id}-started`}
                 type="date"
+                min={purchase?.purchasedOn}
                 max={today}
                 value={startedOn}
                 onChange={(event) => setStartedOn(event.target.value)}
@@ -289,7 +334,9 @@ export function SupplyUsageDialog({
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <SupplyCostInput id={`${id}-cost`} label={labels.unitCostOptional} market={costMarket} value={initialCost} />
+            {!hasRecordedCost && (!chooseStock || source === MANUAL_SUPPLY_ENTRY) && (
+              <SupplyCostInput id={`${id}-cost`} label={labels.unitCostOptional} market={costMarket} value={initialCost} />
+            )}
             <div className="space-y-1.5">
               <Label htmlFor={`${id}-notes`}>{labels.notesOptional}</Label>
               <Textarea

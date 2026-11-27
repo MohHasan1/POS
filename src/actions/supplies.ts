@@ -5,9 +5,12 @@ import { z } from 'zod'
 
 import type { MarketProfile } from '@/lib/market'
 import { requirePosAccess } from '@/lib/require-pos-access'
+import type { SupplyPurchaseInput } from '@/lib/supply-stock'
 import type { SupplySettingsInput, SupplyUsageDetails } from '@/lib/supplies'
+import { getExpenseCategories } from '@/services/expenses'
 import { getMarketContext } from '@/services/settings'
 import {
+  addSupplyPurchase,
   saveSupply,
   setSupplyArchived,
   startSupplyUsage,
@@ -53,9 +56,31 @@ export async function archiveSupplyAction(supplyId: string, archived: boolean) {
 export async function startSupplyUsageAction(
   supplyId: string,
   id: string,
-  input: SupplyUsageDetails,
+  input: SupplyUsageDetails & { purchaseId?: string },
 ) {
   return changeSupply(supplyId, (profile) => startSupplyUsage(supplyId, id, input, profile))
+}
+
+export async function addSupplyPurchaseAction(supplyId: string, id: string, input: SupplyPurchaseInput) {
+  return changeSupply(supplyId, async (profile) => {
+    const purchase = await addSupplyPurchase(supplyId, id, input, profile)
+    if (purchase.expense) {
+      revalidatePath('/expenses')
+      revalidatePath('/reports')
+      revalidatePath('/reports/print')
+      revalidatePath('/')
+    }
+  })
+}
+
+export async function getSupplyExpenseCategoriesAction() {
+  await requirePosAccess('/supplies')
+  try {
+    return (await getExpenseCategories()).map(({ id, name }) => ({ id, name }))
+  } catch (error) {
+    console.error('Unable to load expense categories for supplies.', error)
+    return null
+  }
 }
 
 export async function finishSupplyUsageAction(supplyId: string, id: string, finishedOn: string) {

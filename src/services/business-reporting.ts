@@ -15,7 +15,7 @@ import type {
 } from '@/lib/business-report-types'
 import { toMarketDateInput } from '@/lib/calendar'
 import { marketLocale, type MarketProfile } from '@/lib/market'
-import { calculateInvoiceCashMetrics, summarizeMoneyLedger } from '@/services/money'
+import { summarizeMoneyLedger } from '@/services/money'
 import type {
   Employee,
   EmployeeCommissionOverride,
@@ -418,16 +418,9 @@ function calculatePeriod(
   summary.totalExpenseMinor = summary.expenseMinor + summary.capitalExpenseMinor
   const moneyAccounts = data.moneyAccounts ?? []
   const moneyPayments = data.moneyPayments ?? []
-  summary.moneyReceivedMinor = calculateInvoiceCashMetrics(
-    data.invoices,
-    moneyAccounts,
-    moneyPayments,
-    range.start ? new Date(range.start) : undefined,
-    range.end ? new Date(range.end) : undefined,
-    now,
-  ).moneyReceivedMinor
-  summary.owedToUsMinor = summarizeMoneyLedger(moneyAccounts, moneyPayments, 'owedToUs', range, now)
-    .remainingMinor
+  const moneyToReceive = summarizeMoneyLedger(moneyAccounts, moneyPayments, 'owedToUs', range, now)
+  summary.moneyReceivedMinor = moneyToReceive.paidMinor
+  summary.owedToUsMinor = moneyToReceive.remainingMinor
   const moneyToPay = summarizeMoneyLedger(moneyAccounts, moneyPayments, 'weOwe', range, now)
   summary.weOweMinor = moneyToPay.remainingMinor
   summary.moneyPaidMinor = moneyToPay.paidMinor

@@ -60,6 +60,10 @@ describe('business reporting', () => {
             paymentDate: '2026-01-15T00:00:00.000Z', amountMinor: 3_000,
           },
           {
+            account: 'owed-us', direction: 'owedToUs', status: 'voided',
+            paymentDate: '2026-01-16T00:00:00.000Z', amountMinor: 2_000,
+          },
+          {
             account: 'we-owe', direction: 'weOwe', status: 'confirmed',
             paymentDate: '2026-01-05T00:00:00.000Z', amountMinor: 500,
           },
@@ -174,7 +178,7 @@ describe('business reporting', () => {
       grossSalesMinor: 11_500,
       invoiceCount: 1,
       moneyPaidMinor: 0,
-      moneyReceivedMinor: 11_500,
+      moneyReceivedMinor: 0,
       netSalesMinor: 10_000,
       operatingProfitMinor: 0,
       owedToUsMinor: 0,

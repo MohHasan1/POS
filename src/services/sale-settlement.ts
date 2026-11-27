@@ -41,7 +41,7 @@ export async function finalizeInvoiceWithSettlement(
       settlement.initialPayment &&
       settlement.initialPayment.amountMinor >= invoice.totalMinor
     ) {
-      throw new Error('Paid now must be less than the invoice total.')
+      throw new Error('Amount paid must be less than the invoice total.')
     }
 
     const profile = getDocumentMarket(invoice)

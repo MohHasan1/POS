@@ -18,6 +18,7 @@ import * as migration_20261125_174657_pos_access from './20261125_174657_pos_acc
 import * as migration_20261126_064130_supplies from './20261126_064130_supplies';
 import * as migration_20261126_070707_supply_usage_details from './20261126_070707_supply_usage_details';
 import * as migration_20261126_080156_supply_costs from './20261126_080156_supply_costs';
+import * as migration_20261127_055314_supply_stock from './20261127_055314_supply_stock';
 
 export const migrations = [
   {
@@ -119,5 +120,10 @@ export const migrations = [
     up: migration_20261126_080156_supply_costs.up,
     down: migration_20261126_080156_supply_costs.down,
     name: '20261126_080156_supply_costs',
+  },
+  {
+    up: migration_20261127_055314_supply_stock.up,
+    down: migration_20261127_055314_supply_stock.down,
+    name: '20261127_055314_supply_stock',
   },
 ];

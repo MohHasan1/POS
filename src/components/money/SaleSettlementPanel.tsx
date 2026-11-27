@@ -82,6 +82,7 @@ export function SaleSettlementPanel({
   market,
   onChange,
   onPersonSelected,
+  paidAmountLabel,
   people,
   today,
   totalMinor,
@@ -92,6 +93,7 @@ export function SaleSettlementPanel({
   market: MarketProfile
   onChange: (value: SaleSettlementDraft) => void
   onPersonSelected?: (person: MoneyPerson) => void
+  paidAmountLabel?: string
   people: MoneyPerson[]
   today: string
   totalMinor: number
@@ -119,7 +121,7 @@ export function SaleSettlementPanel({
             }}
           />
           <div className="space-y-1.5">
-            <Label htmlFor={`${idPrefix}-paid-now`}>{dictionary.paidNowOptional}</Label>
+            <Label htmlFor={`${idPrefix}-paid-now`}>{paidAmountLabel ?? dictionary.paidNowOptional}</Label>
             <Input id={`${idPrefix}-paid-now`} inputMode="decimal" value={value.paidNow} placeholder="0" onChange={(event) => onChange({ ...value, paidNow: event.target.value })} />
           </div>
           <div className="rounded-lg bg-background px-3 py-2">

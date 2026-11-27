@@ -71,8 +71,8 @@ function ComboboxContent({
           )}
           {...props}
         >
-          <ComboboxPrimitive.Empty className="px-3 py-5 text-center text-sm text-muted-foreground">
-            {emptyText}
+          <ComboboxPrimitive.Empty>
+            <div className="px-3 py-5 text-center text-sm text-muted-foreground">{emptyText}</div>
           </ComboboxPrimitive.Empty>
           <ComboboxPrimitive.List className="max-h-[min(18rem,var(--available-height))] overflow-y-auto overscroll-contain p-1 outline-none data-empty:p-0">
             {children}

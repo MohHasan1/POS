@@ -1,6 +1,7 @@
 'use client'
 
 import { CalendarClock, Pencil, Plus, Tags, XCircle } from 'lucide-react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { type FormEvent, useMemo, useState, useTransition } from 'react'
 
@@ -16,7 +17,7 @@ import {
   voidExpenseAction,
 } from '@/actions/expenses'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
@@ -667,6 +668,7 @@ export function ExpensesClient({
   expenses,
   locale,
   market,
+  selectedExpenseId,
   templates,
   today,
 }: {
@@ -676,6 +678,7 @@ export function ExpensesClient({
   expenses: Expense[]
   locale: Locale
   market: MarketProfile
+  selectedExpenseId?: string
   templates: ExpenseTemplate[]
   today: string
 }) {
@@ -718,6 +721,7 @@ export function ExpensesClient({
     const query = search.trim().toLocaleLowerCase()
     return expenses.filter(
       (expense) =>
+        (!selectedExpenseId || expense.id === selectedExpenseId) &&
         (filterType === ALL_VALUES || expense.recordType === filterType) &&
         (filterPayment === ALL_VALUES || expense.paymentStatus === filterPayment) &&
         (filterStatus === ALL_VALUES || expense.status === filterStatus) &&
@@ -726,7 +730,7 @@ export function ExpensesClient({
             .filter(Boolean)
             .some((value) => value!.toLocaleLowerCase().includes(query))),
     )
-  }, [expenses, filterPayment, filterStatus, filterType, search])
+  }, [expenses, filterPayment, filterStatus, filterType, search, selectedExpenseId])
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
@@ -906,9 +910,14 @@ export function ExpensesClient({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
+      <Card id="expense-history" className="scroll-mt-20">
+        <CardHeader className="flex-row flex-wrap items-center justify-between">
           <CardTitle>{dictionary.expenseHistory}</CardTitle>
+          {selectedExpenseId && (
+            <Link href="/expenses#expense-history" className={buttonVariants({ size: 'sm', variant: 'outline' })}>
+              {dictionary.supplyTracker.showAllExpenses}
+            </Link>
+          )}
         </CardHeader>
         <CardContent className="space-y-3 p-0">
           <div className="grid gap-2 px-4 sm:grid-cols-2 lg:grid-cols-4">
