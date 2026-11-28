@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import type { CollectionConfig } from 'payload'
+import { postCashPayment } from '@/services/cash-postings'
 
 const authenticated = ({ req }: { req: { user: unknown } }) => Boolean(req.user)
 
 export const MoneyPayments: CollectionConfig = {
   slug: 'money-payments',
+  hooks: { afterChange: [postCashPayment] },
   admin: {
     defaultColumns: ['account', 'direction', 'paymentDate', 'amountMinor', 'status'],
   },

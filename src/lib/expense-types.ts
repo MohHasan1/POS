@@ -24,6 +24,7 @@ export type ExpenseTemplateInput = {
 
 export type ExpenseRecordInput = {
   billDate: string
+  cashPaymentId?: string | null
   categoryId: string
   idempotencyKey: string
   name: string

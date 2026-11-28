@@ -56,6 +56,7 @@ import type { Dictionary, Locale } from '@/lib/localization'
 import { marketLocale, type MarketProfile } from '@/lib/market'
 import { decimalToMinor, formatMoney, minorToDecimal } from '@/lib/money'
 import type { Expense, ExpenseCategory, ExpenseTemplate } from '@/payload-types'
+import type { ExpenseCashLink } from '@/services/cash-report'
 
 const ALL_VALUES = '__all__'
 const PAGE_SIZE = 15
@@ -76,6 +77,7 @@ function templateDate(value: string | null | undefined, market: MarketProfile) {
 
 function ExpenseRecordDialog({
   categories,
+  cashLinks,
   dictionary,
   market,
   mode,
@@ -83,6 +85,7 @@ function ExpenseRecordDialog({
   today,
 }: {
   categories: ExpenseCategory[]
+  cashLinks: ExpenseCashLink[]
   dictionary: Dictionary
   market: MarketProfile
   mode: RecordMode
@@ -121,6 +124,14 @@ function ExpenseRecordDialog({
   const [paymentMethod, setPaymentMethod] = useState<'bank' | 'cash' | 'other'>(
     existing?.paymentMethod || 'cash',
   )
+  const [cashPaymentId, setCashPaymentId] = useState(relationId(existing?.cashPayment) ?? '')
+  const [idempotencyKey] = useState(() => crypto.randomUUID())
+  const matchingPayments = cashLinks.filter((payment) =>
+    payment.id === cashPaymentId ||
+    ((!payment.claimedBy || payment.claimedBy === existing?.id) &&
+      payment.method === paymentMethod && payment.date === paidAt &&
+      payment.amountMinor === decimalToMinor(total, market)),
+  )
   const [reference, setReference] = useState(existing?.reference || '')
   const [note, setNote] = useState(existing?.note || occurrence?.note || '')
   const [error, setError] = useState('')
@@ -137,7 +148,8 @@ function ExpenseRecordDialog({
     }
     setError('')
     const common = {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey,
+      cashPaymentId: paymentStatus === 'paid' ? cashPaymentId || null : null,
       note: note || undefined,
       paidAt: paymentStatus === 'paid' ? paidAt : undefined,
       paymentMethod: paymentStatus === 'paid' ? paymentMethod : undefined,
@@ -346,6 +358,27 @@ function ExpenseRecordDialog({
                   </SelectContent>
                 </Select>
               </div>
+              {matchingPayments.length > 0 && (
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label htmlFor="expense-money-link">{dictionary.cashSummary.expenseLink}</Label>
+                  <Select
+                    value={cashPaymentId || 'separate'}
+                    onValueChange={(value) => setCashPaymentId(!value || value === 'separate' ? '' : value)}
+                    items={[
+                      { value: 'separate', label: dictionary.cashSummary.newExpensePayment },
+                      ...matchingPayments.map(({ id, label, date }) => ({ value: id, label: `${label} · ${date}` })),
+                    ]}
+                  >
+                    <SelectTrigger id="expense-money-link" className="w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="separate">{dictionary.cashSummary.newExpensePayment}</SelectItem>
+                      {matchingPayments.map(({ id, label, date }) => (
+                        <SelectItem key={id} value={id}>{label} · {date}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </>
           )}
           <div className="space-y-1.5">
@@ -663,6 +696,7 @@ function TemplateDialog({
 
 export function ExpensesClient({
   categories,
+  cashLinks,
   dictionary,
   dueOccurrences,
   expenses,
@@ -673,6 +707,7 @@ export function ExpensesClient({
   today,
 }: {
   categories: ExpenseCategory[]
+  cashLinks: ExpenseCashLink[]
   dictionary: Dictionary
   dueOccurrences: DueExpenseOccurrence[]
   expenses: Expense[]
@@ -1122,6 +1157,7 @@ export function ExpensesClient({
               : `record-${recordMode?.kind || 'closed'}`
         }
         categories={categories}
+        cashLinks={cashLinks}
         dictionary={dictionary}
         market={market}
         mode={recordMode}

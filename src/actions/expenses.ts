@@ -44,6 +44,7 @@ const templateSchema = z.object({
 
 const recordSchema = z.object({
   billDate: z.iso.date(),
+  cashPaymentId: z.uuid().nullable().optional(),
   categoryId: z.uuid(),
   idempotencyKey: z.uuid(),
   name: z.string().trim().min(1).max(160),
@@ -67,6 +68,7 @@ function errorResult(error: unknown): ActionResult {
 function revalidateExpenses() {
   revalidatePath('/expenses')
   revalidatePath('/reports')
+  revalidatePath('/reports/cash')
   revalidatePath('/reports/costs')
   revalidatePath('/')
 }

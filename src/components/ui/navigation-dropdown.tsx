@@ -32,7 +32,8 @@ export function NavigationDropdown({
   label: string
 }) {
   const pathname = usePathname()
-  const active = items.some(({ href }) => isActivePath(pathname, href))
+  const activeItem = items.filter(({ href }) => isActivePath(pathname, href))
+    .sort((a, b) => b.href.length - a.href.length)[0]
 
   return (
     <Menu.Root>
@@ -41,7 +42,7 @@ export function NavigationDropdown({
         title={label}
         className={cn(
           navigationLinkClass,
-          active ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+          activeItem ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
         )}
       >
         {CompactIcon && <CompactIcon className="size-4 lg:hidden" aria-hidden="true" />}
@@ -57,7 +58,7 @@ export function NavigationDropdown({
                 key={href}
                 closeOnClick
                 render={<Link href={href} />}
-                aria-current={isActivePath(pathname, href) ? 'page' : undefined}
+                aria-current={activeItem?.href === href ? 'page' : undefined}
                 className="flex cursor-default items-center gap-2 rounded-md px-3 py-2 text-sm outline-none data-highlighted:bg-muted data-highlighted:text-foreground"
               >
                 <ItemIcon className="size-4 text-muted-foreground" aria-hidden="true" />

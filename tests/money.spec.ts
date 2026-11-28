@@ -6,6 +6,7 @@ import { getPayload } from 'payload'
 
 import { todayDateInput } from '@/lib/calendar'
 import { MARKET_PROFILES } from '@/lib/market'
+import { cashTenderResult } from '@/lib/money'
 import {
   createMoneyAccount,
   createMoneyPayment,
@@ -28,6 +29,18 @@ const paymentIds: string[] = []
 const invoiceIds: string[] = []
 const productIds: string[] = []
 const voucherIds: string[] = []
+
+for (const market of [MARKET_PROFILES.SA, MARKET_PROFILES.BD]) {
+  it(`calculates checkout cash change in ${market.currencyCode}`, () => {
+    assert.deepEqual(cashTenderResult(' ', 1_730, market), { status: 'blank' })
+    assert.deepEqual(cashTenderResult('17.30', 1_730, market), { status: 'ready', amountMinor: 0 })
+    assert.deepEqual(cashTenderResult('20', 1_730, market), { status: 'ready', amountMinor: 270 })
+    assert.deepEqual(cashTenderResult('15.25', 1_730, market), { status: 'short', amountMinor: 205 })
+    for (const amount of ['17.301', '-5', 'abc', '9007199254740992']) {
+      assert.deepEqual(cashTenderResult(amount, 1_730, market), { status: 'invalid' })
+    }
+  })
+}
 
 describe('money owed management', () => {
   after(async () => {

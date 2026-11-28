@@ -4,6 +4,7 @@ import { requirePosAccess } from '@/lib/require-pos-access'
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { cashAccountSchema, type CashAccount } from '@/lib/cash'
 
 import type { ActionResult } from './products'
 import type { FinalizeInvoiceInput } from '@/lib/pos-types'
@@ -13,6 +14,8 @@ import { finalizeInvoiceWithSettlement } from '@/services/sale-settlement'
 
 const optionalText = z.string().trim().max(500).optional()
 const checkoutSchema = z.object({
+  bankPending: z.boolean().optional(),
+  cashAccount: cashAccountSchema.optional(),
   employeeId: z.uuid().nullable().optional(),
   idempotencyKey: z.uuid(),
   invoiceType: z.enum(['sales', 'simplified', 'standard']),
@@ -47,9 +50,13 @@ const checkoutSchema = z.object({
     )
     .min(1, 'Add at least one item.'),
   settlement: saleSettlementSchema.optional(),
-})
+}).refine(({ cashAccount, settlement }) => cashAccount || settlement, 'Select Cash or Bank to record this sale.')
 
-export type CheckoutSaleInput = FinalizeInvoiceInput & { settlement?: SaleSettlementInput }
+export type CheckoutSaleInput = FinalizeInvoiceInput & {
+  bankPending?: boolean
+  cashAccount?: CashAccount
+  settlement?: SaleSettlementInput
+}
 
 export async function finalizeInvoiceAction(
   input: CheckoutSaleInput,
@@ -59,16 +66,17 @@ export async function finalizeInvoiceAction(
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
 
   try {
-    const { settlement, ...invoiceInput } = parsed.data
+    const { bankPending, cashAccount, settlement, ...invoiceInput } = parsed.data
     const { invoice } = await finalizeInvoiceWithSettlement(
       invoiceInput as FinalizeInvoiceInput,
-      {},
+      { bankPending, cashAccount },
       settlement,
     )
     revalidatePath('/')
     revalidatePath('/invoices')
     revalidatePath('/money/owed-to-us')
     revalidatePath('/reports')
+    revalidatePath('/reports/cash')
     revalidatePath('/service-board')
     return { ok: true, data: { id: invoice.id } }
   } catch (error) {

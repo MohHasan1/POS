@@ -67,6 +67,7 @@ export async function addSupplyPurchaseAction(supplyId: string, id: string, inpu
     if (purchase.expense) {
       revalidatePath('/expenses')
       revalidatePath('/reports')
+      revalidatePath('/reports/cash')
       revalidatePath('/reports/print')
       revalidatePath('/')
     }

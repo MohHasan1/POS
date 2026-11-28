@@ -1,10 +1,12 @@
 import type { CollectionConfig } from 'payload'
+import { postCashInvoice } from '@/services/cash-postings'
 import { randomUUID } from 'node:crypto'
 
 const authenticated = ({ req }: { req: { user: unknown } }) => Boolean(req.user)
 
 export const Invoices: CollectionConfig = {
   slug: 'invoices',
+  hooks: { afterChange: [postCashInvoice] },
   admin: {
     defaultColumns: ['invoiceNumber', 'entrySource', 'invoiceType', 'issuedAt', 'totalMinor'],
     useAsTitle: 'invoiceNumber',
@@ -74,6 +76,8 @@ export const Invoices: CollectionConfig = {
       ],
     },
     { name: 'issuedAt', type: 'date', required: true, index: true },
+    { name: 'cashAccount', type: 'select', options: ['cash', 'bank'] },
+    { name: 'bankPending', type: 'checkbox' },
     { name: 'employee', type: 'relationship', relationTo: 'employees', index: true },
     {
       name: 'employeeSnapshot',

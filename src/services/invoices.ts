@@ -3,6 +3,7 @@ import { getPayload, type PayloadRequest } from 'payload'
 
 import { nextInvoiceNumber } from '@/lib/invoice-number'
 import { marketDateKey } from '@/lib/calendar'
+import type { CashAccount } from '@/lib/cash'
 import {
   localizedName,
   marketSupports,
@@ -21,6 +22,9 @@ import { getActiveCommissionRateMap } from './payroll'
 import { areShopSettingsComplete, getShopSettings, marketContextFromSettings } from './settings'
 
 export type FinalizeInvoiceOptions = {
+  bankPending?: boolean
+  cashAccount?: CashAccount
+  unpaid?: boolean
   entrySource?: Invoice['entrySource']
   externalReference?: string
   generateQr?: boolean
@@ -48,7 +52,7 @@ async function findByExternalReference(
   return result.docs[0] || null
 }
 
-async function findByIdempotencyKey(
+export async function findByIdempotencyKey(
   key: string,
   req?: Partial<PayloadRequest>,
 ): Promise<Invoice | null> {
@@ -238,6 +242,7 @@ export async function finalizeInvoice(
     try {
       return await payload.create({
         collection: 'invoices',
+        context: { cashInvoiceUnpaid: options.unpaid },
         data: {
           invoiceNumber,
           idempotencyKey: input.idempotencyKey,
@@ -254,6 +259,8 @@ export async function finalizeInvoice(
           externalReference,
           issuedAtPrecision: options.issuedAtPrecision || 'exact',
           issuedAt: issuedAt.toISOString(),
+          cashAccount: options.unpaid ? null : options.cashAccount,
+          bankPending: !options.unpaid && options.cashAccount === 'bank' && options.bankPending === true,
           employee: employee?.id,
           employeeSnapshot: employee ? { name: employee.name } : undefined,
           seller,

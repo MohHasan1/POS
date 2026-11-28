@@ -9,10 +9,13 @@ import { getPeriodBounds } from '@/lib/calendar'
 import { DEFAULT_MARKET, normalizedTranslations, type MarketProfile, type SecondaryLanguage } from '@/lib/market'
 import type { Invoice, Product, ServiceBoardSetting } from '@/payload-types'
 import { finalizeInvoiceWithSettlement } from './sale-settlement'
+import type { CashAccount } from '@/lib/cash'
 import { getInvoicePaymentSummaries, getMoneyLedgerSummary } from './money'
 import { getMarketContext, getShopSettings, marketContextFromSettings } from './settings'
 
 export type CreateServiceBoardSaleInput = {
+  bankPending?: boolean
+  cashAccount?: CashAccount
   customerName?: string
   customerPhone?: string
   employeeId?: null | string
@@ -139,6 +142,8 @@ export async function createServiceBoardSale(input: CreateServiceBoardSaleInput)
       items: input.items,
     },
     {
+      bankPending: input.bankPending,
+      cashAccount: input.cashAccount,
       salesChannel: 'serviceBoard',
       serviceBoardDetails: Object.values(details).some(Boolean) ? details : undefined,
     },

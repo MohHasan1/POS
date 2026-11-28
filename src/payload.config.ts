@@ -5,6 +5,8 @@ import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 
 import { Invoices } from './collections/Invoices'
+import { CashClosings } from './collections/CashClosings'
+import { CashLedger } from './collections/CashLedger'
 import { ExpenseCategories } from './collections/ExpenseCategories'
 import { Expenses } from './collections/Expenses'
 import { ExpenseTemplates } from './collections/ExpenseTemplates'
@@ -55,6 +57,8 @@ export default buildConfig({
   },
   collections: [
     Users,
+    CashLedger,
+    CashClosings,
     Products,
     Employees,
     EmployeeCommissionRates,

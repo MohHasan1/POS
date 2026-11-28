@@ -8,6 +8,8 @@ const dirname = path.dirname(__filename)
 
 const nextConfig: NextConfig = {
   experimental: {
+    // The macOS bundle is signed and can be launched from a read-only volume.
+    ...(process.env.QUICKPOS_MAC_BUILD === '1' ? { isrFlushToDisk: false } : {}),
     serverActions: {
       bodySizeLimit: '3mb',
     },

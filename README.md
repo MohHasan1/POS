@@ -81,3 +81,7 @@ Browser printing provides A4 PDF output. The generated QR payload implements the
 Run the manual **Build Windows installer** GitHub Actions workflow to create the private `QuickPOS-Setup.exe` artifact. It bundles the standalone server, Windows SQLite runtime, Node.js, launcher, and Inno Setup installer; the customer does not need Node.js, pnpm, Docker, a terminal, or internet access after installation.
 
 See [Windows installer, updates, and recovery](docs/windows-installer.md) for build instructions, persistent data locations, backup restoration, and the manual acceptance checklist.
+
+## Offline Mac installer
+
+On an Apple Silicon Mac, run `pnpm package:mac` to build a personal QuickPOS disk image under `dist/macos`. The installed app opens in your browser and bundles Node.js and SQLite. See [Mac installation and data transfer](docs/macos-installer.md).

@@ -4,6 +4,7 @@ import { requirePosAccess } from '@/lib/require-pos-access'
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { cashAccountSchema } from '@/lib/cash'
 
 import { createProductAction, type ActionResult, type ProductActionInput } from './products'
 import { saleSettlementSchema } from '@/lib/sale-settlement-validation'
@@ -24,6 +25,8 @@ const optionalText = (max: number) =>
 
 const serviceBoardSaleSchema = z
   .object({
+    bankPending: z.boolean().optional(),
+    cashAccount: cashAccountSchema.optional(),
     customerName: optionalText(160).optional(),
     customerPhone: optionalText(40).optional(),
     employeeId: z.uuid().nullable().optional(),
@@ -41,6 +44,7 @@ const serviceBoardSaleSchema = z
     note: optionalText(500).optional(),
     settlement: saleSettlementSchema.optional(),
   })
+  .refine(({ cashAccount, settlement }) => cashAccount || settlement, 'Select Cash or Bank to record this sale.')
   .superRefine(({ items }, context) => {
     const seen = new Set<string>()
     for (const [index, item] of items.entries()) {
@@ -67,6 +71,7 @@ function revalidateBoardData() {
   revalidatePath('/invoices')
   revalidatePath('/money/owed-to-us')
   revalidatePath('/reports')
+  revalidatePath('/reports/cash')
 }
 
 export async function addServiceBoardColumnAction(productId: string): Promise<ActionResult> {

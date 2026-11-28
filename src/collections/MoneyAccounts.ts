@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import type { CollectionConfig } from 'payload'
+import { syncCashInvoiceTracking } from '@/services/cash-postings'
 
 const authenticated = ({ req }: { req: { user: unknown } }) => Boolean(req.user)
 
 export const MoneyAccounts: CollectionConfig = {
   slug: 'money-accounts',
+  hooks: { afterChange: [syncCashInvoiceTracking] },
   admin: {
     defaultColumns: ['recordNumber', 'direction', 'person', 'recordDate', 'originalAmountMinor'],
     useAsTitle: 'recordNumber',

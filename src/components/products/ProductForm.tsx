@@ -273,12 +273,10 @@ export function ProductForm({
             />
           </div>
         )}
-        {market.taxMode === 'saudiVat' && (
-          <div className="space-y-1.5">
-            <Label htmlFor="sku">{dictionary.sku}</Label>
-            <Input id="sku" name="sku" defaultValue={product?.sku || ''} />
-          </div>
-        )}
+        <div className="space-y-1.5">
+          <Label htmlFor="sku">{dictionary.sku}</Label>
+          <Input id="sku" name="sku" defaultValue={product?.sku || ''} placeholder={dictionary.skuAutoPlaceholder} />
+        </div>
         <div className="space-y-1.5">
           <Label htmlFor="vatCategory">{dictionary.vatCategory}</Label>
           <Select name="vatCategory" defaultValue={product?.vatCategory || 'standard'}>

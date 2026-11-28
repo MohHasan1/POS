@@ -53,6 +53,23 @@ export function decimalToMinor(
   return Number.isSafeInteger(minor) ? minor : null
 }
 
+export function signedDecimalToMinor(value: string, profile: Pick<MarketProfile, 'minorUnitDigits'>) {
+  const text = value.trim()
+  if (!text.startsWith('-')) return decimalToMinor(text, profile)
+  const amount = decimalToMinor(text.slice(1), profile)
+  return amount === null ? null : 0 - amount
+}
+
+export function cashTenderResult(amount: string, totalMinor: number, profile: Pick<MarketProfile, 'minorUnitDigits'>) {
+  if (!amount.trim()) return { status: 'blank' as const }
+  const received = decimalToMinor(amount, profile)
+  if (received === null) return { status: 'invalid' as const }
+  const difference = received - totalMinor
+  return difference < 0
+    ? { status: 'short' as const, amountMinor: -difference }
+    : { status: 'ready' as const, amountMinor: difference }
+}
+
 export function formatQuantity(quantityMilliunits: number, locale = 'en-SA'): string {
   return (quantityMilliunits / 1000).toLocaleString(locale, {
     maximumFractionDigits: 3,

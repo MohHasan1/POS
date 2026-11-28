@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  Banknote,
   Boxes,
   Building2,
   ChartNoAxesCombined,
@@ -63,6 +64,7 @@ export function PrimaryNavigation({
   const recordsItems: NavigationItem[] = [
     { href: '/invoices', icon: FileText, label: dictionary.invoices },
     { href: '/reports', icon: ChartNoAxesCombined, label: dictionary.reports },
+    { href: '/reports/cash', icon: Banknote, label: dictionary.cashSummaryTitle },
     { href: '/expenses', icon: ReceiptCent, label: dictionary.expenses },
     { href: '/payroll', icon: WalletCards, label: dictionary.payroll },
     { href: '/supplies', icon: Package, label: dictionary.supplyTracker.title },

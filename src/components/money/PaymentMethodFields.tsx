@@ -35,12 +35,14 @@ function methodLabel(method: MoneyPaymentMethod, dictionary: Dictionary) {
 }
 
 export function PaymentMethodFields({
+  cashAndBankOnly = false,
   dictionary,
   idPrefix,
   onChange,
   today,
   value,
 }: {
+  cashAndBankOnly?: boolean
   dictionary: Dictionary
   idPrefix: string
   onChange: (value: PaymentMethodDraft) => void
@@ -48,6 +50,7 @@ export function PaymentMethodFields({
   value: PaymentMethodDraft
 }) {
   const update = (changes: Partial<PaymentMethodDraft>) => onChange({ ...value, ...changes })
+  const methods: MoneyPaymentMethod[] = cashAndBankOnly ? ['cash', 'bank_transfer'] : ['cash', 'bank_transfer', 'cheque', 'other']
 
   return (
     <>
@@ -61,7 +64,7 @@ export function PaymentMethodFields({
             <SelectValue>{methodLabel(value.paymentMethod, dictionary)}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {(['cash', 'bank_transfer', 'cheque', 'other'] as const).map((method) => (
+            {methods.map((method) => (
               <SelectItem key={method} value={method}>{methodLabel(method, dictionary)}</SelectItem>
             ))}
           </SelectContent>

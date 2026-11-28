@@ -11,6 +11,7 @@
     "generate:types": "cross-env NODE_OPTIONS=--no-deprecation payload generate:types",
     "lint": "cross-env NODE_OPTIONS=--no-deprecation eslint .",
     "migrate": "cross-env NODE_OPTIONS=--no-deprecation payload migrate",
+    "package:mac": "bash scripts/macos/package-release.sh",
     "package:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/package-release.ps1",
     "payload": "cross-env NODE_OPTIONS=--no-deprecation payload",
     "pretest": "node scripts/reset-test-database.mjs",

@@ -7,7 +7,7 @@ import type { SaleSettlementInput } from '@/lib/money-types'
 import type { FinalizeInvoiceInput } from '@/lib/pos-types'
 import type { Invoice, MoneyAccount, MoneyPayment } from '@/payload-types'
 
-import { finalizeInvoice, type FinalizeInvoiceOptions } from './invoices'
+import { finalizeInvoice, findByIdempotencyKey, type FinalizeInvoiceOptions } from './invoices'
 import { createMoneyAccount, createMoneyPaymentInTransaction } from './money'
 
 function relationshipId(value: { id: string } | null | string | undefined) {
@@ -35,7 +35,23 @@ export async function finalizeInvoiceWithSettlement(
   const req = { payload, transactionID }
 
   try {
-    const invoice = await finalizeInvoice(input, options, req)
+    const existing = await findByIdempotencyKey(input.idempotencyKey, req)
+    if (existing) {
+      const { docs: [account] } = await payload.find({
+        collection: 'money-accounts', req, depth: 0, limit: 1,
+        where: { invoice: { equals: existing.id } },
+      })
+      const initialPayment = account && settlement.initialPayment ? (await payload.find({
+        collection: 'money-payments', req, depth: 0, limit: 1,
+        where: {
+          account: { equals: account.id },
+          idempotencyKey: { equals: settlement.initialPayment.idempotencyKey },
+        },
+      })).docs[0] : undefined
+      await payload.db.commitTransaction(transactionID)
+      return { invoice: existing, account, initialPayment }
+    }
+    const invoice = await finalizeInvoice(input, { ...options, unpaid: true }, req)
     if (invoice.totalMinor < 1) throw new Error('A zero-value invoice cannot be marked unpaid.')
     if (
       settlement.initialPayment &&

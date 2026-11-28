@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import type { CollectionConfig } from 'payload'
+import { postCashPayroll } from '@/services/cash-postings'
 
 const authenticated = ({ req }: { req: { user: unknown } }) => Boolean(req.user)
 
 export const EmployeePayrollEntries: CollectionConfig = {
   slug: 'employee-payroll-entries',
+  hooks: { afterChange: [postCashPayroll] },
   admin: {
     defaultColumns: ['employee', 'entryType', 'entryDate', 'amountMinor'],
   },

@@ -22,6 +22,8 @@ import {
 import { EmployeeSelector } from '@/components/employees/EmployeeSelector'
 import { useCanRefreshPos } from '@/components/access/PosAccessBoundary'
 import { createSaleSettlementDraft, SaleSettlementPanel, saleSettlementInput } from '@/components/money/SaleSettlementPanel'
+import { CashAccountSelector } from '@/components/cash/CashAccountSelector'
+import type { CashAccount } from '@/lib/cash'
 import { ProductForm } from '@/components/products/ProductForm'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -255,6 +257,8 @@ export function ServiceBoardClient({
   const [manageOpen, setManageOpen] = useState(false)
   const [createServiceOpen, setCreateServiceOpen] = useState(false)
   const [saleOpen, setSaleOpen] = useState(false)
+  const [cashAccount, setCashAccount] = useState<CashAccount>('cash')
+  const [bankPending, setBankPending] = useState(false)
   const [showSalesThroughDate, setShowSalesThroughDate] = useState(false)
   const [saleRows, setSaleRows] = useState<SaleRow[]>([])
   const [employeeId, setEmployeeId] = useState<string | null>(defaultEmployeeId || null)
@@ -319,6 +323,8 @@ export function ServiceBoardClient({
     setCustomerName('')
     setCustomerPhone('')
     setSettlement(createSaleSettlementDraft(todayDate))
+    setCashAccount('cash')
+    setBankPending(false)
     setError('')
     setMessage('')
     setSaleOpen(true)
@@ -375,6 +381,8 @@ export function ServiceBoardClient({
     setError('')
     startTransition(async () => {
       const result = await createServiceBoardSaleAction({
+        cashAccount: !parsedSettlement.settlement ? cashAccount : undefined,
+        bankPending: !parsedSettlement.settlement && cashAccount === 'bank' && bankPending,
         customerName,
         customerPhone,
         employeeId,
@@ -873,7 +881,12 @@ export function ServiceBoardClient({
               value={employeeId}
             />
 
+            {!settlement.enabled && saleTotalMinor > 0 && (
+              <CashAccountSelector dictionary={dictionary} value={cashAccount} onChange={setCashAccount}
+                bankPending={bankPending} onBankPending={setBankPending} />
+            )}
             <SaleSettlementPanel
+              cashAndBankOnly
               dictionary={dictionary}
               idPrefix="service-board-settlement"
               market={view.market}

@@ -19,6 +19,8 @@ import { recordHistoricalSaleAction } from '@/actions/historical-sales'
 import { createProductAction } from '@/actions/products'
 import { EmployeeSelector } from '@/components/employees/EmployeeSelector'
 import { createSaleSettlementDraft, SaleSettlementPanel, saleSettlementInput } from '@/components/money/SaleSettlementPanel'
+import { CashAccountSelector } from '@/components/cash/CashAccountSelector'
+import type { CashAccount } from '@/lib/cash'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -329,7 +331,7 @@ function CustomItemDialog({
               </div>}
               <div className="space-y-1.5">
                 <Label htmlFor="custom-sku">{dictionary.sku}</Label>
-                <Input id="custom-sku" name="sku" />
+                <Input id="custom-sku" name="sku" placeholder={saveToCatalog ? dictionary.skuAutoPlaceholder : undefined} />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="custom-quantity">{dictionary.quantity}</Label>
@@ -439,6 +441,8 @@ export function CheckoutClient({
   const [quantityInputs, setQuantityInputs] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
   const [saleConfirmationOpen, setSaleConfirmationOpen] = useState(false)
+  const [cashAccount, setCashAccount] = useState<CashAccount>('cash')
+  const [bankPending, setBankPending] = useState(false)
   const [historicalSuccess, setHistoricalSuccess] = useState(false)
   const [cartActivity, setCartActivity] = useState<{
     id: number
@@ -466,13 +470,14 @@ export function CheckoutClient({
   )
   const calculated = cart.map((item) => calculateLine(item))
   const totals = calculateInvoiceTotals(calculated)
+  const historical = saleMode === 'historical'
+  const showPaymentAccount = !historical && !settlement.enabled && totals.totalMinor > 0
   const cartQuantityMilliunits = cart.reduce((total, item) => total + item.quantityMilliunits, 0)
   const cartQuantity = new Intl.NumberFormat(locale === 'bn' ? 'bn-BD' : 'en-US', {
     maximumFractionDigits: 3,
   }).format(cartQuantityMilliunits / 1000)
   const uniqueProductCount = cart.length
   const moneyLocale = marketLocale(market, locale)
-  const historical = saleMode === 'historical'
   const historicalDateLabel =
     historical && saleDate
       ? formatMarketDate(dateInputToISOString(saleDate, market), market, moneyLocale)
@@ -668,6 +673,8 @@ export function CheckoutClient({
             settlement: parsedSettlement.settlement,
           })
         : await finalizeInvoiceAction({
+            cashAccount: !parsedSettlement.settlement ? cashAccount : undefined,
+            bankPending: !parsedSettlement.settlement && cashAccount === 'bank' && bankPending,
             employeeId,
             idempotencyKey,
             invoiceType,
@@ -1132,7 +1139,12 @@ export function CheckoutClient({
               ).replace('{amount}', formatMoney(totals.totalMinor, market, moneyLocale))}
             </DialogDescription>
           </DialogHeader>
+          {showPaymentAccount && (
+            <CashAccountSelector dictionary={dictionary} value={cashAccount} onChange={setCashAccount}
+              bankPending={bankPending} onBankPending={setBankPending} />
+          )}
           <SaleSettlementPanel
+            cashAndBankOnly={!historical}
             dictionary={dictionary}
             idPrefix="checkout-settlement"
             market={market}

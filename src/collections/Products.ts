@@ -1,6 +1,8 @@
 import type { CollectionConfig } from 'payload'
 import { randomUUID } from 'node:crypto'
 
+import { allocateProductSku } from '@/lib/product-sku'
+
 const authenticated = ({ req }: { req: { user: unknown } }) => Boolean(req.user)
 
 export const Products: CollectionConfig = {
@@ -14,6 +16,21 @@ export const Products: CollectionConfig = {
     delete: authenticated,
     read: authenticated,
     update: authenticated,
+  },
+  hooks: {
+    beforeValidate: [async ({ data, originalDoc, req }) => {
+      if (!data || data.sku?.trim()) return data
+      const existingSku = originalDoc?.sku
+      if (existingSku?.trim()) return { ...data, sku: existingSku }
+
+      const sku = await allocateProductSku(async (candidate) => {
+        const { totalDocs } = await req.payload.count({
+          collection: 'products', req, where: { sku: { equals: candidate } },
+        })
+        return totalDocs > 0
+      })
+      return { ...data, sku }
+    }],
   },
   fields: [
     { name: 'id', type: 'text', required: true, defaultValue: () => randomUUID() },

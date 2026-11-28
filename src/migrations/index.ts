@@ -19,6 +19,13 @@ import * as migration_20261126_064130_supplies from './20261126_064130_supplies'
 import * as migration_20261126_070707_supply_usage_details from './20261126_070707_supply_usage_details';
 import * as migration_20261126_080156_supply_costs from './20261126_080156_supply_costs';
 import * as migration_20261127_055314_supply_stock from './20261127_055314_supply_stock';
+import * as migration_20261127_092810_cash_summary from './20261127_092810_cash_summary';
+import * as migration_20261127_145338_always_on_cash from './20261127_145338_always_on_cash';
+import * as migration_20261127_160135_daily_cash_closing from './20261127_160135_daily_cash_closing';
+import * as migration_20261128_000000_backfill_product_skus from './20261128_000000_backfill_product_skus';
+import * as migration_20261128_010914_daily_cash_openings from './20261128_010914_daily_cash_openings';
+import * as migration_20261128_014532_cash_for_tomorrow from './20261128_014532_cash_for_tomorrow';
+import * as migration_20261128_015304_editable_cash_closing from './20261128_015304_editable_cash_closing';
 
 export const migrations = [
   {
@@ -125,5 +132,40 @@ export const migrations = [
     up: migration_20261127_055314_supply_stock.up,
     down: migration_20261127_055314_supply_stock.down,
     name: '20261127_055314_supply_stock',
+  },
+  {
+    up: migration_20261127_092810_cash_summary.up,
+    down: migration_20261127_092810_cash_summary.down,
+    name: '20261127_092810_cash_summary',
+  },
+  {
+    up: migration_20261127_145338_always_on_cash.up,
+    down: migration_20261127_145338_always_on_cash.down,
+    name: '20261127_145338_always_on_cash',
+  },
+  {
+    up: migration_20261127_160135_daily_cash_closing.up,
+    down: migration_20261127_160135_daily_cash_closing.down,
+    name: '20261127_160135_daily_cash_closing',
+  },
+  {
+    up: migration_20261128_000000_backfill_product_skus.up,
+    down: migration_20261128_000000_backfill_product_skus.down,
+    name: '20261128_000000_backfill_product_skus',
+  },
+  {
+    up: migration_20261128_010914_daily_cash_openings.up,
+    down: migration_20261128_010914_daily_cash_openings.down,
+    name: '20261128_010914_daily_cash_openings',
+  },
+  {
+    up: migration_20261128_014532_cash_for_tomorrow.up,
+    down: migration_20261128_014532_cash_for_tomorrow.down,
+    name: '20261128_014532_cash_for_tomorrow',
+  },
+  {
+    up: migration_20261128_015304_editable_cash_closing.up,
+    down: migration_20261128_015304_editable_cash_closing.down,
+    name: '20261128_015304_editable_cash_closing'
   },
 ];

@@ -11,6 +11,7 @@ import {
   getExpenseTemplates,
 } from '@/services/expenses'
 import { getShopSettings, marketContextFromSettings } from '@/services/settings'
+import { getExpenseCashLinks } from '@/services/cash-report'
 
 export const metadata: Metadata = { title: 'Expenses' }
 
@@ -27,6 +28,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
       getShopSettings(),
     ])
   const market = marketContextFromSettings(settings).profile
+  const cashLinks = await getExpenseCashLinks(market)
   const selectedExpenseId = expenses.find(({ id }) => id === query.expense)?.id
 
   return (
@@ -38,6 +40,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
       <ExpensesClient
         key={selectedExpenseId ?? 'all'}
         categories={categories}
+        cashLinks={cashLinks}
         dictionary={dictionary}
         dueOccurrences={due}
         expenses={expenses}

@@ -321,6 +321,10 @@ button:disabled,
     display: table-header-group;
   }
 
+  .report-print [data-slot='table-container'] {
+    overflow: visible;
+  }
+
   .professional-report tfoot {
     display: table-row-group;
   }

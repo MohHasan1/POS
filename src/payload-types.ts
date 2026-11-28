@@ -68,6 +68,8 @@ export interface Config {
   blocks: {};
   collections: {
     users: User;
+    'cash-ledger': CashLedger;
+    'cash-closings': CashClosing;
     products: Product;
     employees: Employee;
     'employee-commission-rates': EmployeeCommissionRate;
@@ -96,6 +98,8 @@ export interface Config {
   collectionsJoins: {};
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
+    'cash-ledger': CashLedgerSelect<false> | CashLedgerSelect<true>;
+    'cash-closings': CashClosingsSelect<false> | CashClosingsSelect<true>;
     products: ProductsSelect<false> | ProductsSelect<true>;
     employees: EmployeesSelect<false> | EmployeesSelect<true>;
     'employee-commission-rates': EmployeeCommissionRatesSelect<false> | EmployeeCommissionRatesSelect<true>;
@@ -189,6 +193,59 @@ export interface User {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "cash-ledger".
+ */
+export interface CashLedger {
+  id: string;
+  kind:
+    | 'opening'
+    | 'sale'
+    | 'payment'
+    | 'expense'
+    | 'payroll'
+    | 'income'
+    | 'outflow'
+    | 'transfer'
+    | 'reconcile'
+    | 'correction'
+    | 'ownerPickup';
+  effectiveAt: string;
+  cashMinor: number;
+  bankMinor: number;
+  countryCode: string;
+  currencyCode: string;
+  note?: string | null;
+  source?: string | null;
+  activeSource?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "cash-closings".
+ */
+export interface CashClosing {
+  id: string;
+  requestId: string;
+  lastEditRequestId?: string | null;
+  businessDate: string;
+  closedAt: string;
+  expectedCashMinor: number;
+  actualCashMinor: number;
+  ownerPickupMinor: number;
+  nextDayCashMinor?: number | null;
+  expectedBankMinor?: number | null;
+  actualBankMinor?: number | null;
+  bankPickupMinor?: number | null;
+  note?: string | null;
+  countryCode: string;
+  currencyCode: string;
+  timeZone: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "products".
  */
 export interface Product {
@@ -274,6 +331,8 @@ export interface Invoice {
   externalReference?: string | null;
   issuedAtPrecision: 'exact' | 'dateOnly';
   issuedAt: string;
+  cashAccount?: ('cash' | 'bank') | null;
+  bankPending?: boolean | null;
   employee?: (string | null) | Employee;
   employeeSnapshot?: {
     name?: string | null;
@@ -441,6 +500,7 @@ export interface Expense {
   netMinor: number;
   paymentStatus: 'unpaid' | 'paid';
   paidAt?: string | null;
+  cashPayment?: (string | null) | MoneyPayment;
   paymentMethod?: ('cash' | 'bank' | 'other') | null;
   reference?: string | null;
   note?: string | null;
@@ -454,16 +514,38 @@ export interface Expense {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "money-people".
+ * via the `definition` "money-payments".
  */
-export interface MoneyPerson {
+export interface MoneyPayment {
   id: string;
-  name: string;
-  phone?: string | null;
-  email?: string | null;
-  address?: string | null;
+  idempotencyKey: string;
+  account: string | MoneyAccount;
+  direction: 'owedToUs' | 'weOwe';
+  personSnapshot: {
+    name: string;
+  };
+  status: 'confirmed' | 'voided';
+  paymentDate: string;
+  amountMinor: number;
+  paymentMethod: 'cash' | 'bank_transfer' | 'cheque' | 'other';
+  paymentDetails?: {
+    bankName?: string | null;
+    transactionReference?: string | null;
+    transferDate?: string | null;
+    chequeNumber?: string | null;
+    chequeDate?: string | null;
+    otherDescription?: string | null;
+    otherReference?: string | null;
+  };
+  reference?: string | null;
   note?: string | null;
-  active: boolean;
+  receiptVoucher?: (string | null) | ReceiptVoucher;
+  countryCode: string;
+  currencyCode: string;
+  currencyMinorUnitDigits: number;
+  timeZone: string;
+  voidReason?: string | null;
+  voidedAt?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -511,38 +593,16 @@ export interface MoneyAccount {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "money-payments".
+ * via the `definition` "money-people".
  */
-export interface MoneyPayment {
+export interface MoneyPerson {
   id: string;
-  idempotencyKey: string;
-  account: string | MoneyAccount;
-  direction: 'owedToUs' | 'weOwe';
-  personSnapshot: {
-    name: string;
-  };
-  status: 'confirmed' | 'voided';
-  paymentDate: string;
-  amountMinor: number;
-  paymentMethod: 'cash' | 'bank_transfer' | 'cheque' | 'other';
-  paymentDetails?: {
-    bankName?: string | null;
-    transactionReference?: string | null;
-    transferDate?: string | null;
-    chequeNumber?: string | null;
-    chequeDate?: string | null;
-    otherDescription?: string | null;
-    otherReference?: string | null;
-  };
-  reference?: string | null;
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
   note?: string | null;
-  receiptVoucher?: (string | null) | ReceiptVoucher;
-  countryCode: string;
-  currencyCode: string;
-  currencyMinorUnitDigits: number;
-  timeZone: string;
-  voidReason?: string | null;
-  voidedAt?: string | null;
+  active: boolean;
   updatedAt: string;
   createdAt: string;
 }
@@ -754,6 +814,14 @@ export interface PayloadLockedDocument {
         value: number | User;
       } | null)
     | ({
+        relationTo: 'cash-ledger';
+        value: string | CashLedger;
+      } | null)
+    | ({
+        relationTo: 'cash-closings';
+        value: string | CashClosing;
+      } | null)
+    | ({
         relationTo: 'products';
         value: string | Product;
       } | null)
@@ -900,6 +968,48 @@ export interface UsersSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "cash-ledger_select".
+ */
+export interface CashLedgerSelect<T extends boolean = true> {
+  id?: T;
+  kind?: T;
+  effectiveAt?: T;
+  cashMinor?: T;
+  bankMinor?: T;
+  countryCode?: T;
+  currencyCode?: T;
+  note?: T;
+  source?: T;
+  activeSource?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "cash-closings_select".
+ */
+export interface CashClosingsSelect<T extends boolean = true> {
+  id?: T;
+  requestId?: T;
+  lastEditRequestId?: T;
+  businessDate?: T;
+  closedAt?: T;
+  expectedCashMinor?: T;
+  actualCashMinor?: T;
+  ownerPickupMinor?: T;
+  nextDayCashMinor?: T;
+  expectedBankMinor?: T;
+  actualBankMinor?: T;
+  bankPickupMinor?: T;
+  note?: T;
+  countryCode?: T;
+  currencyCode?: T;
+  timeZone?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "products_select".
  */
 export interface ProductsSelect<T extends boolean = true> {
@@ -976,6 +1086,8 @@ export interface InvoicesSelect<T extends boolean = true> {
   externalReference?: T;
   issuedAtPrecision?: T;
   issuedAt?: T;
+  cashAccount?: T;
+  bankPending?: T;
   employee?: T;
   employeeSnapshot?:
     | T
@@ -1163,6 +1275,7 @@ export interface ExpensesSelect<T extends boolean = true> {
   netMinor?: T;
   paymentStatus?: T;
   paidAt?: T;
+  cashPayment?: T;
   paymentMethod?: T;
   reference?: T;
   note?: T;

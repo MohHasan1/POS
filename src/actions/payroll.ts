@@ -54,6 +54,7 @@ function errorResult(error: unknown): ActionResult {
 
 function revalidatePayroll() {
   revalidatePath('/payroll')
+  revalidatePath('/reports/cash')
   revalidatePath('/employees')
   revalidatePath('/')
 }

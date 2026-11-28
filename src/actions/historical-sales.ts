@@ -89,6 +89,7 @@ export async function recordHistoricalSaleAction(
     revalidatePath('/invoices')
     revalidatePath('/money/owed-to-us')
     revalidatePath('/reports')
+    revalidatePath('/reports/cash')
     revalidatePath('/reports/print')
     revalidatePath('/service-board')
     return { ok: true, data: { id: invoice.id } }

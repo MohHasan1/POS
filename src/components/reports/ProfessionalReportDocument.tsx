@@ -4,6 +4,8 @@ import type { Dictionary, Locale } from '@/lib/localization'
 import { localizedName, marketLocale, normalizedTranslations } from '@/lib/market'
 import { formatMoney, formatQuantity } from '@/lib/money'
 
+import { ProfessionalReportLayout, ProfessionalReportMetrics } from './ProfessionalReportLayout'
+
 export function ProfessionalReportDocument({
   dictionary,
   employeeName,
@@ -92,47 +94,21 @@ export function ProfessionalReportDocument({
   ]
 
   return (
-    <article className="professional-report space-y-6">
-      <header className="border-b-2 border-black pb-3">
-        <div className="flex items-start justify-between gap-6">
-          <div>
-            <h1 className="text-2xl font-bold">{report.businessName}</h1>
-            <p className="mt-1 text-lg font-semibold">{dictionary.professionalBusinessReport}</p>
-            <p className="mt-1 text-sm">
-              {periodLabel} · {rangeLabel}
-            </p>
-            {employeeName && (
-              <p className="mt-1 text-sm">
-                {dictionary.employeeDetails}: {employeeName}
-              </p>
-            )}
-          </div>
-          <div className="text-right text-xs text-muted-foreground">
-            <p>{dictionary.reportGeneratedAt}</p>
-            <p className="mt-1 font-medium text-foreground">
-              {formatMarketDateTime(report.generatedAt, report.market, displayLocale)}
-            </p>
-            <p className="mt-1">{report.market.currencyCode}</p>
-          </div>
-        </div>
-        {employeeName && <p className="mt-2 text-xs">{dictionary.employeeFilterHint}</p>}
-      </header>
-
+    <ProfessionalReportLayout
+      dictionary={dictionary}
+      displayLocale={displayLocale}
+      headerDetail={employeeName && `${dictionary.employeeDetails}: ${employeeName}`}
+      headerNote={employeeName ? dictionary.employeeFilterHint : undefined}
+      periodLabel={periodLabel}
+      rangeLabel={rangeLabel}
+      report={report}
+      title={dictionary.professionalBusinessReport}
+    >
       <section className="professional-report-section">
         <h2 className="mb-2 text-base font-bold">{dictionary.reportSummary}</h2>
         <div className="space-y-3">
-          {summaryGroups.map((group) => (
-            <div key={group.title}>
-              <h3 className="mb-1 text-[9pt] font-semibold">{group.title}</h3>
-              <div className="professional-summary-grid grid grid-cols-5 border-l border-t border-black/30">
-                {group.items.map(([label, value]) => (
-                  <div key={label} className="border-b border-r border-black/30 p-2">
-                    <p className="text-[8pt] text-muted-foreground">{label}</p>
-                    <p className="mt-1 text-[11pt] font-bold tabular-nums">{value}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {summaryGroups.map(({ items, title }) => (
+            <ProfessionalReportMetrics key={title} items={items} title={title} />
           ))}
         </div>
         <p className="mt-2 text-[8pt] text-muted-foreground">
@@ -374,9 +350,6 @@ export function ProfessionalReportDocument({
         </section>
       )}
 
-      <footer className="border-t border-black pt-2 text-center text-[8pt] text-muted-foreground">
-        {dictionary.generatedByQuickPOS}
-      </footer>
-    </article>
+    </ProfessionalReportLayout>
   )
 }

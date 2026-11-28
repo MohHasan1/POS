@@ -77,6 +77,7 @@ export function saleSettlementInput(
 }
 
 export function SaleSettlementPanel({
+  cashAndBankOnly,
   dictionary,
   idPrefix,
   market,
@@ -88,6 +89,7 @@ export function SaleSettlementPanel({
   totalMinor,
   value,
 }: {
+  cashAndBankOnly?: boolean
   dictionary: Dictionary
   idPrefix: string
   market: MarketProfile
@@ -129,7 +131,7 @@ export function SaleSettlementPanel({
             <p className="mt-1 font-semibold tabular-nums">{formatMoney(remainingMinor, market, market.locale)}</p>
           </div>
           {paidNowMinor !== null && paidNowMinor > 0 && (
-            <PaymentMethodFields dictionary={dictionary} idPrefix={`${idPrefix}-initial-payment`} today={today} value={value.payment} onChange={(payment) => onChange({ ...value, payment })} />
+            <PaymentMethodFields cashAndBankOnly={cashAndBankOnly} dictionary={dictionary} idPrefix={`${idPrefix}-initial-payment`} today={today} value={value.payment} onChange={(payment) => onChange({ ...value, payment })} />
           )}
         </div>
       )}

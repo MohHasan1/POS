@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 
 import { ReportsClient } from '@/components/reports/ReportsClient'
+import { ReportNavigation } from '@/components/reports/ReportNavigation'
 import { getDictionary } from '@/lib/localization'
 import { requirePosAccess } from '@/lib/require-pos-access'
 import type { BusinessReportFilter, BusinessReportPeriod } from '@/lib/business-report-types'
@@ -48,6 +49,7 @@ export default async function ReportsPage({
         <h1 className="text-2xl font-semibold tracking-tight">{dictionary.reports}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{dictionary.reportsDescription}</p>
       </header>
+      <ReportNavigation active="business" dictionary={dictionary} />
       <ReportsClient
         key={`${period}:${filter.employeeId || 'all'}:${filter.startDate || ''}:${filter.endDate || ''}`}
         dictionary={dictionary}

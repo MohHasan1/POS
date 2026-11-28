@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import QRCode from 'qrcode'
 import { cache } from 'react'
 
+import { InvoiceCashCalculator } from '@/components/invoices/InvoiceCashCalculator'
 import { PrintButton } from '@/components/invoices/PrintButton'
 import { SimplifiedInvoiceTemplate } from '@/components/invoices/SimplifiedInvoiceTemplate'
 import { StandardInvoiceTemplate } from '@/components/invoices/StandardInvoiceTemplate'
@@ -112,6 +113,9 @@ export default async function InvoicePage({ params }: InvoicePageProps) {
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2"><p className="text-sm text-muted-foreground">{dictionary.invoiceOwedBalance}: {formatMoney(0, invoiceMarket, marketLocale(invoiceMarket, locale))}</p><Link href={`/money/owed-to-us?invoice=${invoice.id}`} className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>{dictionary.trackAsOwed}</Link></div>
         )}
       </section>
+      {invoice.totalMinor > 0 && (
+        <InvoiceCashCalculator key={invoice.id} totalMinor={invoice.totalMinor} market={invoiceMarket} dictionary={dictionary} locale={locale} />
+      )}
       {customerInvoice}
     </div>
   )

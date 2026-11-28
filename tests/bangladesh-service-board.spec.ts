@@ -4,11 +4,16 @@ import { randomUUID } from 'node:crypto'
 import { after, describe, it } from 'node:test'
 import { getPayload } from 'payload'
 
-import { todayDateInput } from '@/lib/calendar'
+import { getPeriodBounds, todayDateInput } from '@/lib/calendar'
 import { MARKET_PROFILES } from '@/lib/market'
+import { formatMoney } from '@/lib/money'
 import { getBusinessReport } from '@/services/business-reporting'
+import { closeCashDay, getCashClosingForReport } from '@/services/cash-closing'
+import { getCashReport, startCashTracking } from '@/services/cash-report'
+import { createExpenseCategory, createVariableExpense } from '@/services/expenses'
 import { createMoneyAccount, createMoneyPayment, createMoneyPerson, getInvoiceMoneyAccount, getMoneyDashboard } from '@/services/money'
 import { createProduct } from '@/services/products'
+import { finalizeInvoiceWithSettlement } from '@/services/sale-settlement'
 import { getSalesDashboard } from '@/services/sales-reporting'
 import {
   addServiceBoardColumn,
@@ -22,11 +27,17 @@ const invoiceIds: string[] = []
 const accountIds: string[] = []
 const paymentIds: string[] = []
 const personIds: string[] = []
+const expenseIds: string[] = []
+const categoryIds: string[] = []
 
 describe('Bangladesh Service Board flow', () => {
   after(async () => {
     const payload = await getPayload({ config })
     await payload.updateGlobal({ slug: 'service-board-settings', data: { columns: [] } })
+    await payload.delete({ collection: 'cash-closings', where: { countryCode: { equals: 'BD' } } })
+    await payload.delete({ collection: 'cash-ledger', where: { countryCode: { equals: 'BD' } } })
+    for (const id of expenseIds) await payload.delete({ collection: 'expenses', id })
+    for (const id of categoryIds) await payload.delete({ collection: 'expense-categories', id })
     for (const id of paymentIds) await payload.delete({ collection: 'money-payments', id })
     for (const id of accountIds) await payload.delete({ collection: 'money-accounts', id })
     for (const id of invoiceIds) await payload.delete({ collection: 'invoices', id })
@@ -156,5 +167,52 @@ describe('Bangladesh Service Board flow', () => {
     assert.equal(updatedBoard.summary.moneyToReceiveMinor, 8_000)
     assert.equal(dashboard.moneyToReceiveMinor, 8_000)
     assert.equal(report.summary.owedToUsMinor, 10_000)
+  })
+
+  it('matches the opening, drawer count, and owner pickup from the Notion example in BDT', async () => {
+    const market = MARKET_PROFILES.BD
+    const today = todayDateInput(market)
+    const { nextDayStart } = getPeriodBounds(market)
+    const payload = await getPayload({ config })
+    await payload.delete({ collection: 'cash-ledger', where: { countryCode: { equals: 'BD' } } })
+    await startCashTracking({ basis: 'startOfDay', cashMinor: 3_500, bankMinor: 0 })
+
+    const product = await createProduct({ nameEnglish: 'Closing test sale', priceMinor: 1_000, priceIncludesVat: false, vatCategory: 'exempt' })
+    productIds.push(product.id)
+    for (const [cashAccount, unitPriceMinor] of [['cash', 142_000], ['bank', 26_000]] as const) {
+      const { invoice } = await finalizeInvoiceWithSettlement({
+        items: [{ productId: product.id, quantityMilliunits: 1_000, unitPriceMinor }],
+        idempotencyKey: randomUUID(), invoiceType: 'sales',
+      }, { cashAccount })
+      invoiceIds.push(invoice.id)
+    }
+    const category = await createExpenseCategory('Closing test expenses')
+    categoryIds.push(category.id)
+    const expense = await createVariableExpense({
+      idempotencyKey: randomUUID(), categoryId: category.id, name: 'Morning supplies', billDate: today,
+      totalMinor: 33_000, vatMinor: 0, paymentStatus: 'paid', paymentMethod: 'cash', paidAt: today,
+    })
+    expenseIds.push(expense.id)
+
+    assert.deepEqual(await closeCashDay({
+      requestId: randomUUID(), businessDate: today, expectedCashMinor: 112_500,
+      actualCashMinor: 112_500, ownerPickupMinor: 112_500, nextDayCashMinor: 0, note: '',
+    }), { status: 'saved' })
+    const closing = (await getCashClosingForReport({ period: 'yesterday' }, market, nextDayStart))?.closing
+    assert(closing)
+    assert.equal(closing.currencyCode, 'BDT')
+    assert.equal(closing.timeZone, 'Asia/Dhaka')
+    assert.equal(formatMoney(closing.actualCashMinor, market, 'en-BD'), '৳1,125.00')
+    assert.equal(closing.actualCashMinor - closing.expectedCashMinor, 0)
+    assert.equal(closing.actualCashMinor - closing.ownerPickupMinor, 0)
+
+    const report = await getCashReport({ period: 'yesterday' }, market, 1, nextDayStart)
+    assert.deepEqual(report.balances?.closing, { cashMinor: 0, bankMinor: 26_000 })
+    assert.deepEqual(report.activity.breakdown.expensesPaid, { cashMinor: -33_000, bankMinor: 0 })
+    assert.equal((await getBusinessReport({ period: 'today' })).summary.grossSalesMinor, 183_000)
+    assert.deepEqual(report.activity.breakdown.adjustments, { cashMinor: 0, bankMinor: 0 })
+    assert.deepEqual(report.activity.breakdown.ownerPickup, { cashMinor: -112_500, bankMinor: 0 })
+    const nextDay = await getCashReport({ period: 'today' }, market, 1, nextDayStart)
+    assert.deepEqual(nextDay.balances?.carried, { cashMinor: 0, bankMinor: 0 })
   })
 })

@@ -1,4 +1,5 @@
 import {
+  Banknote,
   Boxes,
   Building2,
   ChartNoAxesCombined,
@@ -116,6 +117,14 @@ export const appNavigation = [
     homeLabelKey: 'reports',
     homeDescriptionKey: 'homeReportsDescription',
     icon: ChartNoAxesCombined,
+    primary: false,
+  },
+  {
+    href: '/reports/cash',
+    labelKey: 'cashSummaryTitle',
+    homeLabelKey: 'homeCashLabel',
+    homeDescriptionKey: 'cashSummaryDescription',
+    icon: Banknote,
     primary: false,
   },
   {

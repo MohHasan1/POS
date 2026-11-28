@@ -192,6 +192,7 @@ async function recordData(input: ExpenseRecordInput, req?: Partial<PayloadReques
   return {
     ...amounts,
     billDate: dateInputToISOString(input.billDate, profile),
+    cashPayment: input.paymentStatus === 'paid' ? input.cashPaymentId ?? null : null,
     category: category.id,
     categorySnapshot: { name: category.name },
     countryCode: profile.countryCode,
@@ -386,7 +387,7 @@ export async function voidExpense(id: string, reason: string): Promise<Expense> 
   return payload.update({
     collection: 'expenses',
     id,
-    data: { status: 'voided', voidReason: reason.trim() },
+    data: { status: 'voided', voidReason: reason.trim(), cashPayment: null },
   })
 }
 
